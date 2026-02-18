@@ -104,80 +104,70 @@ class LocalLLM:
             print("  3. Insufficient RAM - try a smaller model")
             return False
     
+    def execute_prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None):
+        try:
+            cleaned_prompt = self.truncate_to_context(prompt, max_tokens)
+
+            # Generate response
+            output = self.model(
+                cleaned_prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stop=stop or ["User:"],
+                echo=False
+            )
+            
+            response = output['choices'][0]['text'].strip()
+            return response
+        except Exception as e:
+            print(f"❌ Error during generation: {e}")
+            return "Sorry, I encountered an error while generating a response."
+    
+    def process_tool_calls(self, tool_calls):
+        try:
+            tool_results = []
+            for tool_call in tool_calls:
+                tool_result = self.execute_tool_call(
+                    tool_call['tool'], 
+                    tool_call['parameters']
+                )
+                tool_results.append(tool_result)
+            
+            combined_results = "\n\n".join(tool_results)
+            return combined_results
+        except Exception as e:
+            print(f"❌ Error during tool execution: {e}")
+            return "Sorry, I encountered an error while executing a tool."
+
     def prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None, max_tool_iterations=3):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             print("❌ Model not loaded. Call load_model() first.")
             return None
         
+        # LLM Call
         print(f"🤔 Generating response for: \"{prompt[:50]}...\"")
-        
-        # Build the conversation with tool instructions
-        conversation = self._build_tool_prompt(prompt)
-        
-        iteration = 0
-        while iteration < max_tool_iterations:
-            start_time = time.time()
-            
-            try:
-                # Ensure conversation fits within context window
-                conversation = self.truncate_to_context(conversation, max_tokens)
-                
-                # Generate response
-                output = self.model(
-                    conversation,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    stop=stop or ["User:"],
-                    echo=False
-                )
-                
-                response = output['choices'][0]['text'].strip()
-                
-                generation_time = time.time() - start_time
-                tokens_generated = output['usage']['completion_tokens']
-                tokens_per_second = tokens_generated / generation_time if generation_time > 0 else 0
-                
-                print(f"⚡ Generated {tokens_generated} tokens in {generation_time:.1f}s ({tokens_per_second:.1f} tokens/s)")
-                
-                # Check for tool calls
-                if self.tools_enabled:
-                    tool_calls = self.parse_tool_calls(response)
-                    
-                    if tool_calls:
-                        print(f"🔧 Found {len(tool_calls)} tool call(s)")
-                        
-                        # Execute tool calls and build new conversation
-                        tool_results = []
-                        for tool_call in tool_calls:
-                            tool_result = self.execute_tool_call(
-                                tool_call['tool'], 
-                                tool_call['parameters']
-                            )
-                            tool_results.append(tool_result)
-                        
-                        # Build a clean conversation with tool results
-                        combined_results = "\n\n".join(tool_results)
-                        conversation = f"""A user asked: "{prompt}"
+        response = self.execute_prompt(self._build_tool_prompt(prompt), max_tokens, temperature, stop)
+        print(f"Initial response generated. Checking for tool calls...")
 
-I searched the web and found this information:
-{combined_results}
+        if not self.tools_enabled:
+            print("⚠️  Tools are disabled, returning response without tool execution")
+            return self.clean_response(response)
 
-Using the specific information above, provide a complete and helpful answer with actual details (like numbers, temperatures, conditions, etc.). Do not just provide website URLs - use the information content to give a real answer:"""
-                        
-                        iteration += 1
-                        continue
-                
-                # No tool calls found or tools disabled, return final response
-                cleaned_response = self.clean_response(response)
-                return cleaned_response
-                
-            except Exception as e:
-                print(f"❌ Error generating response: {e}")
-                return None
-        
-        print(f"⚠️  Reached maximum tool iterations ({max_tool_iterations})")
-        return response
+        tool_calls = self.parse_tool_calls(response)
+        if not tool_calls:
+            print("✅ No tool calls found, returning response")
+            return self.clean_response(response)
+
+        print(f"🔧 Found {len(tool_calls)} tool call(s)")
+        tool_results = self.process_tool_calls(tool_calls)
+        print(f"✅ Tool calls executed. Building final response with tool results...")
+
+        # LLM Call with tool results
+        response = self.execute_prompt(self._build_secondary_prompt(prompt, response, tool_results), max_tokens, temperature, stop)
+
+        cleaned_response = self.clean_response(response)
+        return cleaned_response    
     
     def _build_tool_prompt(self, user_prompt):
         """Build a prompt that includes tool instructions"""
@@ -196,6 +186,14 @@ Thank you!
         """
         
         return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {user_prompt}"
+    
+    def _build_secondary_prompt(self, original_prompt, initial_response, tool_results):
+        """Build a prompt for the second LLM call that includes tool results"""
+        return f"""Original Prompt: "{original_prompt}"
+Your Initial Response: "{initial_response}"
+Tool Call Results: "{tool_results}"
+Additional Instructions: You are an AI assistant that replies to user questions that are submitted over email. Your next response is directly emailed back to the user with your entire response text as the email body. Using the specific information above, provide a complete and helpful answer to the original prompt with actual details (like numbers, temperatures, conditions, etc.). Please keep your response short because the context window is limited. Do not repeat the original question in your answer. Just provide the answer ONLY. Thank you!
+        """
     
     def estimate_tokens(self, text):
         """Rough estimate of token count (approximately 4 characters per token)"""
@@ -383,30 +381,31 @@ Thank you!
     
     def clean_response(self, response):
         """Clean up the response by removing unwanted prefixes and formatting"""
-        if not response:
-            return response
+        # if not response:
+        #     return response
         
-        # Remove common prefixes that LLMs sometimes add
-        keywords_to_remove = [
-            "response:",
-            "answer:", 
-            "assistant:",
-            "ai:",
-            "support:",
-            "response=",
-            "answer=", 
-            "assistant=",
-            "ai=",
-            "support="
-            "<|assistant|>"
-        ]
+        # # Remove common prefixes that LLMs sometimes add
+        # keywords_to_remove = [
+        #     "response:",
+        #     "answer:", 
+        #     "assistant:",
+        #     "ai:",
+        #     "support:",
+        #     "response=",
+        #     "answer=", 
+        #     "assistant=",
+        #     "ai=",
+        #     "support="
+        #     "<|assistant|>"
+        # ]
         
-        cleaned = response.strip()
+        # cleaned = response.strip()
         
-        for keyword in keywords_to_remove:
-            # Remove whitespace before and after the keyword
-            pattern = re.compile(re.escape(keyword) + r'\s*', re.IGNORECASE)
-            cleaned = pattern.sub("", cleaned)
+        # for keyword in keywords_to_remove:
+        #     # Remove whitespace before and after the keyword
+        #     pattern = re.compile(re.escape(keyword) + r'\s*', re.IGNORECASE)
+        #     cleaned = pattern.sub("", cleaned)
         
-        # Final strip to clean up any remaining leading/trailing whitespace
-        return cleaned.strip()
+        # # Final strip to clean up any remaining leading/trailing whitespace
+        # return cleaned.strip()
+        return response.strip()
