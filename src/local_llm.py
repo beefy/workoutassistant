@@ -174,12 +174,10 @@ class LocalLLM:
             return user_prompt
         
         tool_instructions = """
-You are an AI assistant that replies to user questions that are submitted over email. Your response is directly emailed back to the user with your entire response text as the email body.
-
 You have access to web search. If you need current information or facts not in your knowledge, use:
 [TOOL:web_search]{"query": "your search terms here"}
 
-If you can answer without web search, respond directly. Do not use a tool call unless you need to, to save time and energy. Do not prefix your response with anything like "Response:" or "Answer:" because that will be shown to the user. Just provide the answer ONLY. Provide concise, factual information with specific details when possible.
+Do not use a tool call unless you need to, to save time and energy. Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
 
@@ -190,10 +188,9 @@ Your Response:
     
     def _build_secondary_prompt(self, original_prompt, initial_response, tool_results):
         """Build a prompt for the second LLM call that includes tool results"""
-        return f"""Original Prompt: "{original_prompt}"
+        return f"""Prompt: "{original_prompt}"
 Additional Info: "{tool_results}"
-Additional Instructions: You are an AI assistant that replies to user questions that are submitted over email. Your next response is directly emailed back to the user with your entire response text as the email body. Using the specific information above, provide a complete and helpful answer to the original prompt with actual details (like numbers, temperatures, conditions, etc.). Please keep your response short because the context window is limited. Do not repeat the original question in your answer. Just provide the answer ONLY. Thank you!
-Your Final Response:
+Your Response:
         """
     
     def estimate_tokens(self, text):
