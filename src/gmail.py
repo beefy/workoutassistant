@@ -8,7 +8,7 @@ import os
 
 
 class GmailClient:
-    def __init__(self, email_address, app_password):
+    def __init__(self, email_address=None, app_password=None):
         if not email_address or not app_password:
             email_address = os.getenv("GMAIL_ADDRESS")
             app_password = os.getenv("GMAIL_APP_PASSWORD")
