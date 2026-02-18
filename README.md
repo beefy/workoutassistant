@@ -32,7 +32,7 @@ sudo yum install sqlite
 
 Create the initial tables
 ```
-PYTHONPATH=src python create_tables.py
+PYTHONPATH=src python src/create_tables.py
 ```
 
 ### Email setup

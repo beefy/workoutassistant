@@ -2,11 +2,11 @@ from db import SQLiteClient
 
 def get_approve_list():
     db = SQLiteClient()
-    return db.fetch_all("approve_list", order_by="added_at DESC")
+    return db.select("approve_list")
 
 def is_email_approved(email):
     db = SQLiteClient()
-    result = db.fetch_all("approve_list", where="email = ?", params=(email,))
+    result = db.select("approve_list", where="email = ?", params=(email,))
     return len(result) > 0
 
 def add_to_approve_list(email):
