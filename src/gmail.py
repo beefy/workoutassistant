@@ -8,10 +8,16 @@ from email.mime.multipart import MIMEMultipart
 
 class GmailClient:
     def __init__(self, email_address, app_password):
+        if not email_address or not app_password:
+            raise ValueError("Email address and app password are required")
         self.email = email_address
         self.password = app_password
 
     def send_email(self, to_email, subject, body, is_html=False):
+        if not all([to_email, subject, body]):
+            print("❌ Send failed: to_email, subject, and body are required")
+            return False
+            
         try:
             msg = MIMEMultipart()
             msg['From'] = self.email
@@ -68,10 +74,14 @@ class GmailClient:
                     if email_message.is_multipart():
                         for part in email_message.walk():
                             if part.get_content_type() == "text/plain" and "attachment" not in str(part.get("Content-Disposition")):
-                                body = part.get_payload(decode=True).decode()
-                                break
+                                payload = part.get_payload(decode=True)
+                                if payload:
+                                    body = payload.decode('utf-8', errors='ignore')
+                                    break
                     else:
-                        body = email_message.get_payload(decode=True).decode()
+                        payload = email_message.get_payload(decode=True)
+                        if payload:
+                            body = payload.decode('utf-8', errors='ignore')
                     
                     emails.append({
                         'uid': msg_id.decode(),
