@@ -9,7 +9,7 @@ def process_email():
     # Collect new emails
     new_emails = gmail.check_emails()
     for email_info in new_emails:
-        sender = email_info['from']
+        sender = email_info['from'].replace("<", "").replace(">", "")
         subject = email_info['subject']
         body = email_info['body']
 
