@@ -47,6 +47,7 @@ export GMAIL_ADDRESS=<email@gmail.com>
 export GMAIL_APP_PASSWORD=<app_password>
 export TEST_EMAIL=<emailtosendtestemailto@gmail.com>
 export ADMIN_EMAIL=<adminemail@gmail.com>
+export APPROVED_PHRASE=<phrase to add to approve list>
 ```
 
 ### Run the script

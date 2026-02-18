@@ -1,6 +1,7 @@
 from gmail import GmailClient
 from local_llm import LocalLLM
 from approve_list import is_email_approved, add_to_approve_list
+import os
 
 def process_email():
     gmail = GmailClient()
@@ -18,7 +19,7 @@ def process_email():
 
         if is_email_approved(senders_email):
             print(f"✅ {sender} is approved. Processing email...")
-        elif "friend of nate" in body.lower():
+        elif os.getenv("APPROVED_PHRASE").lower() in body.lower():
             print(f"✅ {sender} is a friend of Nate. Adding to approve list...")
             add_to_approve_list(senders_email)
         else:
