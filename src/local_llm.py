@@ -293,21 +293,22 @@ Your Response:
         
         cleaned = response.replace("\n===\n", "").strip()
 
-        # if "Dear " in response, remove everything before it
-        if "Dear " in cleaned:
-            cleaned = cleaned[cleaned.find("Dear "):]
+        # if "Dear " in response, remove everything before it (case insensitive)
+        dear_match = re.search(r"dear\s+", cleaned, re.IGNORECASE)
+        if dear_match:
+            cleaned = cleaned[dear_match.start():]
 
         # If Sincerely, Bob the Raspberry Pi is in the response, remove everything after it
-        # Consider new lines inbetween Sincerely and Bob the Raspberry Pi
-        regex = r"Sincerely,\s*Bob the Raspberry Pi"
-        match = re.search(regex, cleaned)
+        # Allow for text and newlines between "Sincerely," and "Bob the Raspberry Pi"
+        sincerely_pattern = r"sincerely,.*?bob\s+the\s+raspberry\s+pi"
+        match = re.search(sincerely_pattern, cleaned, re.IGNORECASE | re.DOTALL)
         if match:
             cleaned = cleaned[:match.end()]
 
-        for keyword in keywords_to_remove:
-            # Remove whitespace before and after the keyword
-            pattern = re.compile(re.escape(keyword) + r'\s*', re.IGNORECASE)
-            cleaned = pattern.sub("", cleaned)
+        # for keyword in keywords_to_remove:
+        #     # Remove whitespace before and after the keyword
+        #     pattern = re.compile(re.escape(keyword) + r'\s*', re.IGNORECASE)
+        #     cleaned = pattern.sub("", cleaned)
         
         # Final strip to clean up any remaining leading/trailing whitespace
         return cleaned.strip()
