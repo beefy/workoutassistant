@@ -1,5 +1,7 @@
 # workoutassistant
 
+An LLM that will answer emails
+
 ### Setup Local LLM
 
 ```

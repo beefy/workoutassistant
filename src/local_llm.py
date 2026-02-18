@@ -387,7 +387,7 @@ Thank you!
             return response
         
         # Remove common prefixes that LLMs sometimes add
-        prefixes_to_remove = [
+        keywords_to_remove = [
             "response:",
             "answer:", 
             "assistant:",
@@ -398,22 +398,15 @@ Thank you!
             "assistant=",
             "ai=",
             "support="
-            "Response:",
-            "Answer:", 
-            "Assistant:",
-            "AI:",
-            "Support:",
-            "Response=",
-            "Answer=", 
-            "Assistant=",
-            "AI=",
-            "Support=",
             "<|assistant|>"
         ]
         
         cleaned = response.strip()
         
-        for prefix in prefixes_to_remove:
-            cleaned = cleaned.replace(prefix, "").strip()
+        for keyword in keywords_to_remove:
+            # Remove whitespace before and after the keyword
+            pattern = re.compile(r'\s*' + re.escape(keyword) + r'\s*', re.IGNORECASE)
+            cleaned = pattern.sub("", cleaned)
         
-        return cleaned
+        # Final strip to clean up any remaining leading/trailing whitespace
+        return cleaned.strip()

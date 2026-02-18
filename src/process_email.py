@@ -34,6 +34,8 @@ def process_email():
         # Send response email
         gmail.send_email(senders_email, f"Re: {subject}", response)
 
+        print(f"📧 Completed processing email from {sender}: {subject}")
+
 
 if __name__ == "__main__":
     process_email()
