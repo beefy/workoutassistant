@@ -23,14 +23,14 @@ def main():
     
     # Test without web search first
     print("\n🔸 Test 1: Simple question without web search")
-    llm.set_tools_enabled(False)
+    llm.set_tools_enabled(True)
     response = llm.prompt("What is 2+2?", max_tokens=100, temperature=0.3)
     print(f"Response: {response}")
     
     # Test with web search enabled
     print("\n🔸 Test 2: Question that should trigger web search")
     llm.set_tools_enabled(True)
-    response = llm.prompt("What's the current weather in New York?", max_tokens=300, temperature=0.3)
+    response = llm.prompt("What's the current weather in New York City?", max_tokens=400, temperature=0.3)
     print(f"Response: {response}")
 
 

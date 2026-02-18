@@ -155,18 +155,19 @@ class LocalLLM:
                         
                         # Build a clean conversation with tool results
                         combined_results = "\n\n".join(tool_results)
-                        conversation = f"""You are a helpful AI assistant. A user asked: "{prompt}"
+                        conversation = f"""A user asked: "{prompt}"
 
-You searched for information and found these results:
+Here is the information found from web searches:
 {combined_results}
 
-Based on this information, provide a helpful and complete answer to the user's question:"""
+Based on this information, provide a complete and helpful answer. Do not use prefixes like "Response:" or "Answer:" - just provide the answer directly:"""
                         
                         iteration += 1
                         continue
                 
                 # No tool calls found or tools disabled, return final response
-                return response
+                cleaned_response = self.clean_response(response)
+                return cleaned_response
                 
             except Exception as e:
                 print(f"❌ Error generating response: {e}")
@@ -183,7 +184,7 @@ Based on this information, provide a helpful and complete answer to the user's q
         tool_instructions = """You have access to web search. If you need current information or facts not in your knowledge, use:
 [TOOL:web_search]{"query": "your search terms here"}
 
-If you can answer without web search, do so directly."""
+If you can answer without web search, respond directly. Do not prefix your response with "Response:" or "Answer:" - just provide the answer."""
         
         return f"{tool_instructions}\n\nUser: {user_prompt}\nAssistant: "
     
@@ -214,18 +215,57 @@ If you can answer without web search, do so directly."""
                 snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
                 
                 if title and url:
+                    # Fetch actual content from the page
+                    content = self.fetch_page_content(url)
                     results.append({
                         'title': title,
                         'url': url,
-                        'snippet': snippet
+                        'snippet': snippet,
+                        'content': content
                     })
             
-            print(f"✅ Found {len(results)} search results")
+            print(f"✅ Found {len(results)} search results with content")
             return results
             
         except Exception as e:
             print(f"❌ Web search failed: {e}")
-            return [{"title": "Search Error", "snippet": f"Unable to search the web: {str(e)}", "url": ""}]
+            return [{"title": "Search Error", "snippet": f"Unable to search the web: {str(e)}", "url": "", "content": ""}]
+    
+    def fetch_page_content(self, url, max_length=2000):
+        """Fetch and extract text content from a webpage"""
+        try:
+            print(f"📄 Fetching content from: {url[:50]}...")
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style"]):
+                script.decompose()
+            
+            # Get text content
+            text = soup.get_text()
+            
+            # Clean up whitespace
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = ' '.join(chunk for chunk in chunks if chunk)
+            
+            # Truncate if too long
+            if len(text) > max_length:
+                text = text[:max_length] + "..."
+            
+            return text
+            
+        except Exception as e:
+            print(f"⚠️  Failed to fetch content from {url}: {e}")
+            return "Content could not be retrieved from this page."
     
     def execute_tool_call(self, tool_name, parameters):
         """Execute a tool call and return the result"""
@@ -233,10 +273,15 @@ If you can answer without web search, do so directly."""
             query = parameters.get('query', '')
             if query:
                 results = self.web_search(query)
-                # Format results for the LLM
+                # Format results for the LLM with actual content
                 formatted_results = []
                 for i, result in enumerate(results, 1):
-                    formatted_results.append(f"{i}. {result['title']}\n   {result['snippet']}\n   URL: {result['url']}")
+                    content_preview = result['content'][:500] + "..." if len(result['content']) > 500 else result['content']
+                    formatted_results.append(
+                        f"{i}. {result['title']}\n"
+                        f"   URL: {result['url']}\n"
+                        f"   Content: {content_preview}"
+                    )
                 return "\n\n".join(formatted_results)
             else:
                 return "Error: No search query provided"
@@ -263,3 +308,25 @@ If you can answer without web search, do so directly."""
                 print(f"❌ Failed to parse tool call parameters: {e}")
                 
         return tool_calls
+    
+    def clean_response(self, response):
+        """Clean up the response by removing unwanted prefixes and formatting"""
+        if not response:
+            return response
+        
+        # Remove common prefixes that LLMs sometimes add
+        prefixes_to_remove = [
+            "Response:",
+            "Answer:", 
+            "Assistant:",
+            "AI:"
+        ]
+        
+        cleaned = response.strip()
+        
+        for prefix in prefixes_to_remove:
+            if cleaned.startswith(prefix):
+                cleaned = cleaned[len(prefix):].strip()
+                break
+        
+        return cleaned
