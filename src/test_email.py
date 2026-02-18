@@ -6,6 +6,8 @@ app_password = os.getenv("GMAIL_APP_PASSWORD")
 test_email = os.getenv("TEST_EMAIL")
 gmail = GmailClient(email_address, app_password)
 
+print(f"Sending test email from {email_address} to {test_email}")
+
 # Send email
 gmail.send_email(test_email, "Test", "Hello World!")
 
