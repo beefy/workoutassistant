@@ -48,3 +48,25 @@ export GMAIL_APP_PASSWORD=<app_password>
 export TEST_EMAIL=<emailtosendtestemailto@gmail.com>
 export ADMIN_EMAIL=<adminemail@gmail.com>
 ```
+
+### Run the script
+
+Start it in the background
+```
+nohup python src/main.py > output.log 2>&1 &
+```
+
+Find the process to kill it when done
+```
+# Find by script name
+ps aux | grep src/main.py
+```
+
+Kill the process
+```
+# Kill by PID
+kill 12345
+
+# Force kill
+kill -9 12345
+```
