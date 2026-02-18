@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def web_search(self, query, num_results=2):
+def web_search(query, num_results=2):
     """Perform a web search and return summarized results"""
     print(f"🔍 Searching web for: {query}")
     
@@ -30,7 +30,7 @@ def web_search(self, query, num_results=2):
             
             if title and url:
                 # Fetch actual content from the page
-                content = self.fetch_page_content(url)
+                content = fetch_page_content(url)
                 results.append({
                     'title': title,
                     'url': url,
@@ -45,7 +45,7 @@ def web_search(self, query, num_results=2):
         print(f"❌ Web search failed: {e}")
         return [{"title": "Search Error", "snippet": f"Unable to search the web: {str(e)}", "url": "", "content": ""}]
 
-def fetch_page_content(self, url, max_length=1500):
+def fetch_page_content(url, max_length=1500):
     """Fetch and extract text content from a webpage"""
     try:
         print(f"📄 Fetching content from: {url[:50]}...")
