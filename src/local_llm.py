@@ -181,6 +181,8 @@ Do not use a tool call unless you need to, to save time and energy. Provide conc
 Please keep your response short because the context window is limited.
 Thank you!
 
+IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
+
 Your Response:
         """
         
@@ -190,6 +192,7 @@ Your Response:
         """Build a prompt for the second LLM call that includes tool results"""
         return f"""Prompt: "{original_prompt}"
 Additional Info: "{tool_results}"
+IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 Your Response:
         """
     
@@ -289,7 +292,18 @@ Your Response:
         ]
         
         cleaned = response.replace("\n===\n", "").strip()
-        
+
+        # if "Dear " in response, remove everything before it
+        if "Dear " in cleaned:
+            cleaned = cleaned[cleaned.find("Dear "):]
+
+        # If Sincerely, Bob the Raspberry Pi is in the response, remove everything after it
+        # Consider new lines inbetween Sincerely and Bob the Raspberry Pi
+        regex = r"Sincerely,\s*Bob the Raspberry Pi"
+        match = re.search(regex, cleaned)
+        if match:
+            cleaned = cleaned[:match.end()]
+
         for keyword in keywords_to_remove:
             # Remove whitespace before and after the keyword
             pattern = re.compile(re.escape(keyword) + r'\s*', re.IGNORECASE)
