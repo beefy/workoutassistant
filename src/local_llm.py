@@ -157,10 +157,10 @@ class LocalLLM:
                         combined_results = "\n\n".join(tool_results)
                         conversation = f"""A user asked: "{prompt}"
 
-Here is the information found from web searches:
+I searched the web and found this information:
 {combined_results}
 
-Based on this information, provide a complete and helpful answer. Do not use prefixes like "Response:" or "Answer:" - just provide the answer directly:"""
+Using the specific information above, provide a complete and helpful answer with actual details (like numbers, temperatures, conditions, etc.). Do not just provide website URLs - use the information content to give a real answer:"""
                         
                         iteration += 1
                         continue
@@ -188,7 +188,7 @@ If you can answer without web search, respond directly. Do not prefix your respo
         
         return f"{tool_instructions}\n\nUser: {user_prompt}\nAssistant: "
     
-    def web_search(self, query, num_results=3):
+    def web_search(self, query, num_results=2):
         """Perform a web search and return summarized results"""
         print(f"🔍 Searching web for: {query}")
         
@@ -231,7 +231,7 @@ If you can answer without web search, respond directly. Do not prefix your respo
             print(f"❌ Web search failed: {e}")
             return [{"title": "Search Error", "snippet": f"Unable to search the web: {str(e)}", "url": "", "content": ""}]
     
-    def fetch_page_content(self, url, max_length=2000):
+    def fetch_page_content(self, url, max_length=3000):
         """Fetch and extract text content from a webpage"""
         try:
             print(f"📄 Fetching content from: {url[:50]}...")
@@ -240,26 +240,58 @@ If you can answer without web search, respond directly. Do not prefix your respo
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
             
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(url, headers=headers, timeout=15)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Remove script and style elements
-            for script in soup(["script", "style"]):
-                script.decompose()
+            # Remove script, style, and navigation elements
+            for element in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                element.decompose()
+            
+            # Try to find main content areas first
+            content_selectors = [
+                'main', 'article', '.content', '.main-content', 
+                '.weather-info', '.current-weather', '.weather-details',
+                '.temperature', '.conditions', '.forecast'
+            ]
+            
+            main_content = None
+            for selector in content_selectors:
+                main_content = soup.select_one(selector)
+                if main_content:
+                    break
+            
+            # If no main content found, use body
+            if not main_content:
+                main_content = soup.find('body') or soup
             
             # Get text content
-            text = soup.get_text()
+            text = main_content.get_text(separator=' ', strip=True)
             
-            # Clean up whitespace
-            lines = (line.strip() for line in text.splitlines())
-            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text = ' '.join(chunk for chunk in chunks if chunk)
+            # Clean up whitespace and common website artifacts
+            lines = text.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                line = line.strip()
+                if line and len(line) > 3:  # Skip very short lines
+                    # Skip common website navigation text
+                    skip_phrases = ['cookie', 'privacy policy', 'terms of service', 
+                                    'subscribe', 'newsletter', 'advertisement']
+                    if not any(phrase in line.lower() for phrase in skip_phrases):
+                        cleaned_lines.append(line)
             
-            # Truncate if too long
+            text = ' '.join(cleaned_lines)
+            
+            # Truncate if too long but try to keep complete sentences
             if len(text) > max_length:
-                text = text[:max_length] + "..."
+                text = text[:max_length]
+                # Try to end at a sentence boundary
+                last_period = text.rfind('.')
+                if last_period > max_length * 0.8:  # If we're close to the end
+                    text = text[:last_period + 1]
+                else:
+                    text = text + "..."
             
             return text
             
@@ -273,14 +305,16 @@ If you can answer without web search, respond directly. Do not prefix your respo
             query = parameters.get('query', '')
             if query:
                 results = self.web_search(query)
-                # Format results for the LLM with actual content
+                # Format results for the LLM with actual content that's useful
                 formatted_results = []
                 for i, result in enumerate(results, 1):
-                    content_preview = result['content'][:500] + "..." if len(result['content']) > 500 else result['content']
+                    # Use more of the content for better context
+                    content = result['content'][:3000] if result['content'] else result['snippet']
+                    
                     formatted_results.append(
-                        f"{i}. {result['title']}\n"
-                        f"   URL: {result['url']}\n"
-                        f"   Content: {content_preview}"
+                        f"Source {i}: {result['title']}\n"
+                        f"Information: {content}\n"
+                        f"URL: {result['url']}"
                     )
                 return "\n\n".join(formatted_results)
             else:
