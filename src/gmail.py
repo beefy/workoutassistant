@@ -4,10 +4,15 @@ import imaplib
 import email
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import os
 
 
 class GmailClient:
     def __init__(self, email_address, app_password):
+        if not email_address or not app_password:
+            email_address = os.getenv("GMAIL_ADDRESS")
+            app_password = os.getenv("GMAIL_APP_PASSWORD")
+
         if not email_address or not app_password:
             raise ValueError("Email address and app password are required")
         self.email = email_address
