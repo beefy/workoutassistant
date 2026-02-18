@@ -31,7 +31,7 @@ def process_email():
         print(f"Generated response: {response}")
 
         # Send response email
-        gmail.send_email(sender, f"Re: {subject}", response)
+        gmail.send_email(senders_email, f"Re: {subject}", response)
 
 
 if __name__ == "__main__":
