@@ -144,21 +144,24 @@ class LocalLLM:
                     if tool_calls:
                         print(f"🔧 Found {len(tool_calls)} tool call(s)")
                         
-                        # Execute tool calls and update conversation
+                        # Execute tool calls and build new conversation
+                        tool_results = []
                         for tool_call in tool_calls:
                             tool_result = self.execute_tool_call(
                                 tool_call['tool'], 
                                 tool_call['parameters']
                             )
-                            
-                            # Replace the tool call with the result in the response
-                            response = response.replace(
-                                tool_call['raw'],
-                                f"\n[TOOL_RESULT]\n{tool_result}\n[/TOOL_RESULT]\n"
-                            )
+                            tool_results.append(tool_result)
                         
-                        # Continue the conversation with tool results
-                        conversation += response + "\n\nNow please provide a complete answer based on the tool results above: "
+                        # Build a clean conversation with tool results
+                        combined_results = "\n\n".join(tool_results)
+                        conversation = f"""You are a helpful AI assistant. A user asked: "{prompt}"
+
+You searched for information and found these results:
+{combined_results}
+
+Based on this information, provide a helpful and complete answer to the user's question:"""
+                        
                         iteration += 1
                         continue
                 
@@ -177,22 +180,10 @@ class LocalLLM:
         if not self.tools_enabled:
             return f"User: {user_prompt}\nAssistant: "
         
-        tool_instructions = """
-You are an AI assistant with access to tools. You can use tools to get additional information when needed.
+        tool_instructions = """You have access to web search. If you need current information or facts not in your knowledge, use:
+[TOOL:web_search]{"query": "your search terms here"}
 
-Available tools:
-- web_search: Search the web for current information
-
-To use a tool, format your request like this:
-[TOOL:tool_name]{"parameter": "value"}
-
-For example, to search the web:
-[TOOL:web_search]{"query": "latest news about artificial intelligence"}
-
-After using a tool, you will see the results in [TOOL_RESULT] tags. Use this information to provide a comprehensive answer.
-
-If you don't need to use any tools, just respond normally.
-"""
+If you can answer without web search, do so directly."""
         
         return f"{tool_instructions}\n\nUser: {user_prompt}\nAssistant: "
     
