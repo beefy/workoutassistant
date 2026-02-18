@@ -120,6 +120,9 @@ class LocalLLM:
             start_time = time.time()
             
             try:
+                # Ensure conversation fits within context window
+                conversation = self.truncate_to_context(conversation, max_tokens)
+                
                 # Generate response
                 output = self.model(
                     conversation,
@@ -179,14 +182,48 @@ Using the specific information above, provide a complete and helpful answer with
     def _build_tool_prompt(self, user_prompt):
         """Build a prompt that includes tool instructions"""
         if not self.tools_enabled:
-            return f"User: {user_prompt}\nAssistant: "
+            return user_prompt
         
-        tool_instructions = """You have access to web search. If you need current information or facts not in your knowledge, use:
+        tool_instructions = """
+You are an AI assistant that replies to user questions that are submitted over email. Your response is directly emailed back to the user with your entire response text as the email body.
+
+You have access to web search. If you need current information or facts not in your knowledge, use:
 [TOOL:web_search]{"query": "your search terms here"}
 
-If you can answer without web search, respond directly. DO NOT USE A TOOL CALL UNLESS YOU NEED TO. Do not prefix your response with anything like "Response:" or "Answer:". Just provide the answer ONLY. DO NOT REPEAT THE ORIGINAL QUESTION IN YOUR ANSWER. Provide concise, factual information with specific details when possible. Do not duplicate your response."""
+If you can answer without web search, respond directly. Do not use a tool call unless you need to, to save time and energy. Do not prefix your response with anything like "Response:" or "Answer:" because that will be shown to the user. Just provide the answer ONLY. DO NOT REPEAT THE ORIGINAL QUESTION IN YOUR ANSWER. Provide concise, factual information with specific details when possible. Do not duplicate your response.
+Thank you!
+        """
         
-        return f"{tool_instructions}\n\nUser: {user_prompt}\nAssistant: "
+        return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {user_prompt}"
+    
+    def estimate_tokens(self, text):
+        """Rough estimate of token count (approximately 4 characters per token)"""
+        return len(text) // 4
+    
+    def truncate_to_context(self, conversation, max_tokens_for_response=500):
+        """Truncate conversation to fit within context window, leaving room for response"""
+        max_context_tokens = self.n_ctx - max_tokens_for_response
+        estimated_tokens = self.estimate_tokens(conversation)
+        
+        if estimated_tokens <= max_context_tokens:
+            return conversation
+        
+        print(f"⚠️  Context too long ({estimated_tokens} tokens), truncating to fit...")
+        
+        # Calculate how many characters to keep (roughly)
+        max_chars = max_context_tokens * 4
+        
+        # Try to truncate at a reasonable boundary
+        if len(conversation) > max_chars:
+            truncated = conversation[:max_chars]
+            # Try to end at a sentence or line break
+            last_sentence = max(truncated.rfind('.'), truncated.rfind('\n'))
+            if last_sentence > max_chars * 0.8:  # If we find a good break point
+                truncated = truncated[:last_sentence + 1]
+            
+            return truncated + "\n\n[Content truncated to fit context window]"
+        
+        return conversation
     
     def web_search(self, query, num_results=2):
         """Perform a web search and return summarized results"""
