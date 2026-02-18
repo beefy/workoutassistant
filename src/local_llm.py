@@ -405,7 +405,7 @@ Thank you!
         
         for keyword in keywords_to_remove:
             # Remove whitespace before and after the keyword
-            pattern = re.compile(r'\s*' + re.escape(keyword) + r'\s*', re.IGNORECASE)
+            pattern = re.compile(re.escape(keyword) + r'\s*', re.IGNORECASE)
             cleaned = pattern.sub("", cleaned)
         
         # Final strip to clean up any remaining leading/trailing whitespace
