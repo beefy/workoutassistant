@@ -14,7 +14,7 @@ from llama_cpp import Llama
 
 
 class LocalLLM:
-    def __init__(self, model_path=None, n_ctx=2048, n_threads=4):
+    def __init__(self, model_path=None, n_ctx=4096, n_threads=4):
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.n_threads = n_threads
@@ -104,7 +104,7 @@ class LocalLLM:
             print("  3. Insufficient RAM - try a smaller model")
             return False
     
-    def prompt(self, prompt, max_tokens=256, temperature=0.7, stop=None, max_tool_iterations=3):
+    def prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None, max_tool_iterations=3):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             print("❌ Model not loaded. Call load_model() first.")
@@ -184,7 +184,7 @@ Using the specific information above, provide a complete and helpful answer with
         tool_instructions = """You have access to web search. If you need current information or facts not in your knowledge, use:
 [TOOL:web_search]{"query": "your search terms here"}
 
-If you can answer without web search, respond directly. Do not prefix your response with anything like "Response:" or "Answer:". Just provide the answer ONLY. DO NOT REPEAT THE ORIGINAL QUESTION IN YOUR ANSWER. Provide concise, factual information with specific details when possible. Do not duplicate your response."""
+If you can answer without web search, respond directly. DO NOT USE A TOOL CALL UNLESS YOU NEED TO. Do not prefix your response with anything like "Response:" or "Answer:". Just provide the answer ONLY. DO NOT REPEAT THE ORIGINAL QUESTION IN YOUR ANSWER. Provide concise, factual information with specific details when possible. Do not duplicate your response."""
         
         return f"{tool_instructions}\n\nUser: {user_prompt}\nAssistant: "
     
@@ -231,7 +231,7 @@ If you can answer without web search, respond directly. Do not prefix your respo
             print(f"❌ Web search failed: {e}")
             return [{"title": "Search Error", "snippet": f"Unable to search the web: {str(e)}", "url": "", "content": ""}]
     
-    def fetch_page_content(self, url, max_length=3000):
+    def fetch_page_content(self, url, max_length=1500):
         """Fetch and extract text content from a webpage"""
         try:
             print(f"📄 Fetching content from: {url[:50]}...")
@@ -308,13 +308,13 @@ If you can answer without web search, respond directly. Do not prefix your respo
                 # Format results for the LLM with actual content that's useful
                 formatted_results = []
                 for i, result in enumerate(results, 1):
-                    # Use more of the content for better context
-                    content = result['content'][:3000] if result['content'] else result['snippet']
+                    # Use less content to stay within context limits
+                    content = result['content'][:800] if result['content'] else result['snippet'][:200]
                     
                     formatted_results.append(
                         f"Source {i}: {result['title']}\n"
-                        f"Information: {content}\n"
-                        f"URL: {result['url']}"
+                        f"Info: {content}\n"
+                        f"URL: {result['url'][:50]}..."
                     )
                 return "\n\n".join(formatted_results)
             else:
@@ -369,7 +369,8 @@ If you can answer without web search, respond directly. Do not prefix your respo
             "Answer=", 
             "Assistant=",
             "AI=",
-            "Support="
+            "Support=",
+            "<|assistant|>"
         ]
         
         cleaned = response.strip()
