@@ -93,7 +93,7 @@ class LocalLLM:
                 formatted_prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                stop=stop or ["User:", "\n\n"],
+                stop=stop or ["User:"],  # Removed "\n\n" to allow multi-line responses
                 echo=False
             )
             
