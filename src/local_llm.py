@@ -319,14 +319,18 @@ If you can answer without web search, respond directly. Do not prefix your respo
             "Response:",
             "Answer:", 
             "Assistant:",
-            "AI:"
+            "AI:",
+            "Support:",
+            "Response=",
+            "Answer=", 
+            "Assistant=",
+            "AI=",
+            "Support="
         ]
         
         cleaned = response.strip()
         
         for prefix in prefixes_to_remove:
-            if cleaned.startswith(prefix):
-                cleaned = cleaned[len(prefix):].strip()
-                break
+            cleaned = cleaned.replace(prefix, "").strip()
         
         return cleaned
