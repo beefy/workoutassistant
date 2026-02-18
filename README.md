@@ -19,7 +19,7 @@ wget https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/P
 
 Store the necessary environment variables
 ```
-GMAIL_ADDRESS=<email@gmail.com>
-GMAIL_APP_PASSWORD=<app_password>
-TEST_EMAIL=<emailtosendtestemailto@gmail.com>
+export GMAIL_ADDRESS=<email@gmail.com>
+export GMAIL_APP_PASSWORD=<app_password>
+export TEST_EMAIL=<emailtosendtestemailto@gmail.com>
 ```
