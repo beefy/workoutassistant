@@ -191,6 +191,7 @@ You have access to web search. If you need current information or facts not in y
 [TOOL:web_search]{"query": "your search terms here"}
 
 If you can answer without web search, respond directly. Do not use a tool call unless you need to, to save time and energy. Do not prefix your response with anything like "Response:" or "Answer:" because that will be shown to the user. Just provide the answer ONLY. DO NOT REPEAT THE ORIGINAL QUESTION IN YOUR ANSWER. Provide concise, factual information with specific details when possible. Do not duplicate your response.
+Please keep your response short because the context window is limited.
 Thank you!
         """
         
