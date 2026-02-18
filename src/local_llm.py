@@ -184,7 +184,7 @@ Using the specific information above, provide a complete and helpful answer with
         tool_instructions = """You have access to web search. If you need current information or facts not in your knowledge, use:
 [TOOL:web_search]{"query": "your search terms here"}
 
-If you can answer without web search, respond directly. Do not prefix your response with "Response:" or "Answer:" - just provide the answer."""
+If you can answer without web search, respond directly. Do not prefix your response with "Response:" or "Answer:" - just provide the answer. Do not restate the question in your answer. Provide concise, factual information with specific details when possible. Do not duplicate your response."""
         
         return f"{tool_instructions}\n\nUser: {user_prompt}\nAssistant: "
     
