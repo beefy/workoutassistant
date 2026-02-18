@@ -4,9 +4,7 @@ Local LLM Test using GGUF models via llama-cpp-python on Raspberry Pi 5
 Tests local LLM models running via llama.cpp backend for text generation.
 """
 
-import sys
 import time
-import argparse
 import os
 from llama_cpp import Llama
 
@@ -22,6 +20,8 @@ class LocalLLM:
         print(f"  Model Path: {self.model_path}")
         print(f"  Context Length: {self.n_ctx}")
         print(f"  CPU Threads: {self.n_threads}")
+
+        self.load_model()
 
     def find_model_file(self):
         print("\n🔍 Searching for model files...")
