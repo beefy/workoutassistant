@@ -32,7 +32,7 @@ class GmailClient:
             print(f"❌ Send failed: {e}")
             return False
 
-    def check_emails(self, limit=10, unread_only=True):
+    def check_emails(self, limit=None, unread_only=True, mark_as_read=True):
         emails = []
         try:
             mail = imaplib.IMAP4_SSL("imap.gmail.com")
@@ -48,6 +48,11 @@ class GmailClient:
                 return emails
             
             message_ids = messages[0].split()
+            
+            # Use unread count as default limit if not specified
+            if limit is None:
+                limit = len(message_ids)
+            
             recent_ids = message_ids[-limit:] if len(message_ids) > limit else message_ids
             
             for msg_id in recent_ids:
@@ -75,18 +80,37 @@ class GmailClient:
                         'date': email_message.get('Date', 'No Date'),
                         'body': body or "Could not extract body"
                     })
+                    
+                    # Mark as read if requested
+                    if mark_as_read and unread_only:
+                        mail.store(msg_id, '+FLAGS', '\\Seen')
+                        
                 except Exception as e:
                     print(f"❌ Error processing email: {e}")
                     continue
             
             mail.close()
             mail.logout()
-            print(f"✅ Retrieved {len(emails)} emails")
+            print(f"✅ Retrieved {len(emails)} emails{' and marked as read' if mark_as_read and unread_only else ''}")
             
         except Exception as e:
             print(f"❌ Check emails failed: {e}")
             
         return emails
+
+    def mark_as_read(self, uid):
+        try:
+            mail = imaplib.IMAP4_SSL("imap.gmail.com")
+            mail.login(self.email, self.password)
+            mail.select("INBOX")
+            mail.store(uid, '+FLAGS', '\\Seen')
+            mail.close()
+            mail.logout()
+            print(f"✅ Marked email {uid} as read")
+            return True
+        except Exception as e:
+            print(f"❌ Mark as read failed: {e}")
+            return False
 
     def get_unread_count(self):
         try:
