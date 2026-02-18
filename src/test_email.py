@@ -1,4 +1,4 @@
-from src.email_client import GmailClient
+from email import GmailClient
 import os
 
 email_address = os.getenv("GMAIL_ADDRESS")
