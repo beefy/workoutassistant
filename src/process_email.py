@@ -31,3 +31,7 @@ def process_email():
 
         # Send response email
         gmail.send_email(sender, f"Re: {subject}", response)
+
+
+if __name__ == "__main__":
+    process_email()
