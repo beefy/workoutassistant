@@ -13,22 +13,73 @@ def web_search(query, num_results=2):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
+        print(f"🌐 Requesting: {search_url}")
         response = requests.get(search_url, headers=headers, timeout=10)
         response.raise_for_status()
+        
+        print(f"📥 Response status: {response.status_code}, length: {len(response.content)}")
         
         soup = BeautifulSoup(response.content, 'html.parser')
         results = []
         
-        # Find search results
-        for result in soup.find_all('a', class_='result__a')[:num_results]:
+        # Try multiple selectors for DuckDuckGo results
+        result_selectors = [
+            'a[class*="result"]',  # More flexible class matching
+            '.result__a',          # Original selector
+            'h2 a',               # Generic result links
+            '.web-result__title-link',  # Alternative DDG format
+            '.result-title a',     # Another possible format
+            'a[data-testid*="result"]'  # Test ID approach
+        ]
+        
+        found_results = []
+        for selector in result_selectors:
+            found_results = soup.select(selector)[:num_results]
+            if found_results:
+                print(f"✅ Found {len(found_results)} results using selector: {selector}")
+                break
+            else:
+                print(f"❌ No results with selector: {selector}")
+        
+        if not found_results:
+            print("❌ No results found with any selector. HTML preview:")
+            print(str(soup)[:500] + "...")
+            # Try to find any links that might be results
+            all_links = soup.find_all('a', href=True)
+            print(f"Found {len(all_links)} total links")
+            return [{"title": "Search Failed", "snippet": "No search results found - DuckDuckGo may be blocking requests or changed structure", "url": "", "content": ""}]
+        
+        for result in found_results:
             title = result.get_text(strip=True)
-            url = result.get('href')
+            url = result.get('href', '')
             
-            # Get snippet from result
-            snippet_elem = result.find_next('a', class_='result__snippet')
-            snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+            # Handle relative URLs
+            if url.startswith('/'):
+                url = f"https://duckduckgo.com{url}"
+            elif url.startswith('//'):
+                url = f"https:{url}"
             
-            if title and url:
+            # Skip DuckDuckGo internal links
+            if 'duckduckgo.com' in url and '/y.js' in url:
+                continue
+                
+            # Get snippet - try multiple approaches
+            snippet = ""
+            try:
+                snippet_elem = result.find_next('a', class_='result__snippet')
+                if not snippet_elem:
+                    # Try finding nearby text
+                    parent = result.find_parent()
+                    if parent:
+                        snippet_elem = parent.find_next('span') or parent.find_next('p')
+                
+                if snippet_elem:
+                    snippet = snippet_elem.get_text(strip=True)
+            except:
+                snippet = ""
+            
+            if title and url and len(url) > 10:  # Basic URL validation
+                print(f"📄 Found result: {title[:50]}...")
                 # Fetch actual content from the page
                 content = fetch_page_content(url)
                 results.append({
