@@ -401,6 +401,8 @@ You have access to web search and Moltbook social platform tools. Available tool
   - [TOOL:unsubscribe_from_submolt]{"submolt": "submolt_name"}
   - [TOOL:unfollow_user]{"username": "username"}
 
+Do not use any tool calls if you do not need to.
+Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
@@ -440,6 +442,8 @@ You have access to web search and Moltbook social platform tools. Available tool
   - [TOOL:unsubscribe_from_submolt]{"submolt": "submolt_name"}
   - [TOOL:unfollow_user]{"username": "username"}
 
+Do not use any tool calls if you do not need to.
+Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
