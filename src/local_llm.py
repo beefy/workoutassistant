@@ -328,6 +328,7 @@ class LocalLLM:
                 return False
         
         try:
+            # Try with default settings first
             self.model = Llama(
                 model_path=self.model_path,
                 n_ctx=self.n_ctx,
@@ -342,12 +343,34 @@ class LocalLLM:
             return True
             
         except Exception as e:
-            print(f"❌ Failed to load model: {e}")
-            print("This may be due to:")
-            print("  1. Corrupted model file - try re-downloading")
-            print("  2. Incompatible GGUF version - try a different quantization")
-            print("  3. Insufficient RAM - try a smaller model")
-            return False
+            print(f"❌ Failed to load model with default settings: {e}")
+            print("🔄 Trying with reduced context and different settings...")
+            
+            # Try with reduced context and different settings
+            try:
+                self.model = Llama(
+                    model_path=self.model_path,
+                    n_ctx=32768,  # Try with 32k context
+                    n_threads=self.n_threads,
+                    verbose=True,  # Enable verbose for debugging
+                    use_mmap=False,  # Disable memory mapping
+                    use_mlock=False,
+                    n_gpu_layers=0  # Force CPU-only
+                )
+                
+                self.n_ctx = 32768  # Update context size
+                load_time = time.time() - start_time
+                print(f"✅ Model loaded successfully with reduced context in {load_time:.1f} seconds")
+                return True
+                
+            except Exception as e2:
+                print(f"❌ Failed to load model with reduced settings: {e2}")
+                print("This may be due to:")
+                print("  1. Corrupted model file - try re-downloading")
+                print("  2. Incompatible GGUF version - try a different quantization")
+                print("  3. Insufficient RAM - try a smaller model")
+                print("  4. Model format issue - try the bartowski version instead")
+                return False
     
     def execute_prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None):
         try:
