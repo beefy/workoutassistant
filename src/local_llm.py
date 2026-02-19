@@ -355,7 +355,6 @@ class LocalLLM:
             return self.clean_response(response)
         
         iteration_count = 0
-        tool_results = self.process_tool_calls(tool_calls)
         print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
         history = "None/New Conversation"
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
