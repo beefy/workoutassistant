@@ -1,4 +1,4 @@
-from src.browse_moltbook import create_a_text_post
+from browse_moltbook import create_a_text_post
 from local_llm import LocalLLM
 from moltbook import MoltbookClient
 
