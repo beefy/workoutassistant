@@ -452,7 +452,7 @@ Thank you!
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
         """
         
-        return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {user_prompt}\n\nYour Response: "
+        return f"<|system|>Tool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
 
     def _build_intermediate_prompt(self, original_prompt, tool_results, iteration_num, history):
         """Build a prompt for intermediate LLM call after tool execution"""
@@ -475,15 +475,20 @@ Thank you!
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
         """
 
-        return f"Tool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
+        return f"<|system|>Number of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
 
     def _build_final_prompt(self, original_prompt, tool_results, history):
         """Build a prompt for the second LLM call that includes tool results"""
-        return f"""Prompt: "{original_prompt}"
+        return f"""
+<|system|>
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-Your Response:
+<|end|>
+<|user|>
+"{original_prompt}"
+<|end|>
+<|assistant|>
         """
     
     def estimate_tokens(self, text):
