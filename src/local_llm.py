@@ -15,7 +15,7 @@ from gmail import GmailClient, get_system_info
 
 
 class LocalLLM:
-    def __init__(self, model_path=None, n_ctx=131072, n_threads=4):  # 128k context to match model training
+    def __init__(self, model_path=None, n_ctx=16384, n_threads=4):  # 128k context to match model training
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.n_threads = n_threads
