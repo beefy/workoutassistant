@@ -9,11 +9,20 @@ An LLM that will answer emails
 mkdir -p ~/models
 cd ~/models
 
-# Download Phi-3-mini (~2.4GB)
+# Download Phi-3-mini 4k version (~2.4GB)
 wget https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf
 
-# Or the 128k version
-wget https://huggingface.co/microsoft/Phi-3-mini-128k-instruct-gguf/resolve/main/Phi-3-mini-128k-instruct-q4.gguf
+# For 128k version, try these alternatives:
+
+# Option 1: Use huggingface-cli (install with: pip install huggingface_hub)
+# huggingface-cli download microsoft/Phi-3-mini-128k-instruct-gguf Phi-3-mini-128k-instruct-q4.gguf --local-dir ~/models --local-dir-use-symlinks False
+
+# Option 2: Alternative 128k models that don't require login
+wget https://huggingface.co/bartowski/Phi-3-mini-128k-instruct-GGUF/resolve/main/Phi-3-mini-128k-instruct-Q4_K_M.gguf
+
+# Option 3: Use git to clone the entire repo (then copy the file you need)
+# git clone https://huggingface.co/microsoft/Phi-3-mini-128k-instruct-gguf ~/models/phi3-128k-repo
+# cp ~/models/phi3-128k-repo/Phi-3-mini-128k-instruct-q4.gguf ~/models/
 ```
 
 ### SQLite Database Setup

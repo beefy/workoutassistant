@@ -293,6 +293,7 @@ class LocalLLM:
         # Try 128k model first, fall back to 4k
         models_to_try = [
             "Phi-3-mini-128k-instruct-q4.gguf",
+            "Phi-3-mini-128k-instruct-Q4_K_M.gguf",  # Alternative 128k model
             "Phi-3-mini-4k-instruct-q4.gguf"
         ]
         
