@@ -353,23 +353,31 @@ class LocalLLM:
         if not tool_calls:
             print("✅ No tool calls found, returning response")
             return self.clean_response(response)
-
+        
+        tool_results = self.process_tool_calls(tool_calls)
+        history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nTool Call Results:{tool_results}\n\nPrevious History Summary:None", max_tokens=300, temperature=0.5)
+        print(f"Summary thus far: {history}")
         iteration_count = 0
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
             print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
             tool_results = self.process_tool_calls(tool_calls)
+
+            # LLM call to summarize convo history
+            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nTool Call Results:{tool_results}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
             print(f"✅ Tool calls executed. Building final response with tool results...")
+
             # Intermediate LLM call (in loop)
-            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count), max_tokens, temperature, stop)
+            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
             tool_calls = self.parse_tool_calls(response)
+
 
         if not tool_calls:
             print("✅ No tool calls found, returning response")
             return self.clean_response(response)
 
         # Final LLM call
-        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results), max_tokens, temperature, stop)
+        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results, history), max_tokens, temperature, stop)
         cleaned_response = self.clean_response(response)
         return cleaned_response    
 
@@ -415,7 +423,7 @@ Your Response:
         
         return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {user_prompt}\n\nYour Response: "
 
-    def _build_intermediate_prompt(self, original_prompt, tool_results, iteration_num):
+    def _build_intermediate_prompt(self, original_prompt, tool_results, iteration_num, history):
         """Build a prompt for intermediate LLM call after tool execution"""
         if not self.tools_enabled:
             return original_prompt
@@ -455,12 +463,13 @@ IMPORTANT: If you are using a tool call, be sure to include all required paramet
 Your Response:
         """
 
-        return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
+        return f"Conversation History Summary: {history}\nTool Results: {tool_results}\nTool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
 
-    def _build_final_prompt(self, original_prompt, tool_results):
+    def _build_final_prompt(self, original_prompt, tool_results, history):
         """Build a prompt for the second LLM call that includes tool results"""
         return f"""Prompt: "{original_prompt}"
 Additional Info: "{tool_results}"
+Conversation History Summary: "{history}"
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 Your Response:
         """
