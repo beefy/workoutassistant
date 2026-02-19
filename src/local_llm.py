@@ -417,6 +417,7 @@ Thank you!
 
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 IMPORTANT: If you are using a tool call, be sure to include all required parameters in the correct format and only include the tool call in your response. Do not include any other text besides the tool call.
+IMPORTANT: If you are using a tool call, make at most 3 tool calls at a time. Then wait for the tool results before making more tool calls to avoid overwhelming the context window. You can make multiple iterations of tool calls and LLM calls to complete the task.
 
 Your Response:
         """
@@ -459,6 +460,7 @@ Thank you!
 
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 IMPORTANT: If you are using a tool call, be sure to include all required parameters in the correct format and only include the tool call in your response. Do not include any other text besides the tool call.
+IMPORTANT: If you are using a tool call, make at most 3 tool calls at a time. Then wait for the tool results before making more tool calls to avoid overwhelming the context window. You can make multiple iterations of tool calls and LLM calls to complete the task.
 
 Your Response:
         """
