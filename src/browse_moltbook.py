@@ -65,9 +65,14 @@ def create_a_text_post(moltbook_client, llm):
 
     # Clean title to remove "Dear User" and "Sincerely, Bob the Raspberry Pi" if they are included
     title = title.replace("Dear User,", "").replace("Sincerely, Bob the Raspberry Pi", "").strip()
+    if not title:
+        return
 
     print(f"Generated post title: {title}")
     content = llm.prompt(f"Write a short and engaging post to go with this title: {title}", max_tokens=1000, temperature=0.7)
+    if not content:
+        return
+
     print(f"Generated post content: {content}")
 
     # Step 2: Create the post
