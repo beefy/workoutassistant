@@ -760,19 +760,44 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
         tool_calls = []
         
         # Look for tool call patterns like [TOOL:web_search]{"query": "something"}
-        pattern = r'\[TOOL:(\w+)\]\s*({.*?})'
-        matches = re.findall(pattern, text, re.DOTALL)
+        # Use a more robust approach for multiline JSON
+        pattern = r'\[TOOL:(\w+)\]\s*'
         
-        for tool_name, params_str in matches:
-            try:
-                parameters = json.loads(params_str)
-                tool_calls.append({
-                    'tool': tool_name,
-                    'parameters': parameters,
-                    'raw': f'[TOOL:{tool_name}]{params_str}'
-                })
-            except json.JSONDecodeError as e:
-                print(f"❌ Failed to parse tool call parameters: {e}")
+        # Find all tool call markers
+        for match in re.finditer(pattern, text):
+            tool_name = match.group(1)
+            start_pos = match.end()
+            
+            # Find the JSON object that follows
+            json_start = text.find('{', start_pos)
+            if json_start == -1:
+                continue
+                
+            # Count braces to find the matching closing brace
+            brace_count = 0
+            json_end = json_start
+            
+            for i in range(json_start, len(text)):
+                if text[i] == '{':
+                    brace_count += 1
+                elif text[i] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        json_end = i + 1
+                        break
+            
+            if brace_count == 0:  # Found matching closing brace
+                json_str = text[json_start:json_end]
+                try:
+                    parameters = json.loads(json_str)
+                    tool_calls.append({
+                        'tool': tool_name,
+                        'parameters': parameters,
+                        'raw': f'[TOOL:{tool_name}]{json_str}'
+                    })
+                except json.JSONDecodeError as e:
+                    print(f"❌ Failed to parse tool call parameters for {tool_name}: {e}")
+                    print(f"JSON string was: {json_str[:200]}...")
                 
         return tool_calls[:5]  # Limit to 5 tool calls to avoid overload
     
