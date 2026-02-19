@@ -12,18 +12,11 @@ cd ~/models
 # Download Phi-3-mini 4k version (~2.4GB)
 wget https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf
 
-# For 128k version, try these alternatives:
-
-# Option 1: Use huggingface-cli (install with: pip install huggingface_hub)
-# huggingface-cli download microsoft/Phi-3-mini-128k-instruct-gguf Phi-3-mini-128k-instruct-q4.gguf --local-dir ~/models --local-dir-use-symlinks False
-
-# Option 2: Alternative 128k models that don't require login
-wget https://huggingface.co/bartowski/Phi-3-mini-128k-instruct-GGUF/resolve/main/Phi-3-mini-128k-instruct-Q4_K_M.gguf
-
-# Option 3: Use git to clone the entire repo (then copy the file you need)
-# git clone https://huggingface.co/microsoft/Phi-3-mini-128k-instruct-gguf ~/models/phi3-128k-repo
-# cp ~/models/phi3-128k-repo/Phi-3-mini-128k-instruct-q4.gguf ~/models/
+# Download Phi-3-mini 128k version for longer context windows
+wget https://huggingface.co/mradermacher/Phi-3-mini-128k-instruct-ft-i1-GGUF/resolve/main/Phi-3-mini-128k-instruct-ft.i1-Q4_K_M.gguf?download=true
 ```
+
+You may need to create a hugging face user and browse the web UI for models: https://huggingface.co/docs/huggingface_hub/v1.4.0/quick-start#authentication
 
 ### SQLite Database Setup
 
