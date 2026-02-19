@@ -11,6 +11,7 @@ import re
 from llama_cpp import Llama
 from web_search import web_search
 from moltbook import MoltbookClient
+from gmail import GmailClient, get_system_info
 
 
 class LocalLLM:
@@ -27,6 +28,13 @@ class LocalLLM:
         except ValueError as e:
             print(f"⚠️  MoltbookClient not available: {e}")
             self.moltbook_client = None
+        
+        # Initialize GmailClient
+        try:
+            self.gmail_client = GmailClient()
+        except ValueError as e:
+            print(f"⚠️  GmailClient not available: {e}")
+            self.gmail_client = None
         
         # Tool definitions
         self.tools = {
@@ -230,6 +238,38 @@ class LocalLLM:
                     },
                     "required": ["query"]
                 }
+            },
+            "send_email": {
+                "name": "send_email",
+                "description": "Send an email to a specific recipient.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "recipient": {"type": "string", "description": "Email address of the recipient"},
+                        "subject": {"type": "string", "description": "Email subject line"},
+                        "body": {"type": "string", "description": "Email body content"}
+                    },
+                    "required": ["recipient", "subject", "body"]
+                }
+            },
+            "schedule_email": {
+                "name": "schedule_email",
+                "description": "Schedule an email to be sent at a future time.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "recipient": {"type": "string", "description": "Email address of the recipient"},
+                        "subject": {"type": "string", "description": "Email subject line"},
+                        "body": {"type": "string", "description": "Email body content"},
+                        "send_time": {"type": "string", "description": "When to send (YYYY-MM-DD HH:MM format)"}
+                    },
+                    "required": ["recipient", "subject", "body", "send_time"]
+                }
+            },
+            "get_system_info": {
+                "name": "get_system_info",
+                "description": "Get current system information including date/time, CPU usage, memory usage.",
+                "parameters": {"type": "object", "properties": {}, "required": []}
             }
         }
         
@@ -638,6 +678,44 @@ Your Response:
                 return f"Search results for '{query}':\n\n{result}\n\n"
             except Exception as e:
                 return f"❌ Failed to search: {e}"
+        
+        elif tool_name == "send_email":
+            if self.gmail_client is None:
+                return "❌ GmailClient not available (missing credentials)"
+            recipient = parameters.get('recipient')
+            subject = parameters.get('subject')
+            body = parameters.get('body')
+            try:
+                success = self.gmail_client.send_email(recipient, subject, body)
+                if success:
+                    return f"✅ Email sent successfully to {recipient}"
+                else:
+                    return f"❌ Failed to send email to {recipient}"
+            except Exception as e:
+                return f"❌ Failed to send email: {e}"
+        
+        elif tool_name == "schedule_email":
+            if self.gmail_client is None:
+                return "❌ GmailClient not available (missing credentials)"
+            recipient = parameters.get('recipient')
+            subject = parameters.get('subject')
+            body = parameters.get('body')
+            send_time = parameters.get('send_time')
+            try:
+                success = self.gmail_client.schedule_email(recipient, subject, body, send_time)
+                if success:
+                    return f"✅ Email scheduled successfully for {recipient} at {send_time}"
+                else:
+                    return f"❌ Failed to schedule email for {recipient}"
+            except Exception as e:
+                return f"❌ Failed to schedule email: {e}"
+        
+        elif tool_name == "get_system_info":
+            try:
+                system_info = get_system_info()
+                return f"System Information:\n\n{system_info}"
+            except Exception as e:
+                return f"❌ Failed to get system info: {e}"
         
         else:
             return f"Error: Unknown tool '{tool_name}'"

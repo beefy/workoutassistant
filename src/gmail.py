@@ -5,6 +5,10 @@ import email
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import threading
+import time
+from datetime import datetime
+import psutil
 
 
 class GmailClient:
@@ -41,6 +45,46 @@ class GmailClient:
             return True
         except Exception as e:
             print(f"❌ Send failed: {e}")
+            return False
+
+    def schedule_email(self, to_email, subject, body, send_time, is_html=False):
+        """Schedule an email to be sent at a future time"""
+        if not all([to_email, subject, body, send_time]):
+            print("❌ Schedule failed: to_email, subject, body, and send_time are required")
+            return False
+            
+        try:
+            # Parse send_time (expected format: "YYYY-MM-DD HH:MM")
+            target_time = datetime.strptime(send_time, "%Y-%m-%d %H:%M")
+            current_time = datetime.now()
+            
+            if target_time <= current_time:
+                print("❌ Schedule failed: send_time must be in the future")
+                return False
+            
+            delay = (target_time - current_time).total_seconds()
+            
+            print(f"📅 Email scheduled to send to {to_email} at {send_time}")
+            
+            # Start background thread to send email at scheduled time
+            def delayed_send():
+                time.sleep(delay)
+                success = self.send_email(to_email, subject, body, is_html)
+                if success:
+                    print(f"📨 Scheduled email sent to {to_email}")
+                else:
+                    print(f"❌ Scheduled email failed to send to {to_email}")
+            
+            thread = threading.Thread(target=delayed_send, daemon=True)
+            thread.start()
+            
+            return True
+            
+        except ValueError as e:
+            print(f"❌ Schedule failed: Invalid time format. Use YYYY-MM-DD HH:MM. Error: {e}")
+            return False
+        except Exception as e:
+            print(f"❌ Schedule failed: {e}")
             return False
 
     def check_emails(self, limit=None, unread_only=True, mark_as_read=True):
@@ -140,3 +184,42 @@ class GmailClient:
         except Exception as e:
             print(f"❌ Count failed: {e}")
             return 0
+
+
+def get_system_info():
+    """Get system information including date/time, CPU, memory usage"""
+    try:
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Get load averages (Unix/Linux only)
+        try:
+            load_avg = os.getloadavg()
+            load_info = f"Load Average: {load_avg[0]:.2f}, {load_avg[1]:.2f}, {load_avg[2]:.2f}"
+        except:
+            load_info = "Load Average: Not available"
+        
+        system_info = {
+            "current_time": current_time,
+            "cpu_usage_percent": cpu_percent,
+            "memory_total_gb": round(memory.total / (1024**3), 2),
+            "memory_used_gb": round(memory.used / (1024**3), 2),
+            "memory_percent": memory.percent,
+            "disk_total_gb": round(disk.total / (1024**3), 2),
+            "disk_used_gb": round(disk.used / (1024**3), 2),
+            "disk_percent": round((disk.used / disk.total) * 100, 1),
+            "load_average": load_info
+        }
+        
+        formatted_info = f"""🕒 Current Time: {current_time}
+💻 CPU Usage: {cpu_percent}%
+🧠 Memory: {memory.percent}% used ({round(memory.used / (1024**3), 2)}GB / {round(memory.total / (1024**3), 2)}GB)
+💾 Disk: {system_info['disk_percent']}% used ({system_info['disk_used_gb']}GB / {system_info['disk_total_gb']}GB)
+⚡ {load_info}"""
+        
+        return formatted_info
+        
+    except Exception as e:
+        return f"❌ Failed to get system info: {e}"
