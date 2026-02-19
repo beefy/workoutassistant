@@ -1,4 +1,5 @@
 import os
+import requests
 
 class MoltbookClient:
     def __init__(self):
@@ -6,102 +7,219 @@ class MoltbookClient:
         if not self.api_key:
             raise ValueError("MOLTBOOK_API_KEY environment variable is required")
 
-        self.base_url = "https://api.moltbook.com/v1"
+        self.base_url = "https://www.moltbook.com/api/v1"
+    
+    def _get_headers(self):
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
     
     def create_post(self, submolt, title, content):
         # curl -X POST https://www.moltbook.com/api/v1/posts \
         #     -H "Authorization: Bearer YOUR_API_KEY" \
         #     -H "Content-Type: application/json" \
         #     -d '{"submolt": "general", "title": "Hello Moltbook!", "content": "My first post!"}'
-        pass
+        data = {
+            "submolt": submolt,
+            "title": title,
+            "content": content
+        }
+        response = requests.post(
+            f"{self.base_url}/posts",
+            headers=self._get_headers(),
+            json=data
+        )
+        response.raise_for_status()
+        return response.json()
 
     def create_link_post(self, submolt, title, url):
         # curl -X POST https://www.moltbook.com/api/v1/posts \
         #     -H "Authorization: Bearer YOUR_API_KEY" \
         #     -H "Content-Type: application/json" \
         #     -d '{"submolt": "general", "title": "Interesting article", "url": "https://example.com"}'
-        pass
+        data = {
+            "submolt": submolt,
+            "title": title,
+            "url": url
+        }
+        response = requests.post(
+            f"{self.base_url}/posts",
+            headers=self._get_headers(),
+            json=data
+        )
+        response.raise_for_status()
+        return response.json()
 
     def get_feed(self):
         # curl "https://www.moltbook.com/api/v1/posts?sort=hot&limit=25" \
         #     -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.get(
+            f"{self.base_url}/posts?sort=hot&limit=25",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def get_posts_from_submolt(self, submolt):
         # curl "https://www.moltbook.com/api/v1/posts?submolt=general&sort=new" \
         #     -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.get(
+            f"{self.base_url}/posts?submolt={submolt}&sort=new",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def get_single_post(self, post_id):
         # url https://www.moltbook.com/api/v1/posts/POST_ID \
         #     -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.get(
+            f"{self.base_url}/posts/{post_id}",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def add_comment(self, post_id, content):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/comments \
         # -H "Authorization: Bearer YOUR_API_KEY" \
         # -H "Content-Type: application/json" \
         # -d '{"content": "Great insight!"}'
-        pass
+        data = {"content": content}
+        response = requests.post(
+            f"{self.base_url}/posts/{post_id}/comments",
+            headers=self._get_headers(),
+            json=data
+        )
+        response.raise_for_status()
+        return response.json()
 
     def reply_to_comment(self, post_id, parent_comment_id, content):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/comments \
         #     -H "Authorization: Bearer YOUR_API_KEY" \
         #     -H "Content-Type: application/json" \
         #     -d '{"content": "I agree!", "parent_id": "COMMENT_ID"}'
-        pass
+        data = {
+            "content": content,
+            "parent_id": parent_comment_id
+        }
+        response = requests.post(
+            f"{self.base_url}/posts/{post_id}/comments",
+            headers=self._get_headers(),
+            json=data
+        )
+        response.raise_for_status()
+        return response.json()
 
     def get_comments(self, post_id):
         # curl "https://www.moltbook.com/api/v1/posts/POST_ID/comments?sort=top" \
         # -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.get(
+            f"{self.base_url}/posts/{post_id}/comments?sort=top",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def upvote_post(self, post_id):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/upvote \
         #     -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.post(
+            f"{self.base_url}/posts/{post_id}/upvote",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def downvote_post(self, post_id):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/downvote \
         #   -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.post(
+            f"{self.base_url}/posts/{post_id}/downvote",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def upvote_comment(self, comment_id):
         # curl -X POST https://www.moltbook.com/api/v1/comments/COMMENT_ID/upvote \
         #     -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.post(
+            f"{self.base_url}/comments/{comment_id}/upvote",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def list_submolts(self):
         # curl https://www.moltbook.com/api/v1/submolts \
         # -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.get(
+            f"{self.base_url}/submolts",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def subscribe_to_submolt(self, submolt):
         # curl -X POST https://www.moltbook.com/api/v1/submolts/SUBMOLT_NAME/subscribe \
         #     -H "Authorization
-        pass
+        response = requests.post(
+            f"{self.base_url}/submolts/{submolt}/subscribe",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def unsubscribe_from_submolt(self, submolt):
         # curl -X DELETE https://www.moltbook.com/api/v1/submolts/SUBMOLT_NAME/subscribe \
         # -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.delete(
+            f"{self.base_url}/submolts/{submolt}/subscribe",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def follow_user(self, username):
         # curl -X POST https://www.moltbook.com/api/v1/agents/MOLTY_NAME/follow \
         # -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.post(
+            f"{self.base_url}/agents/{username}/follow",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
     
     def unfollow_user(self, username):
         # curl -X DELETE https://www.moltbook.com/api/v1/agents/MOLTY_NAME/follow \
         # -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.delete(
+            f"{self.base_url}/agents/{username}/follow",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def get_personalized_feed(self):
         # curl "https://www.moltbook.com/api/v1/feed?sort=hot&limit=25" \
         #   -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        response = requests.get(
+            f"{self.base_url}/feed?sort=hot&limit=25",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
 
     def search_posts_and_comments(self, query):
         # curl "https://www.moltbook.com/api/v1/search?q=how+do+agents+handle+memory&limit=20" \
         #   -H "Authorization: Bearer YOUR_API_KEY"
-        pass
+        import urllib.parse
+        encoded_query = urllib.parse.quote_plus(query)
+        response = requests.get(
+            f"{self.base_url}/search?q={encoded_query}&limit=20",
+            headers=self._get_headers()
+        )
+        response.raise_for_status()
+        return response.json()
