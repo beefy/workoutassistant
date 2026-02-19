@@ -21,6 +21,7 @@ class LocalLLM:
         self.n_threads = n_threads
         self.model = None
         self.tools_enabled = True
+        self.tool_call_memo = set()  # Store hash of executed tool calls to prevent duplicates
         
         # Initialize MoltbookClient
         try:
@@ -400,6 +401,11 @@ class LocalLLM:
                     tool_call['parameters']
                 )
                 tool_results.append(tool_result)
+                
+                # Store successful tool call in memo (unless it's an error)
+                if not tool_result.startswith("❌"):
+                    tool_hash = self._hash_tool_call(tool_call['tool'], tool_call['parameters'])
+                    self.tool_call_memo.add(tool_hash)
             
             combined_results = "\n\n".join(tool_results)
             return combined_results
@@ -430,6 +436,7 @@ class LocalLLM:
         
         iteration_count = 0
         history = ""
+        tool_results = ""
         print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
@@ -444,11 +451,6 @@ class LocalLLM:
             # Intermediate LLM call (in loop)
             response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
             tool_calls = self.parse_tool_calls(response)
-
-
-        if not tool_calls:
-            print("✅ No tool calls found, returning response")
-            return self.clean_response(response)
 
         # Final LLM call
         response = self.execute_prompt(self._build_final_prompt(prompt, tool_results, history), max_tokens, temperature, stop)
@@ -517,6 +519,7 @@ IMPORTANT: Start your response with "Dear User, ..." and end your response with 
 <|system|>
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
+Do not include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 <|end|>
 <|user|>
@@ -804,17 +807,31 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                             if isinstance(parsed_json, dict) and 'tool' in parsed_json:
                                 tool_name = parsed_json['tool']
                                 parameters = parsed_json.get('parameters', {})
-                                tool_calls.append({
-                                    'tool': tool_name,
-                                    'parameters': parameters,
-                                    'raw': json_str
-                                })
+                                
+                                # Check if this tool call was already executed this session
+                                tool_hash = self._hash_tool_call(tool_name, parameters)
+                                if tool_hash not in self.tool_call_memo:
+                                    tool_calls.append({
+                                        'tool': tool_name,
+                                        'parameters': parameters,
+                                        'raw': json_str
+                                    })
+                                else:
+                                    print(f"🔄 Skipping duplicate tool call: {tool_name} with same parameters")
                         except json.JSONDecodeError as e:
                             # Invalid JSON, skip it
                             pass
                         json_start = None
                         
         return tool_calls[:5]  # Limit to 5 tool calls to avoid overload
+
+    def _hash_tool_call(self, tool_name, parameters):
+        """Create a hash of tool call for deduplication"""
+        import hashlib
+        # Create a deterministic string representation
+        param_str = json.dumps(parameters, sort_keys=True)
+        combined = f"{tool_name}:{param_str}"
+        return hashlib.md5(combined.encode()).hexdigest()
     
     def clean_response(self, response):
         """Clean up the response by removing unwanted prefixes and formatting"""
