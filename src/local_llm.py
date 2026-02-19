@@ -333,7 +333,7 @@ class LocalLLM:
             print(f"❌ Error during tool execution: {e}")
             return "Sorry, I encountered an error while executing a tool."
 
-    def prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None, max_tool_iterations=20):
+    def prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None, max_tool_iterations=5):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             print("❌ Model not loaded. Call load_model() first.")
@@ -355,20 +355,20 @@ class LocalLLM:
             return self.clean_response(response)
         
         iteration_count = 0
+        history = ""
         print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
-        # history = "None/New Conversation"
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
             print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
             tool_results = self.process_tool_calls(tool_calls)
 
             # LLM call to summarize convo history
-            # history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nNewest Response:{response}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
+            history = f"{history}\nIteration {iteration_count} Tool Calls:\n{json.dumps(tool_calls, indent=2)}\nIteration {iteration_count} Tool Results:\n{tool_results}"
             # print(f"Summary thus far: {history}")
             print(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
-            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count, None), max_tokens, temperature, stop)
+            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
             tool_calls = self.parse_tool_calls(response)
 
 
@@ -377,7 +377,7 @@ class LocalLLM:
             return self.clean_response(response)
 
         # Final LLM call
-        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results, None), max_tokens, temperature, stop)
+        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results, history), max_tokens, temperature, stop)
         cleaned_response = self.clean_response(response)
         return cleaned_response    
 
@@ -387,8 +387,11 @@ class LocalLLM:
             return user_prompt
         
         tool_instructions = """
-You have access to web search and Moltbook social platform tools. Available tools:
+You have access to these available tools:
 - Web search: [TOOL:web_search]{"query": "your search terms"}
+- Send email: [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
+- Schedule email for sometime in the future: [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
+- Get system information like current date/time, CPU usage, memory usage: [TOOL:get_system_info]{}
 
 Do not use any tool calls if you do not need to.
 Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
@@ -397,8 +400,6 @@ Please keep your response short because the context window is limited.
 Thank you!
 
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-
-Your Response:
         """
         
         return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {user_prompt}\n\nYour Response: "
@@ -409,8 +410,11 @@ Your Response:
             return original_prompt
         
         tool_instructions = """
-You have access to web search and Moltbook social platform tools. Available tools:
+You have access to these available tools:
 - Web search: [TOOL:web_search]{"query": "your search terms"}
+- Send email: [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
+- Schedule email for sometime in the future: [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
+- Get system information like current date/time, CPU usage, memory usage: [TOOL:get_system_info]{}
 
 Do not use any tool calls if you do not need to.
 Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
@@ -419,25 +423,24 @@ Please keep your response short because the context window is limited.
 Thank you!
 
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-
-Your Response:
         """
 
-        return f"Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
+        return f"Tool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
 
     def _build_final_prompt(self, original_prompt, tool_results, history):
         """Build a prompt for the second LLM call that includes tool results"""
         return f"""Prompt: "{original_prompt}"
-Additional Info: "{tool_results}"
+Recent Tool Results: "{tool_results}"
+Tool Results History: "{history}"
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 Your Response:
         """
     
     def estimate_tokens(self, text):
-        """Rough estimate of token count (approximately 4 characters per token)"""
-        return len(text) // 4
+        """Rough estimate of token count (approximately 3 characters per token)"""
+        return len(text) // 3
     
-    def truncate_to_context(self, conversation, max_tokens_for_response=1000):
+    def truncate_to_context(self, conversation, max_tokens_for_response=500):
         """Truncate conversation to fit within context window, leaving room for response"""
         max_context_tokens = self.n_ctx - max_tokens_for_response
         estimated_tokens = self.estimate_tokens(conversation)
@@ -448,14 +451,14 @@ Your Response:
         print(f"⚠️  Context too long ({estimated_tokens} tokens), truncating to fit...")
         
         # Calculate how many characters to keep (roughly)
-        max_chars = max_context_tokens * 2
+        max_chars = max_context_tokens * 3
         
         # Try to truncate at a reasonable boundary
         if len(conversation) > max_chars:
             truncated = conversation[:max_chars]
             # Try to end at a sentence or line break
             last_sentence = max(truncated.rfind('.'), truncated.rfind('\n'))
-            if last_sentence > max_chars * 0.7:  # If we find a good break point
+            if last_sentence > max_chars * 0.8:  # If we find a good break point
                 truncated = truncated[:last_sentence + 1]
             
             return truncated + "\n\n[Content truncated to fit context window]"
@@ -478,7 +481,7 @@ Your Response:
                     formatted_results.append(
                         f"Source {i}: {result['title']}\n"
                         f"Info: {content}\n"
-                        f"URL: {result['url'][:50]}..."
+                        f"URL: {result['url'][:500]}"
                     )
                 return "\n\n".join(formatted_results)
             else:
@@ -658,7 +661,7 @@ Your Response:
             except json.JSONDecodeError as e:
                 print(f"❌ Failed to parse tool call parameters: {e}")
                 
-        return tool_calls[:2]  # Limit to 2 tool calls at a time
+        return tool_calls
     
     def clean_response(self, response):
         """Clean up the response by removing unwanted prefixes and formatting"""
