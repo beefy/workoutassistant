@@ -27,7 +27,7 @@ def process_email():
             continue
 
         # Generate response using LLM
-        prompt = f"Email from {sender} with subject '{subject}' and body:\n{body}"
+        prompt = f"{sender} says 'Re: {subject}:\n{body}'"
         response = llm.prompt(prompt)
         print(f"Generated response: {response}")
 
