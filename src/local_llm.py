@@ -467,6 +467,8 @@ YOU HAVE ACCESS to these available tools. Use them when needed to get informatio
 - Schedule email for sometime in the future --> [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
 - Get system information like current date/time, CPU usage, memory usage --> [TOOL:get_system_info]{}
 
+Tool call parameters must be valid json.
+
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
@@ -487,6 +489,8 @@ YOU HAVE ACCESS to these available tools. Use them when needed to get informatio
 - Send email --> [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
 - Schedule email for sometime in the future --> [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
 - Get system information like current date/time, CPU usage, memory usage --> [TOOL:get_system_info]{}
+
+Tool call parameters must be valid json.
 
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
