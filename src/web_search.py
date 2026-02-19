@@ -79,7 +79,7 @@ def web_search(query, num_results=2):
                 snippet = ""
             
             if title and url and len(url) > 10:  # Basic URL validation
-                print(f"📄 Found result: {title[:50]}...")
+                print(f"📄 Found result: {title}...")
                 # Fetch actual content from the page
                 content = fetch_page_content(url)
                 results.append({
@@ -96,7 +96,7 @@ def web_search(query, num_results=2):
         print(f"❌ Web search failed: {e}")
         return [{"title": "Search Error", "snippet": f"Unable to search the web: {str(e)}", "url": "", "content": ""}]
 
-def fetch_page_content(url, max_length=1500):
+def fetch_page_content(url, max_length=3000):
     """Fetch and extract text content from a webpage"""
     try:
         print(f"📄 Fetching content from: {url[:50]}...")

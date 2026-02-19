@@ -15,7 +15,7 @@ from gmail import GmailClient, get_system_info
 
 
 class LocalLLM:
-    def __init__(self, model_path=None, n_ctx=4096, n_threads=4):
+    def __init__(self, model_path=None, n_ctx=65536, n_threads=4):  # 64k context
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.n_threads = n_threads
@@ -289,10 +289,18 @@ class LocalLLM:
     def find_model_file(self):
         print("\n🔍 Searching for model files...")
         expanded_path = os.path.expanduser("~/models/")
-        full_path = os.path.join(expanded_path, "Phi-3-mini-4k-instruct-q4.gguf")
-        if os.path.exists(full_path):
-            print(f"✅ Found model: {full_path}")
-            return full_path
+        
+        # Try 128k model first, fall back to 4k
+        models_to_try = [
+            "Phi-3-mini-128k-instruct-q4.gguf",
+            "Phi-3-mini-4k-instruct-q4.gguf"
+        ]
+        
+        for model_name in models_to_try:
+            full_path = os.path.join(expanded_path, model_name)
+            if os.path.exists(full_path):
+                print(f"✅ Found model: {full_path}")
+                return full_path
 
         print("❌ No model files found in common locations")
         print("\nTo download a model:")
@@ -302,6 +310,8 @@ class LocalLLM:
         print("  wget https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.q4_0.gguf")
         print("  # Or download Phi-3-mini (~2.4GB):")
         print("  wget https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf")
+        print("  # Or download Phi-3-mini 128k context (~2.4GB):")
+        print("  wget https://huggingface.co/microsoft/Phi-3-mini-128k-instruct-gguf/resolve/main/Phi-3-mini-128k-instruct-q4.gguf")
         
         return None
     
@@ -338,7 +348,7 @@ class LocalLLM:
             print("  3. Insufficient RAM - try a smaller model")
             return False
     
-    def execute_prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None):
+    def execute_prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None):
         try:
             cleaned_prompt = self.truncate_to_context(prompt)
 
@@ -373,7 +383,7 @@ class LocalLLM:
             print(f"❌ Error during tool execution: {e}")
             return "Sorry, I encountered an error while executing a tool."
 
-    def prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None, max_tool_iterations=5):
+    def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=5):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             print("❌ Model not loaded. Call load_model() first.")
@@ -480,7 +490,7 @@ Your Response:
         """Rough estimate of token count (approximately 3 characters per token)"""
         return len(text) // 3
     
-    def truncate_to_context(self, conversation, max_tokens_for_response=500):
+    def truncate_to_context(self, conversation, max_tokens_for_response=2048):
         """Truncate conversation to fit within context window, leaving room for response"""
         max_context_tokens = self.n_ctx - max_tokens_for_response
         estimated_tokens = self.estimate_tokens(conversation)
