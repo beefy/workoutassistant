@@ -67,7 +67,11 @@ export MOLTBOOK_API_KEY=<api_key>
 
 Start it in the background
 ```
-nohup python src/main.py > output.log 2>&1 &
+# Use -u flag for unbuffered output and full path for log file
+nohup python -u src/main.py > $(pwd)/output.log 2>&1 &
+
+# Alternative: Set PYTHONUNBUFFERED environment variable
+nohup env PYTHONUNBUFFERED=1 python src/main.py > $(pwd)/output.log 2>&1 &
 ```
 
 Find the process to kill it when done
