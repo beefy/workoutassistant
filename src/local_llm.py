@@ -344,58 +344,33 @@ class LocalLLM:
             
         except Exception as e:
             print(f"❌ Failed to load model with default settings: {e}")
-            print("🔄 Trying with very reduced context...")
+            print("🔄 Trying with progressively smaller contexts to find optimal size...")
             
-            # Try with much smaller context for memory constraints
-            try:
-                self.model = Llama(
-                    model_path=self.model_path,
-                    n_ctx=4096,  # Much smaller context for Pi
-                    n_threads=self.n_threads,
-                    verbose=False,
-                    use_mmap=True,
-                    use_mlock=False,
-                    n_gpu_layers=0  # Force CPU-only
-                )
-                
-                self.n_ctx = 4096  # Update context size
-                load_time = time.time() - start_time
-                print(f"✅ Model loaded successfully with 4k context in {load_time:.1f} seconds")
-                print("⚠️  Using reduced 4k context due to memory constraints")
-                return True
-                
-            except Exception as e2:
-                print(f"❌ Failed to load 128k model even with reduced context: {e2}")
-                print("🔄 Trying to fall back to 4k model...")
-                
-                # Try to load the 4k model instead
-                fallback_model = os.path.join(os.path.expanduser("~/models/"), "Phi-3-mini-4k-instruct-q4.gguf")
-                if os.path.exists(fallback_model):
-                    try:
-                        self.model_path = fallback_model
-                        self.model = Llama(
-                            model_path=self.model_path,
-                            n_ctx=4096,
-                            n_threads=self.n_threads,
-                            verbose=False,
-                            use_mmap=True,
-                            use_mlock=False
-                        )
-                        
-                        self.n_ctx = 4096
-                        load_time = time.time() - start_time
-                        print(f"✅ Fallback to 4k model successful in {load_time:.1f} seconds")
-                        print("⚠️  Using 4k model due to insufficient RAM for 128k model")
-                        return True
-                        
-                    except Exception as e3:
-                        print(f"❌ Failed to load fallback 4k model: {e3}")
-                
-                print("This may be due to:")
-                print("  1. Insufficient RAM - Raspberry Pi may need more memory for 128k models")
-                print("  2. Try downloading and using the 4k model instead")
-                print("  3. Consider adding swap space or using a system with more RAM")
-                return False
+            # Try different context sizes to find what fits in available RAM
+            context_sizes_to_try = [65536, 32768, 16384, 8192, 4096]  # 64k, 32k, 16k, 8k, 4k
+            
+            for ctx_size in context_sizes_to_try:
+                try:
+                    print(f"🔄 Trying {ctx_size//1024}k context...")
+                    self.model = Llama(
+                        model_path=self.model_path,
+                        n_ctx=ctx_size,
+                        n_threads=self.n_threads,
+                        verbose=False,
+                        use_mmap=True,
+                        use_mlock=False,
+                        n_gpu_layers=0  # Force CPU-only
+                    )
+                    
+                    self.n_ctx = ctx_size
+                    load_time = time.time() - start_time
+                    print(f"✅ Model loaded successfully with {ctx_size//1024}k context in {load_time:.1f} seconds")
+                    print(f"🎯 Optimal context size for your 6GB RAM: {ctx_size//1024}k tokens")
+                    return True
+                    
+                except Exception as ctx_e:
+                    print(f"❌ {ctx_size//1024}k context failed: insufficient memory")
+                    continue
     
     def execute_prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None):
         try:
@@ -803,7 +778,7 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
             except json.JSONDecodeError as e:
                 print(f"❌ Failed to parse tool call parameters: {e}")
                 
-        return tool_calls
+        return tool_calls[:5]  # Limit to 5 tool calls to avoid overload
     
     def clean_response(self, response):
         """Clean up the response by removing unwanted prefixes and formatting"""

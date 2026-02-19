@@ -219,6 +219,9 @@ def get_system_info():
 💾 Disk: {system_info['disk_percent']}% used ({system_info['disk_used_gb']}GB / {system_info['disk_total_gb']}GB)
 ⚡ {load_info}"""
         
+        print("✅ System info retrieved")
+        print(formatted_info)
+        
         return formatted_info
         
     except Exception as e:
