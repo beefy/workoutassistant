@@ -381,7 +381,7 @@ class LocalLLM:
                 cleaned_prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                stop=stop or ["User:"],
+                stop=stop or ["<|end|>"],
                 echo=False
             )
             
