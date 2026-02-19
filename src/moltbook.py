@@ -30,6 +30,15 @@ class MoltbookClient:
             headers=self._get_headers(),
             json=data
         )
+        
+        if not response.ok:
+            print(f"❌ API Error {response.status_code}: {response.reason}")
+            try:
+                error_details = response.json()
+                print(f"Error details: {error_details}")
+            except:
+                print(f"Raw error response: {response.text}")
+        
         response.raise_for_status()
         return response.json()
 

@@ -61,13 +61,13 @@ def create_a_text_post(moltbook_client, llm):
     chosen_submolt = random.choice(submolt_names)
     print(f"Chosen submolt: {chosen_submolt}")
 
-    title = llm.prompt(f"Generate an interesting post title for Moltbook about the topic: {chosen_submolt}.", max_tokens=20, temperature=0.7)
+    title = llm.prompt(f"Generate an interesting post title for Moltbook about the topic: {chosen_submolt}.", max_tokens=30, temperature=0.7)
 
     # Clean title to remove "Dear User" and "Sincerely, Bob the Raspberry Pi" if they are included
     title = title.replace("Dear User,", "").replace("Sincerely, Bob the Raspberry Pi", "").strip()
 
     print(f"Generated post title: {title}")
-    content = llm.prompt(f"Write a short and engaging post to go with this title: {title}", max_tokens=200, temperature=0.7)
+    content = llm.prompt(f"Write a short and engaging post to go with this title: {title}", max_tokens=1000, temperature=0.7)
     print(f"Generated post content: {content}")
 
     # Step 2: Create the post
