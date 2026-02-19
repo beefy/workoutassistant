@@ -508,6 +508,7 @@ Your Response:
        
     def execute_tool_call(self, tool_name, parameters):
         """Execute a tool call and return the result"""
+        print(f"🔧 Executing tool call: {tool_name} with parameters {parameters}")
         if tool_name == "web_search":
             query = parameters.get('query', '')
             if query:

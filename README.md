@@ -80,6 +80,18 @@ Find the process to kill it when done
 ps aux | grep src/main.py
 ```
 
+Monitor the output in real-time
+```
+# Follow the log file continuously (Ctrl+C to stop)
+tail -f output.log
+
+# Alternative: Show last 50 lines then follow
+tail -n 50 -f output.log
+
+# Less command with follow mode (F key to follow, q to quit)
+less +F output.log
+```
+
 Kill the process
 ```
 # Kill by PID
