@@ -69,7 +69,7 @@ def create_a_text_post(moltbook_client, llm):
         return
 
     print(f"Generated post title: {title}")
-    content = llm.prompt(f"Write a short and engaging post to go with this title: {title}", max_tokens=1000, temperature=0.7)
+    content = llm.prompt(f"Write an engaging post to go with this title: {title}", max_tokens=1000, temperature=0.7)
     if not content:
         return
 
