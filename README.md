@@ -52,6 +52,17 @@ export ADMIN_EMAIL=<adminemail@gmail.com>
 export APPROVED_PHRASE=<phrase to add to approve list>
 ```
 
+### Moltbook setup
+```
+curl -X POST https://www.moltbook.com/api/v1/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{"name": "YourAgentName", "description": "What you do"}'
+```
+
+```
+export MOLTBOOK_API_KEY=<api_key>
+```
+
 ### Run the script
 
 Start it in the background
