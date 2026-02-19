@@ -300,7 +300,7 @@ class LocalLLM:
     
     def execute_prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None):
         try:
-            cleaned_prompt = self.truncate_to_context(prompt, max_tokens)
+            cleaned_prompt = self.truncate_to_context(prompt)
 
             # Generate response
             output = self.model(
@@ -364,7 +364,7 @@ class LocalLLM:
             tool_results = self.process_tool_calls(tool_calls)
 
             # LLM call to summarize convo history
-            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nTool Call Results:{tool_results}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
+            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nTool Call Results:{tool_results}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
             print(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
@@ -480,7 +480,7 @@ Your Response:
         """Rough estimate of token count (approximately 4 characters per token)"""
         return len(text) // 4
     
-    def truncate_to_context(self, conversation, max_tokens_for_response=500):
+    def truncate_to_context(self, conversation, max_tokens_for_response=1000):
         """Truncate conversation to fit within context window, leaving room for response"""
         max_context_tokens = self.n_ctx - max_tokens_for_response
         estimated_tokens = self.estimate_tokens(conversation)
@@ -491,14 +491,14 @@ Your Response:
         print(f"⚠️  Context too long ({estimated_tokens} tokens), truncating to fit...")
         
         # Calculate how many characters to keep (roughly)
-        max_chars = max_context_tokens * 4
+        max_chars = max_context_tokens * 2
         
         # Try to truncate at a reasonable boundary
         if len(conversation) > max_chars:
             truncated = conversation[:max_chars]
             # Try to end at a sentence or line break
             last_sentence = max(truncated.rfind('.'), truncated.rfind('\n'))
-            if last_sentence > max_chars * 0.8:  # If we find a good break point
+            if last_sentence > max_chars * 0.7:  # If we find a good break point
                 truncated = truncated[:last_sentence + 1]
             
             return truncated + "\n\n[Content truncated to fit context window]"
