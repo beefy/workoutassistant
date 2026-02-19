@@ -461,19 +461,17 @@ class LocalLLM:
             return user_prompt
         
         tool_instructions = """
-You have access to these available tools:
-- Web search: [TOOL:web_search]{"query": "your search terms"}
-- Send email: [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
-- Schedule email for sometime in the future: [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
-- Get system information like current date/time, CPU usage, memory usage: [TOOL:get_system_info]{}
+YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
+- Web search --> [TOOL:web_search]{"query": "your search terms"}
+- Send email --> [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
+- Schedule email for sometime in the future --> [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
+- Get system information like current date/time, CPU usage, memory usage --> [TOOL:get_system_info]{}
 
-Do not use any tool calls if you do not need to.
-Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
 
-IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
+IMPORTANT: Start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
         """
         
         return f"<|system|>Tool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
@@ -484,19 +482,17 @@ IMPORTANT: If you are not using a tool call, start your response with "Dear User
             return original_prompt
         
         tool_instructions = """
-You have access to these available tools:
-- Web search: [TOOL:web_search]{"query": "your search terms"}
-- Send email: [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
-- Schedule email for sometime in the future: [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
-- Get system information like current date/time, CPU usage, memory usage: [TOOL:get_system_info]{}
+YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
+- Web search --> [TOOL:web_search]{"query": "your search terms"}
+- Send email --> [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
+- Schedule email for sometime in the future --> [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
+- Get system information like current date/time, CPU usage, memory usage --> [TOOL:get_system_info]{}
 
-Do not use any tool calls if you do not need to.
-Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
 
-IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
+IMPORTANT: Start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
         """
 
         return f"<|system|>Number of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
