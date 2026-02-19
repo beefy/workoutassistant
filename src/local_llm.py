@@ -333,7 +333,7 @@ class LocalLLM:
             print(f"❌ Error during tool execution: {e}")
             return "Sorry, I encountered an error while executing a tool."
 
-    def prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None, max_tool_iterations=3):
+    def prompt(self, prompt, max_tokens=500, temperature=0.7, stop=None, max_tool_iterations=20):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             print("❌ Model not loaded. Call load_model() first.")
@@ -349,20 +349,30 @@ class LocalLLM:
             return self.clean_response(response)
 
         tool_calls = self.parse_tool_calls(response)
+
         if not tool_calls:
             print("✅ No tool calls found, returning response")
             return self.clean_response(response)
 
-        print(f"🔧 Found {len(tool_calls)} tool call(s)")
-        tool_results = self.process_tool_calls(tool_calls)
-        print(f"✅ Tool calls executed. Building final response with tool results...")
+        iteration_count = 0
+        while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
+            iteration_count += 1
+            print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
+            tool_results = self.process_tool_calls(tool_calls)
+            print(f"✅ Tool calls executed. Building final response with tool results...")
+            # Intermediate LLM call (in loop)
+            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count), max_tokens, temperature, stop)
+            tool_calls = self.parse_tool_calls(response)
 
-        # LLM Call with tool results
-        response = self.execute_prompt(self._build_secondary_prompt(prompt, response, tool_results), max_tokens, temperature, stop)
+        if not tool_calls:
+            print("✅ No tool calls found, returning response")
+            return self.clean_response(response)
 
+        # Final LLM call
+        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results), max_tokens, temperature, stop)
         cleaned_response = self.clean_response(response)
         return cleaned_response    
-    
+
     def _build_tool_prompt(self, user_prompt):
         """Build a prompt that includes tool instructions"""
         if not self.tools_enabled:
@@ -391,7 +401,7 @@ You have access to web search and Moltbook social platform tools. Available tool
   - [TOOL:unsubscribe_from_submolt]{"submolt": "submolt_name"}
   - [TOOL:unfollow_user]{"username": "username"}
 
-Do not use a tool call unless you need to, to save time and energy. Provide concise, factual information with specific details when possible.
+Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
 
@@ -401,8 +411,47 @@ Your Response:
         """
         
         return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {user_prompt}\n\nYour Response: "
-    
-    def _build_secondary_prompt(self, original_prompt, initial_response, tool_results):
+
+    def _build_intermediate_prompt(self, original_prompt, tool_results, iteration_num):
+        """Build a prompt for intermediate LLM call after tool execution"""
+        if not self.tools_enabled:
+            return original_prompt
+        
+        tool_instructions = """
+You have access to web search and Moltbook social platform tools. Available tools:
+- Web search: [TOOL:web_search]{"query": "your search terms"}
+- Moltbook tools:
+  - [TOOL:get_feed]{} - Get hot posts
+  - [TOOL:get_personalized_feed]{} - Get your personalized feed
+  - [TOOL:create_post]{"submolt": "submolt_name", "title": "title", "content": "content"}
+  - [TOOL:create_link_post]{"submolt": "submolt_name", "title": "title", "url": "url"}
+  - [TOOL:get_posts_from_submolt]{"submolt": "submolt_name"}
+  - [TOOL:get_single_post]{"post_id": "post_id"}
+  - [TOOL:add_comment]{"post_id": "post_id", "content": "comment content"}
+  - [TOOL:reply_to_comment]{"post_id": "post_id", "parent_comment_id": "comment_id", "content": "reply content"}
+  - [TOOL:get_comments]{"post_id": "post_id"}
+  - [TOOL:upvote_post]{"post_id": "post_id"}
+  - [TOOL:downvote_post]{"post_id": "post_id"}
+  - [TOOL:upvote_comment]{"comment_id": "comment_id"}
+  - [TOOL:search_posts_and_comments]{"query": "search terms"}
+  - [TOOL:list_submolts]{} - List all submolts
+  - [TOOL:follow_user]{"username": "username"}
+  - [TOOL:subscribe_to_submolt]{"submolt": "submolt_name"}
+  - [TOOL:unsubscribe_from_submolt]{"submolt": "submolt_name"}
+  - [TOOL:unfollow_user]{"username": "username"}
+
+Provide concise, factual information with specific details when possible.
+Please keep your response short because the context window is limited.
+Thank you!
+
+IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
+
+Your Response:
+        """
+
+        return f"Tool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
+
+    def _build_final_prompt(self, original_prompt, tool_results):
         """Build a prompt for the second LLM call that includes tool results"""
         return f"""Prompt: "{original_prompt}"
 Additional Info: "{tool_results}"
