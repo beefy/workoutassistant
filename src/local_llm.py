@@ -10,6 +10,7 @@ import json
 import re
 from llama_cpp import Llama
 from web_search import web_search
+from moltbook import MoltbookClient
 
 
 class LocalLLM:
@@ -19,6 +20,13 @@ class LocalLLM:
         self.n_threads = n_threads
         self.model = None
         self.tools_enabled = True
+        
+        # Initialize MoltbookClient
+        try:
+            self.moltbook_client = MoltbookClient()
+        except ValueError as e:
+            print(f"⚠️  MoltbookClient not available: {e}")
+            self.moltbook_client = None
         
         # Tool definitions
         self.tools = {
@@ -32,6 +40,193 @@ class LocalLLM:
                             "type": "string",
                             "description": "The search query to look up on the web"
                         }
+                    },
+                    "required": ["query"]
+                }
+            },
+            "create_post": {
+                "name": "create_post",
+                "description": "Create a new post on Moltbook in a specific submolt.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "submolt": {"type": "string", "description": "The submolt to post in"},
+                        "title": {"type": "string", "description": "The title of the post"},
+                        "content": {"type": "string", "description": "The content/body of the post"}
+                    },
+                    "required": ["submolt", "title", "content"]
+                }
+            },
+            "create_link_post": {
+                "name": "create_link_post",
+                "description": "Create a link post on Moltbook in a specific submolt.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "submolt": {"type": "string", "description": "The submolt to post in"},
+                        "title": {"type": "string", "description": "The title of the post"},
+                        "url": {"type": "string", "description": "The URL to link to"}
+                    },
+                    "required": ["submolt", "title", "url"]
+                }
+            },
+            "get_feed": {
+                "name": "get_feed",
+                "description": "Get the hot feed from Moltbook.",
+                "parameters": {"type": "object", "properties": {}, "required": []}
+            },
+            "get_personalized_feed": {
+                "name": "get_personalized_feed",
+                "description": "Get your personalized feed from Moltbook based on subscriptions and follows.",
+                "parameters": {"type": "object", "properties": {}, "required": []}
+            },
+            "get_posts_from_submolt": {
+                "name": "get_posts_from_submolt",
+                "description": "Get posts from a specific submolt.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "submolt": {"type": "string", "description": "The submolt name"}
+                    },
+                    "required": ["submolt"]
+                }
+            },
+            "get_single_post": {
+                "name": "get_single_post",
+                "description": "Get details of a specific post by ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "The post ID"}
+                    },
+                    "required": ["post_id"]
+                }
+            },
+            "add_comment": {
+                "name": "add_comment",
+                "description": "Add a comment to a post.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "The post ID"},
+                        "content": {"type": "string", "description": "The comment content"}
+                    },
+                    "required": ["post_id", "content"]
+                }
+            },
+            "reply_to_comment": {
+                "name": "reply_to_comment",
+                "description": "Reply to a specific comment.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "The post ID"},
+                        "parent_comment_id": {"type": "string", "description": "The comment ID to reply to"},
+                        "content": {"type": "string", "description": "The reply content"}
+                    },
+                    "required": ["post_id", "parent_comment_id", "content"]
+                }
+            },
+            "get_comments": {
+                "name": "get_comments",
+                "description": "Get comments for a specific post.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "The post ID"}
+                    },
+                    "required": ["post_id"]
+                }
+            },
+            "upvote_post": {
+                "name": "upvote_post",
+                "description": "Upvote a post.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "The post ID"}
+                    },
+                    "required": ["post_id"]
+                }
+            },
+            "downvote_post": {
+                "name": "downvote_post",
+                "description": "Downvote a post.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "post_id": {"type": "string", "description": "The post ID"}
+                    },
+                    "required": ["post_id"]
+                }
+            },
+            "upvote_comment": {
+                "name": "upvote_comment",
+                "description": "Upvote a comment.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "comment_id": {"type": "string", "description": "The comment ID"}
+                    },
+                    "required": ["comment_id"]
+                }
+            },
+            "list_submolts": {
+                "name": "list_submolts",
+                "description": "Get a list of all available submolts.",
+                "parameters": {"type": "object", "properties": {}, "required": []}
+            },
+            "subscribe_to_submolt": {
+                "name": "subscribe_to_submolt",
+                "description": "Subscribe to a submolt.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "submolt": {"type": "string", "description": "The submolt name"}
+                    },
+                    "required": ["submolt"]
+                }
+            },
+            "unsubscribe_from_submolt": {
+                "name": "unsubscribe_from_submolt",
+                "description": "Unsubscribe from a submolt.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "submolt": {"type": "string", "description": "The submolt name"}
+                    },
+                    "required": ["submolt"]
+                }
+            },
+            "follow_user": {
+                "name": "follow_user",
+                "description": "Follow a user/agent.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "username": {"type": "string", "description": "The username to follow"}
+                    },
+                    "required": ["username"]
+                }
+            },
+            "unfollow_user": {
+                "name": "unfollow_user",
+                "description": "Unfollow a user/agent.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "username": {"type": "string", "description": "The username to unfollow"}
+                    },
+                    "required": ["username"]
+                }
+            },
+            "search_posts_and_comments": {
+                "name": "search_posts_and_comments",
+                "description": "Search for posts and comments on Moltbook.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "The search query"}
                     },
                     "required": ["query"]
                 }
@@ -174,8 +369,27 @@ class LocalLLM:
             return user_prompt
         
         tool_instructions = """
-You have access to web search. If you need current information or facts not in your knowledge, use:
-[TOOL:web_search]{"query": "your search terms here"}
+You have access to web search and Moltbook social platform tools. Available tools:
+- Web search: [TOOL:web_search]{"query": "your search terms"}
+- Moltbook tools:
+  - [TOOL:get_feed]{} - Get hot posts
+  - [TOOL:get_personalized_feed]{} - Get your personalized feed
+  - [TOOL:create_post]{"submolt": "submolt_name", "title": "title", "content": "content"}
+  - [TOOL:create_link_post]{"submolt": "submolt_name", "title": "title", "url": "url"}
+  - [TOOL:get_posts_from_submolt]{"submolt": "submolt_name"}
+  - [TOOL:get_single_post]{"post_id": "post_id"}
+  - [TOOL:add_comment]{"post_id": "post_id", "content": "comment content"}
+  - [TOOL:reply_to_comment]{"post_id": "post_id", "parent_comment_id": "comment_id", "content": "reply content"}
+  - [TOOL:get_comments]{"post_id": "post_id"}
+  - [TOOL:upvote_post]{"post_id": "post_id"}
+  - [TOOL:downvote_post]{"post_id": "post_id"}
+  - [TOOL:upvote_comment]{"comment_id": "comment_id"}
+  - [TOOL:search_posts_and_comments]{"query": "search terms"}
+  - [TOOL:list_submolts]{} - List all submolts
+  - [TOOL:follow_user]{"username": "username"}
+  - [TOOL:subscribe_to_submolt]{"submolt": "submolt_name"}
+  - [TOOL:unsubscribe_from_submolt]{"submolt": "submolt_name"}
+  - [TOOL:unfollow_user]{"username": "username"}
 
 Do not use a tool call unless you need to, to save time and energy. Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
@@ -245,6 +459,159 @@ Your Response:
                 return "\n\n".join(formatted_results)
             else:
                 return "Error: No search query provided"
+        
+        # Moltbook tool calls
+        elif self.moltbook_client is None:
+            return "Error: MoltbookClient not available (missing API key)"
+        
+        elif tool_name == "create_post":
+            submolt = parameters.get('submolt')
+            title = parameters.get('title')
+            content = parameters.get('content')
+            try:
+                result = self.moltbook_client.create_post(submolt, title, content)
+                return f"✅ Post created successfully in /{submolt}: '{title}'"
+            except Exception as e:
+                return f"❌ Failed to create post: {e}"
+        
+        elif tool_name == "create_link_post":
+            submolt = parameters.get('submolt')
+            title = parameters.get('title')
+            url = parameters.get('url')
+            try:
+                result = self.moltbook_client.create_link_post(submolt, title, url)
+                return f"✅ Link post created successfully in /{submolt}: '{title}' -> {url}"
+            except Exception as e:
+                return f"❌ Failed to create link post: {e}"
+        
+        elif tool_name == "get_feed":
+            try:
+                result = self.moltbook_client.get_feed()
+                return f"Recent posts from hot feed:\n\n{result}\n\n"
+            except Exception as e:
+                return f"❌ Failed to get feed: {e}"
+        
+        elif tool_name == "get_personalized_feed":
+            try:
+                result = self.moltbook_client.get_personalized_feed()
+                return f"Your personalized feed:\n\n{result}\n\n"
+            except Exception as e:
+                return f"❌ Failed to get personalized feed: {e}"
+        
+        elif tool_name == "get_posts_from_submolt":
+            submolt = parameters.get('submolt')
+            try:
+                result = self.moltbook_client.get_posts_from_submolt(submolt)
+                return f"Recent posts from /{submolt}:\n\n{result}\n\n"
+            except Exception as e:
+                return f"❌ Failed to get posts from /{submolt}: {e}"
+        
+        elif tool_name == "get_single_post":
+            post_id = parameters.get('post_id')
+            try:
+                result = self.moltbook_client.get_single_post(post_id)
+                return f"{result}"
+            except Exception as e:
+                return f"❌ Failed to get post {post_id}: {e}"
+        
+        elif tool_name == "add_comment":
+            post_id = parameters.get('post_id')
+            content = parameters.get('content')
+            try:
+                result = self.moltbook_client.add_comment(post_id, content)
+                return f"✅ Comment added to post {post_id}"
+            except Exception as e:
+                return f"❌ Failed to add comment: {e}"
+        
+        elif tool_name == "reply_to_comment":
+            post_id = parameters.get('post_id')
+            parent_comment_id = parameters.get('parent_comment_id')
+            content = parameters.get('content')
+            try:
+                result = self.moltbook_client.reply_to_comment(post_id, parent_comment_id, content)
+                return f"✅ Reply added to comment {parent_comment_id}"
+            except Exception as e:
+                return f"❌ Failed to add reply: {e}"
+        
+        elif tool_name == "get_comments":
+            post_id = parameters.get('post_id')
+            try:
+                result = self.moltbook_client.get_comments(post_id)
+                return f"Comments on post {post_id}:\n\n{result}\n\n"
+            except Exception as e:
+                return f"❌ Failed to get comments: {e}"
+        
+        elif tool_name == "upvote_post":
+            post_id = parameters.get('post_id')
+            try:
+                result = self.moltbook_client.upvote_post(post_id)
+                return f"✅ Upvoted post {post_id}"
+            except Exception as e:
+                return f"❌ Failed to upvote post: {e}"
+        
+        elif tool_name == "downvote_post":
+            post_id = parameters.get('post_id')
+            try:
+                result = self.moltbook_client.downvote_post(post_id)
+                return f"✅ Downvoted post {post_id}"
+            except Exception as e:
+                return f"❌ Failed to downvote post: {e}"
+        
+        elif tool_name == "upvote_comment":
+            comment_id = parameters.get('comment_id')
+            try:
+                result = self.moltbook_client.upvote_comment(comment_id)
+                return f"✅ Upvoted comment {comment_id}"
+            except Exception as e:
+                return f"❌ Failed to upvote comment: {e}"
+        
+        elif tool_name == "list_submolts":
+            try:
+                result = self.moltbook_client.list_submolts()
+                return f"Available submolts: {result}"
+            except Exception as e:
+                return f"❌ Failed to list submolts: {e}"
+        
+        elif tool_name == "subscribe_to_submolt":
+            submolt = parameters.get('submolt')
+            try:
+                result = self.moltbook_client.subscribe_to_submolt(submolt)
+                return f"✅ Subscribed to /{submolt}"
+            except Exception as e:
+                return f"❌ Failed to subscribe to /{submolt}: {e}"
+        
+        elif tool_name == "unsubscribe_from_submolt":
+            submolt = parameters.get('submolt')
+            try:
+                result = self.moltbook_client.unsubscribe_from_submolt(submolt)
+                return f"✅ Unsubscribed from /{submolt}"
+            except Exception as e:
+                return f"❌ Failed to unsubscribe from /{submolt}: {e}"
+        
+        elif tool_name == "follow_user":
+            username = parameters.get('username')
+            try:
+                result = self.moltbook_client.follow_user(username)
+                return f"✅ Now following @{username}"
+            except Exception as e:
+                return f"❌ Failed to follow @{username}: {e}"
+        
+        elif tool_name == "unfollow_user":
+            username = parameters.get('username')
+            try:
+                result = self.moltbook_client.unfollow_user(username)
+                return f"✅ Unfollowed @{username}"
+            except Exception as e:
+                return f"❌ Failed to unfollow @{username}: {e}"
+        
+        elif tool_name == "search_posts_and_comments":
+            query = parameters.get('query')
+            try:
+                result = self.moltbook_client.search_posts_and_comments(query)
+                return f"Search results for '{query}':\n\n{result}\n\n"
+            except Exception as e:
+                return f"❌ Failed to search: {e}"
+        
         else:
             return f"Error: Unknown tool '{tool_name}'"
     
