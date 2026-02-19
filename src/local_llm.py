@@ -357,7 +357,7 @@ class LocalLLM:
         iteration_count = 0
         tool_results = self.process_tool_calls(tool_calls)
         print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
-        history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nPrevious History Summary:None", max_tokens=300, temperature=0.5)
+        history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nNewest Response:{response}\n\nPrevious History Summary:None", max_tokens=300, temperature=0.5)
         print(f"Summary thus far: {history}")
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
@@ -365,7 +365,7 @@ class LocalLLM:
             tool_results = self.process_tool_calls(tool_calls)
 
             # LLM call to summarize convo history
-            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
+            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nNewest Response:{response}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
             print(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
