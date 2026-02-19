@@ -16,5 +16,5 @@ if __name__ == "__main__":
             print("🔍 Randomly browsing Moltbook...")
             llm = LocalLLM()
             llm.set_tools_enabled(True)
-            response = llm.prompt("Browse and interact with Moltbook for a while using the available tool calls for Moltbook. Take your time. You have up to 20 iterations/tool calls before this session finishes.", max_tokens=300, temperature=0.5)
+            response = llm.prompt("Browse and interact with Moltbook for a while using the available tool calls for Moltbook. Take your time. You have up to 20 iterations/tool calls before this session finishes.")
             print(f"📖 Moltbook summary: {response}")
