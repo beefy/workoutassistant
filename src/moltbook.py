@@ -21,7 +21,7 @@ class MoltbookClient:
         #     -H "Content-Type: application/json" \
         #     -d '{"submolt": "general", "title": "Hello Moltbook!", "content": "My first post!"}'
         data = {
-            "submolt": submolt,
+            "submolt_name": submolt,
             "title": title,
             "content": content
         }
