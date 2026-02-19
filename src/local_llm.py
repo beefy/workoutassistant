@@ -354,17 +354,18 @@ class LocalLLM:
             print("✅ No tool calls found, returning response")
             return self.clean_response(response)
         
-        tool_results = self.process_tool_calls(tool_calls)
-        history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nTool Call Results:{tool_results}\n\nPrevious History Summary:None", max_tokens=300, temperature=0.5)
-        print(f"Summary thus far: {history}")
         iteration_count = 0
+        tool_results = self.process_tool_calls(tool_calls)
+        print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
+        history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nPrevious History Summary:None", max_tokens=300, temperature=0.5)
+        print(f"Summary thus far: {history}")
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
             print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
             tool_results = self.process_tool_calls(tool_calls)
 
             # LLM call to summarize convo history
-            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nTool Call Results:{tool_results}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
+            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nInitial Prompt:{prompt}\n\nResponse:{response}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
             print(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
@@ -417,7 +418,7 @@ Thank you!
 
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 IMPORTANT: If you are using a tool call, be sure to include all required parameters in the correct format and only include the tool call in your response. Do not include any other text besides the tool call.
-IMPORTANT: If you are using a tool call, make at most 3 tool calls at a time. Then wait for the tool results before making more tool calls to avoid overwhelming the context window. You can make multiple iterations of tool calls and LLM calls to complete the task.
+IMPORTANT: If you are using a tool call, make at most 2 tool calls at a time. Then wait for the tool results before making more tool calls to avoid overwhelming the context window. You can make multiple iterations of tool calls and LLM calls to complete the task.
 
 Your Response:
         """
@@ -700,7 +701,7 @@ Your Response:
             except json.JSONDecodeError as e:
                 print(f"❌ Failed to parse tool call parameters: {e}")
                 
-        return tool_calls
+        return tool_calls[:2]  # Limit to 2 tool calls at a time
     
     def clean_response(self, response):
         """Clean up the response by removing unwanted prefixes and formatting"""

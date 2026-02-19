@@ -55,7 +55,7 @@ class MoltbookClient:
         # curl "https://www.moltbook.com/api/v1/posts?sort=hot&limit=25" \
         #     -H "Authorization: Bearer YOUR_API_KEY"
         response = requests.get(
-            f"{self.base_url}/posts?sort=hot&limit=25",
+            f"{self.base_url}/posts?sort=hot&limit=5",
             headers=self._get_headers()
         )
         response.raise_for_status()
@@ -206,7 +206,7 @@ class MoltbookClient:
         # curl "https://www.moltbook.com/api/v1/feed?sort=hot&limit=25" \
         #   -H "Authorization: Bearer YOUR_API_KEY"
         response = requests.get(
-            f"{self.base_url}/feed?sort=hot&limit=25",
+            f"{self.base_url}/feed?sort=hot&limit=5",
             headers=self._get_headers()
         )
         response.raise_for_status()
@@ -218,7 +218,7 @@ class MoltbookClient:
         import urllib.parse
         encoded_query = urllib.parse.quote_plus(query)
         response = requests.get(
-            f"{self.base_url}/search?q={encoded_query}&limit=20",
+            f"{self.base_url}/search?q={encoded_query}&limit=5",
             headers=self._get_headers()
         )
         response.raise_for_status()
