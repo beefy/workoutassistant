@@ -476,6 +476,10 @@ Available tools:
 
 Tool calls should be valid json.
 
+Do not send someone an email unless the user explicitly asks you to.
+Your final response will be sent to the user, you don't need to email them with your response.
+Do not use a tool call unless you need to.
+
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
 Thank you!
@@ -503,6 +507,10 @@ Available tools:
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 
 Tool calls should be valid json.
+
+Do not send someone an email unless the user explicitly asks you to.
+Your final response will be sent to the user, you don't need to email them with your response.
+Do not use a tool call unless you need to.
 
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
