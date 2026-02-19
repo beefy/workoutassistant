@@ -462,12 +462,17 @@ class LocalLLM:
         
         tool_instructions = """
 YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
-- Web search --> [TOOL:web_search]{"query": "your search terms"}
-- Send email --> [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
-- Schedule email for sometime in the future --> [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
-- Get system information like current date/time, CPU usage, memory usage --> [TOOL:get_system_info]{}
 
-Tool call parameters must be valid json. Format should be exactly as shown in the examples above. [TOOL:tool_name]{"param1": "value1", "param2": "value2"}
+To call a tool, output a JSON object with the format:
+{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}
+
+Available tools:
+- Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
+- Send email: {"tool": "send_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body"}}
+- Schedule email: {"tool": "schedule_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}}
+- Get system info: {"tool": "get_system_info", "parameters": {}}
+
+Tool calls should be valid json.
 
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
@@ -485,12 +490,17 @@ IMPORTANT: Start your response with "Dear User, ..." and end your response with 
         
         tool_instructions = """
 YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
-- Web search --> [TOOL:web_search]{"query": "your search terms"}
-- Send email --> [TOOL:send_email]{"recipient": "email address", "subject": "email subject", "body": "email body"}
-- Schedule email for sometime in the future --> [TOOL:schedule_email]{"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}
-- Get system information like current date/time, CPU usage, memory usage --> [TOOL:get_system_info]{}
 
-Tool call parameters must be valid json. Format should be exactly as shown in the examples above. [TOOL:tool_name]{"param1": "value1", "param2": "value2"}
+To call a tool, output a JSON object with the format:
+{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}
+
+Available tools:
+- Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
+- Send email: {"tool": "send_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body"}}
+- Schedule email: {"tool": "schedule_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}}
+- Get system info: {"tool": "get_system_info", "parameters": {}}
+
+Tool calls should be valid json.
 
 Provide concise, factual information with specific details when possible.
 Please keep your response short because the context window is limited.
@@ -740,12 +750,23 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
             subject = parameters.get('subject')
             body = parameters.get('body')
             send_time = parameters.get('send_time')
+            
+            # Validate that send_time is in the future
             try:
+                from datetime import datetime
+                send_datetime = datetime.strptime(send_time, "%Y-%m-%d %H:%M")
+                current_datetime = datetime.now()
+                
+                if send_datetime <= current_datetime:
+                    return f"❌ Cannot schedule email for {send_time} - time must be in the future. Current time is {current_datetime.strftime('%Y-%m-%d %H:%M')}"
+                
                 success = self.gmail_client.schedule_email(recipient, subject, body, send_time)
                 if success:
                     return f"✅ Email scheduled successfully for {recipient} at {send_time}"
                 else:
                     return f"❌ Failed to schedule email for {recipient}"
+            except ValueError as e:
+                return f"❌ Invalid date format for send_time. Use YYYY-MM-DD HH:MM format: {e}"
             except Exception as e:
                 return f"❌ Failed to schedule email: {e}"
         
@@ -760,49 +781,39 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
             return f"Error: Unknown tool '{tool_name}'"
     
     def parse_tool_calls(self, text):
-        """Parse tool calls from LLM response"""
+        """Parse tool calls from LLM response - looking for JSON objects with 'tool' field"""
         tool_calls = []
         
-        # Look for tool call patterns like [TOOL:web_search]{"query": "something"}
-        # Use a more robust approach for multiline JSON
-        pattern = r'\[TOOL:(\w+)\]\s*'
+        # Find all JSON objects in the text
+        brace_stack = []
+        json_start = None
         
-        # Find all tool call markers
-        for match in re.finditer(pattern, text):
-            tool_name = match.group(1)
-            start_pos = match.end()
-            
-            # Find the JSON object that follows
-            json_start = text.find('{', start_pos)
-            if json_start == -1:
-                continue
-                
-            # Count braces to find the matching closing brace
-            brace_count = 0
-            json_end = json_start
-            
-            for i in range(json_start, len(text)):
-                if text[i] == '{':
-                    brace_count += 1
-                elif text[i] == '}':
-                    brace_count -= 1
-                    if brace_count == 0:
-                        json_end = i + 1
-                        break
-            
-            if brace_count == 0:  # Found matching closing brace
-                json_str = text[json_start:json_end]
-                try:
-                    parameters = json.loads(json_str)
-                    tool_calls.append({
-                        'tool': tool_name,
-                        'parameters': parameters,
-                        'raw': f'[TOOL:{tool_name}]{json_str}'
-                    })
-                except json.JSONDecodeError as e:
-                    print(f"❌ Failed to parse tool call parameters for {tool_name}: {e}")
-                    print(f"JSON string was: {json_str[:200]}...")
-                
+        for i, char in enumerate(text):
+            if char == '{':
+                if not brace_stack:  # Starting a new JSON object
+                    json_start = i
+                brace_stack.append('{')
+            elif char == '}':
+                if brace_stack:
+                    brace_stack.pop()
+                    if not brace_stack and json_start is not None:  # Complete JSON object found
+                        json_str = text[json_start:i+1]
+                        try:
+                            parsed_json = json.loads(json_str)
+                            # Check if this JSON object has a 'tool' field
+                            if isinstance(parsed_json, dict) and 'tool' in parsed_json:
+                                tool_name = parsed_json['tool']
+                                parameters = parsed_json.get('parameters', {})
+                                tool_calls.append({
+                                    'tool': tool_name,
+                                    'parameters': parameters,
+                                    'raw': json_str
+                                })
+                        except json.JSONDecodeError as e:
+                            # Invalid JSON, skip it
+                            pass
+                        json_start = None
+                        
         return tool_calls[:5]  # Limit to 5 tool calls to avoid overload
     
     def clean_response(self, response):
