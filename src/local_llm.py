@@ -356,19 +356,19 @@ class LocalLLM:
         
         iteration_count = 0
         print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
-        history = "None/New Conversation"
+        # history = "None/New Conversation"
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
             print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
             tool_results = self.process_tool_calls(tool_calls)
 
             # LLM call to summarize convo history
-            history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nNewest Response:{response}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
-            print(f"Summary thus far: {history}")
+            # history = self.execute_prompt(f"Summarize the following conversation history in a concise way, keeping important details but being extremely concise:\n\nNewest Response:{response}\n\nPrevious History Summary:{history}", max_tokens=300, temperature=0.5)
+            # print(f"Summary thus far: {history}")
             print(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
-            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
+            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count, None), max_tokens, temperature, stop)
             tool_calls = self.parse_tool_calls(response)
 
 
@@ -377,7 +377,7 @@ class LocalLLM:
             return self.clean_response(response)
 
         # Final LLM call
-        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results, history), max_tokens, temperature, stop)
+        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results, None), max_tokens, temperature, stop)
         cleaned_response = self.clean_response(response)
         return cleaned_response    
 
@@ -389,25 +389,6 @@ class LocalLLM:
         tool_instructions = """
 You have access to web search and Moltbook social platform tools. Available tools:
 - Web search: [TOOL:web_search]{"query": "your search terms"}
-- Moltbook tools:
-  - [TOOL:get_feed]{} - Get hot posts
-  - [TOOL:get_personalized_feed]{} - Get your personalized feed
-  - [TOOL:create_post]{"submolt": "submolt_name", "title": "title", "content": "content"}
-  - [TOOL:create_link_post]{"submolt": "submolt_name", "title": "title", "url": "url"}
-  - [TOOL:get_posts_from_submolt]{"submolt": "submolt_name"}
-  - [TOOL:get_single_post]{"post_id": "post_id"}
-  - [TOOL:add_comment]{"post_id": "post_id", "content": "comment content"}
-  - [TOOL:reply_to_comment]{"post_id": "post_id", "parent_comment_id": "comment_id", "content": "reply content"}
-  - [TOOL:get_comments]{"post_id": "post_id"}
-  - [TOOL:upvote_post]{"post_id": "post_id"}
-  - [TOOL:downvote_post]{"post_id": "post_id"}
-  - [TOOL:upvote_comment]{"comment_id": "comment_id"}
-  - [TOOL:search_posts_and_comments]{"query": "search terms"}
-  - [TOOL:list_submolts]{} - List all submolts
-  - [TOOL:follow_user]{"username": "username"}
-  - [TOOL:subscribe_to_submolt]{"submolt": "submolt_name"}
-  - [TOOL:unsubscribe_from_submolt]{"submolt": "submolt_name"}
-  - [TOOL:unfollow_user]{"username": "username"}
 
 Do not use any tool calls if you do not need to.
 Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
@@ -416,8 +397,6 @@ Please keep your response short because the context window is limited.
 Thank you!
 
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-IMPORTANT: If you are using a tool call, be sure to include all required parameters in the correct format and only include the tool call in your response. Do not include any other text besides the tool call.
-IMPORTANT: If you are using a tool call, make at most 2 tool calls at a time. Then wait for the tool results before making more tool calls to avoid overwhelming the context window. You can make multiple iterations of tool calls and LLM calls to complete the task.
 
 Your Response:
         """
@@ -432,25 +411,6 @@ Your Response:
         tool_instructions = """
 You have access to web search and Moltbook social platform tools. Available tools:
 - Web search: [TOOL:web_search]{"query": "your search terms"}
-- Moltbook tools:
-  - [TOOL:get_feed]{} - Get hot posts
-  - [TOOL:get_personalized_feed]{} - Get your personalized feed
-  - [TOOL:create_post]{"submolt": "submolt_name", "title": "title", "content": "content"}
-  - [TOOL:create_link_post]{"submolt": "submolt_name", "title": "title", "url": "url"}
-  - [TOOL:get_posts_from_submolt]{"submolt": "submolt_name"}
-  - [TOOL:get_single_post]{"post_id": "post_id"}
-  - [TOOL:add_comment]{"post_id": "post_id", "content": "comment content"}
-  - [TOOL:reply_to_comment]{"post_id": "post_id", "parent_comment_id": "comment_id", "content": "reply content"}
-  - [TOOL:get_comments]{"post_id": "post_id"}
-  - [TOOL:upvote_post]{"post_id": "post_id"}
-  - [TOOL:downvote_post]{"post_id": "post_id"}
-  - [TOOL:upvote_comment]{"comment_id": "comment_id"}
-  - [TOOL:search_posts_and_comments]{"query": "search terms"}
-  - [TOOL:list_submolts]{} - List all submolts
-  - [TOOL:follow_user]{"username": "username"}
-  - [TOOL:subscribe_to_submolt]{"submolt": "submolt_name"}
-  - [TOOL:unsubscribe_from_submolt]{"submolt": "submolt_name"}
-  - [TOOL:unfollow_user]{"username": "username"}
 
 Do not use any tool calls if you do not need to.
 Do use a tool call if it will help you get information you need to answer the user's question or complete the task.
@@ -459,19 +419,16 @@ Please keep your response short because the context window is limited.
 Thank you!
 
 IMPORTANT: If you are not using a tool call, start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-IMPORTANT: If you are using a tool call, be sure to include all required parameters in the correct format and only include the tool call in your response. Do not include any other text besides the tool call.
-IMPORTANT: If you are using a tool call, make at most 3 tool calls at a time. Then wait for the tool results before making more tool calls to avoid overwhelming the context window. You can make multiple iterations of tool calls and LLM calls to complete the task.
 
 Your Response:
         """
 
-        return f"Conversation History Summary: {history}\nTool Results: {tool_results}\nTool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
+        return f"Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}\nUser Prompt: {original_prompt}\nNumber of tool calls thus far: {iteration_num}\nYour Response: "
 
     def _build_final_prompt(self, original_prompt, tool_results, history):
         """Build a prompt for the second LLM call that includes tool results"""
         return f"""Prompt: "{original_prompt}"
 Additional Info: "{tool_results}"
-Conversation History Summary: "{history}"
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 Your Response:
         """
