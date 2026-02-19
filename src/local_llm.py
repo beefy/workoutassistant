@@ -344,32 +344,57 @@ class LocalLLM:
             
         except Exception as e:
             print(f"❌ Failed to load model with default settings: {e}")
-            print("🔄 Trying with reduced context and different settings...")
+            print("🔄 Trying with very reduced context...")
             
-            # Try with reduced context and different settings
+            # Try with much smaller context for memory constraints
             try:
                 self.model = Llama(
                     model_path=self.model_path,
-                    n_ctx=32768,  # Try with 32k context
+                    n_ctx=4096,  # Much smaller context for Pi
                     n_threads=self.n_threads,
-                    verbose=True,  # Enable verbose for debugging
-                    use_mmap=False,  # Disable memory mapping
+                    verbose=False,
+                    use_mmap=True,
                     use_mlock=False,
                     n_gpu_layers=0  # Force CPU-only
                 )
                 
-                self.n_ctx = 32768  # Update context size
+                self.n_ctx = 4096  # Update context size
                 load_time = time.time() - start_time
-                print(f"✅ Model loaded successfully with reduced context in {load_time:.1f} seconds")
+                print(f"✅ Model loaded successfully with 4k context in {load_time:.1f} seconds")
+                print("⚠️  Using reduced 4k context due to memory constraints")
                 return True
                 
             except Exception as e2:
-                print(f"❌ Failed to load model with reduced settings: {e2}")
+                print(f"❌ Failed to load 128k model even with reduced context: {e2}")
+                print("🔄 Trying to fall back to 4k model...")
+                
+                # Try to load the 4k model instead
+                fallback_model = os.path.join(os.path.expanduser("~/models/"), "Phi-3-mini-4k-instruct-q4.gguf")
+                if os.path.exists(fallback_model):
+                    try:
+                        self.model_path = fallback_model
+                        self.model = Llama(
+                            model_path=self.model_path,
+                            n_ctx=4096,
+                            n_threads=self.n_threads,
+                            verbose=False,
+                            use_mmap=True,
+                            use_mlock=False
+                        )
+                        
+                        self.n_ctx = 4096
+                        load_time = time.time() - start_time
+                        print(f"✅ Fallback to 4k model successful in {load_time:.1f} seconds")
+                        print("⚠️  Using 4k model due to insufficient RAM for 128k model")
+                        return True
+                        
+                    except Exception as e3:
+                        print(f"❌ Failed to load fallback 4k model: {e3}")
+                
                 print("This may be due to:")
-                print("  1. Corrupted model file - try re-downloading")
-                print("  2. Incompatible GGUF version - try a different quantization")
-                print("  3. Insufficient RAM - try a smaller model")
-                print("  4. Model format issue - try the bartowski version instead")
+                print("  1. Insufficient RAM - Raspberry Pi may need more memory for 128k models")
+                print("  2. Try downloading and using the 4k model instead")
+                print("  3. Consider adding swap space or using a system with more RAM")
                 return False
     
     def execute_prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None):
