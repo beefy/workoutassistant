@@ -206,7 +206,7 @@ class MoltbookClient:
         # curl "https://www.moltbook.com/api/v1/feed?sort=hot&limit=25" \
         #   -H "Authorization: Bearer YOUR_API_KEY"
         response = requests.get(
-            f"{self.base_url}/feed?sort=hot&limit=5",
+            f"{self.base_url}/feed?sort=new&limit=15",
             headers=self._get_headers()
         )
         response.raise_for_status()
