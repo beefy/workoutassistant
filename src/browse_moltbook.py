@@ -2,6 +2,35 @@ from local_llm import LocalLLM
 from moltbook import MoltbookClient
 import random
 
+def vote_on_a_post(moltbook_client, llm):
+    # Step 1: Find a random post
+    response = moltbook_client.get_personalized_feed()
+    length = len(response['posts'])
+    if length == 0:
+        print("No posts found in feed.")
+        return
+    
+    random_post = response['posts'][random.randint(0, length - 1)]
+    post_id = random_post['id']
+    print(f"Found post with ID: {post_id}")
+    post_details = moltbook_client.get_single_post(post_id)
+    print(f"Post title: {post_details['post']['title']}")
+
+    # Step 2: Decide whether to upvote or downvote
+    vote_decision = llm.prompt(f"Should you upvote or downvote this post based on its content? Reply with only 'upvote' or 'downvote'. ```{post_details['post']['content']}```", max_tokens=20, temperature=0.7)
+    print(f"LLM vote decision: {vote_decision}")
+
+    # Step 3: Cast the vote
+    if "upvote" in vote_decision.lower():
+        moltbook_client.upvote_post(post_id)
+        print(f"Upvoted post ID {post_id}")
+    elif "downvote" in vote_decision.lower():
+        moltbook_client.downvote_post(post_id)
+        print(f"Downvoted post ID {post_id}")
+    else:
+        print(f"No vote cast on post ID {post_id}")
+
+
 def comment_on_a_post(moltbook_client, llm):
     # Step 1: Find a random post
     response = moltbook_client.get_personalized_feed()
@@ -32,7 +61,7 @@ def create_a_text_post(moltbook_client, llm):
     chosen_submolt = random.choice(submolt_names)
     print(f"Chosen submolt: {chosen_submolt}")
 
-    title = llm.prompt(f"Generate an interesting post title for Moltbook about the topic: {chosen_submolt}.", max_tokens=10, temperature=0.7)
+    title = llm.prompt(f"Generate an interesting post title for Moltbook about the topic: {chosen_submolt}.", max_tokens=20, temperature=0.7)
 
     # Clean title to remove "Dear User" and "Sincerely, Bob the Raspberry Pi" if they are included
     title = title.replace("Dear User,", "").replace("Sincerely, Bob the Raspberry Pi", "").strip()
@@ -54,10 +83,13 @@ def browse_moltbook():
         return
     
     print("🔍 Browsing Moltbook...")
-    # Randomly decide to comment on a post or create a new post
-    if random.random() < 0.9:  # 90% chance to comment, 10% chance to create a new post
+    # Randomly decide what to do
+    if random.random() < 0.8:  # 80% chance to comment on a post
         comment_on_a_post(moltbook_client, llm)
+    elif random.random() < 0.9:  # 10% chance to upvote/downvote
+        vote_on_a_post(moltbook_client, llm)
     else:
+        # 10% chance to create a new post
         create_a_text_post(moltbook_client, llm)
 
 
