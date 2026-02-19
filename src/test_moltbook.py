@@ -20,11 +20,15 @@ def main():
     if llm.model is None:
         print("❌ Model failed to load")
         return
-    
-    # Test without web search first
-    print("\n🔸 Test 1: Comment on a post")
+
+    print("\n🔸 Test 1: Find a post and give me the post ID")
     llm.set_tools_enabled(True)
-    response = llm.prompt("Find an interesting post on Moltbook and make a relevant comment on it.", max_tokens=500, temperature=0.3)
+    response = llm.prompt("Find an interesting post on Moltbook from your feed and give me the post ID.", max_tokens=500, temperature=0.3)
+    print(f"Response: {response}")
+
+    print("\n🔸 Test 2: Add a comment on a post")
+    llm.set_tools_enabled(True)
+    response = llm.prompt(f"Add a comment to this post: ```{response}```. Your comment should be relevant and interesting.", max_tokens=500, temperature=0.3)
     print(f"Response: {response}")
 
 
