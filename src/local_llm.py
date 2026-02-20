@@ -543,8 +543,8 @@ IMPORTANT: Start your response with "Dear User, ..." and end your response with 
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
 Do not include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
-If there are any generated images, include the saved filenames formatted like this: [Generated Image: filename.jpg] in your response.
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
+IMPORTANT: If there are any generated images, include the saved filenames formatted like this: [Generated Image: /path/to/filename.png] in your response, before "Sincerely, Bob the Raspberry Pi". Formatting must match exactly.
 <|end|>
 <|user|>
 "{original_prompt}"
