@@ -29,93 +29,95 @@ def parse_email_body(body):
     # Split email into lines for processing
     lines = body.split('\n')
     
-    # Find the pattern "On ... wrote:" which indicates start of quoted content
-    wrote_pattern = r'^On .+? wrote:$'
+    # More robust pattern to match "On ... wrote:" lines
+    # Handles: "On Fri, Feb 20, 2026 at 2:31 PM Bob <email> wrote:"
+    wrote_pattern = r'^On\s+.+?\s+wrote:\s*$'
     
     current_message_lines = []
-    history_messages = []
-    current_section = "new"  # "new", "parsing_quote"
-    current_quote_level = 0
-    current_quoted_lines = []
-    current_sender = ""
+    all_sections = []
     
-    i = 0
-    while i < len(lines):
-        line = lines[i]
+    # First pass: split into sections based on "On ... wrote:" pattern
+    current_section = []
+    current_sender = None
+    
+    for line in lines:
+        stripped = line.strip()
         
-        # Check if this line matches the "On ... wrote:" pattern
-        if re.match(wrote_pattern, line.strip()):
-            # Extract sender from the "On ... wrote:" line
-            # Pattern: "On Date at Time Sender <email> wrote:"
-            sender_match = re.search(r'On .+? (.+?) wrote:$', line.strip())
+        # Check if this is an "On ... wrote:" line
+        if re.match(wrote_pattern, stripped):
+            # Save previous section if it exists
+            if current_section:
+                all_sections.append({
+                    "sender": current_sender,
+                    "lines": current_section.copy()
+                })
+            
+            # Extract sender from this line
+            # Pattern: "On Date at Time Sender wrote:"
+            sender_match = re.search(r'On\s+.+?\s+(.+?)\s+wrote:\s*$', stripped)
             if sender_match:
                 current_sender = sender_match.group(1).strip()
             else:
                 current_sender = "Unknown"
             
-            current_section = "parsing_quote"
-            current_quoted_lines = []
-            current_quote_level = 0
-            i += 1
-            continue
-        
-        if current_section == "new":
-            # We're still in the new message part
-            current_message_lines.append(line)
-        
-        elif current_section == "parsing_quote":
-            # We're parsing quoted content
-            stripped_line = line.strip()
-            
-            # Count quote level (>, >>, >>>)
-            quote_level = 0
-            temp_line = stripped_line
-            while temp_line.startswith('>'):
-                quote_level += 1
-                temp_line = temp_line[1:].strip()
-            
-            # If we hit a new "On ... wrote:" pattern, save current quote and start new one
-            if re.match(wrote_pattern, temp_line):
-                # Save current quoted message
-                if current_quoted_lines:
-                    quoted_body = '\n'.join(current_quoted_lines).strip()
-                    if quoted_body:
-                        history_messages.append({
-                            "sender": current_sender,
-                            "body": quoted_body
-                        })
-                
-                # Extract new sender
-                sender_match = re.search(r'On .+? (.+?) wrote:$', temp_line)
-                if sender_match:
-                    current_sender = sender_match.group(1).strip()
-                else:
-                    current_sender = "Unknown"
-                
-                current_quoted_lines = []
-                current_quote_level = quote_level
-                i += 1
-                continue
-            
-            # Add content to current quoted message (remove quote prefixes)
-            if temp_line:  # Only add non-empty lines
-                current_quoted_lines.append(temp_line)
-            elif current_quoted_lines:  # Preserve empty lines within message
-                current_quoted_lines.append("")
-        
-        i += 1
+            current_section = []
+        else:
+            current_section.append(line)
     
-    # Save any remaining quoted message
-    if current_section == "parsing_quote" and current_quoted_lines:
-        quoted_body = '\n'.join(current_quoted_lines).strip()
-        if quoted_body:
-            history_messages.append({
-                "sender": current_sender,
-                "body": quoted_body
-            })
+    # Add the last section
+    if current_section:
+        all_sections.append({
+            "sender": current_sender,
+            "lines": current_section.copy()
+        })
     
-    # Clean up the current message
-    current_body = '\n'.join(current_message_lines).strip()
+    # Process sections
+    if not all_sections:
+        # No quoted content found, entire body is new message
+        return {"body": body.strip(), "history": []}
+    
+    # First section is the new message
+    current_body = '\n'.join(all_sections[0]["lines"]).strip()
+    
+    # Process quoted sections
+    history_messages = []
+    
+    for section in all_sections[1:]:
+        if section["sender"]:
+            # Clean quoted content by removing quote prefixes
+            cleaned_lines = []
+            for line in section["lines"]:
+                # Remove quote prefixes (>, >>, etc.)
+                cleaned_line = line
+                while cleaned_line.startswith('>'):
+                    cleaned_line = cleaned_line[1:].strip()
+                
+                # Skip empty lines and nested "On ... wrote:" lines
+                if cleaned_line and not re.match(wrote_pattern, cleaned_line):
+                    cleaned_lines.append(cleaned_line)
+                elif not cleaned_line and cleaned_lines:  # Preserve internal empty lines
+                    cleaned_lines.append("")
+            
+            # Join and clean the message body
+            quoted_body = '\n'.join(cleaned_lines).strip()
+            
+            # Remove any remaining nested "On ... wrote:" content
+            lines_to_keep = []
+            skip_rest = False
+            for line in quoted_body.split('\n'):
+                if re.match(wrote_pattern, line.strip()):
+                    skip_rest = True
+                    break
+                if not skip_rest:
+                    lines_to_keep.append(line)
+            
+            final_body = '\n'.join(lines_to_keep).strip()
+            
+            if final_body:
+                history_messages.append({
+                    "sender": section["sender"],
+                    "body": final_body
+                })
     
     # Reverse history to put oldest first
     history_messages.reverse()
