@@ -58,7 +58,7 @@ class HuggingFaceImageGenerator:
         if model and not model.startswith("http"):
             model_url = self.models.get(model, self.default_model)
         
-        api_url = f"https://api-inference.huggingface.co/models/{model_url}"
+        api_url = f"https://router.huggingface.co/models/{model_url}"
         
         # Prepare the payload
         payload = {
@@ -163,7 +163,7 @@ class HuggingFaceImageGenerator:
 
     def test_connection(self):
         """Test connection to Hugging Face API"""
-        test_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
+        test_url = "https://router.huggingface.co/models/stabilityai/stable-diffusion-2-1"
         
         try:
             response = requests.get(test_url, headers=self.headers, timeout=10)
