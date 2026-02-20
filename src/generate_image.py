@@ -5,7 +5,7 @@ import base64
 import requests
 from huggingface_hub import InferenceClient
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 class HuggingFaceImageGenerator:
@@ -34,17 +34,13 @@ class HuggingFaceImageGenerator:
             "openjourney": "prompthero/openjourney"
         }
         
-        # Image-to-image models for modification (tested and working)
+        # Image-to-image models for modification
         self.img2img_models = {
-            "flux_schnell_replicate": "black-forest-labs/FLUX.1-schnell",  # Available on Replicate
-            "flux_dev_replicate": "black-forest-labs/FLUX.1-dev",  # Available on Replicate 
-            "instruct_pix2pix": "timbrooks/instruct-pix2pix",  # For router endpoint
-            "stable_diffusion_img2img": "runwayml/stable-diffusion-v1-5",
-            "stable_diffusion_inpaint": "stabilityai/stable-diffusion-2-inpainting"
+            "flux_kontext": "black-forest-labs/FLUX.1-Kontext-dev",  # Available on Replicate for img2img
         }
         
         self.default_model = self.models["flux_schnell"]  # Faster model for free tier
-        self.default_img2img_model = self.img2img_models["flux_schnell_replicate"]  # FLUX model available on Replicate
+        self.default_img2img_model = self.img2img_models["flux_kontext"]  # FLUX Kontext supports img2img on Replicate
 
     def generate_image(self, prompt, model=None, width=512, height=512, save_path=None):
         """Generate an image from a text prompt using Hugging Face Inference API
@@ -163,93 +159,21 @@ class HuggingFaceImageGenerator:
             # Load the input image
             input_image = Image.open(image_path)
             
-            # Try using InferenceClient with providers that support image-to-image
+            # Use FLUX Kontext with Replicate provider
             try:
-                # First try with a provider that supports image_to_image (use correct model for Replicate)
-                if "replicate" in model_id or "FLUX" in model_id or "flux" in model_id.lower():
-                    # Use FLUX model with Replicate provider
-                    clean_model_id = model_id.replace("_replicate", "")  # Remove suffix
-                    provider_client = InferenceClient(provider="replicate", api_key=self.api_token)
-                    modified_image = provider_client.image_to_image(
-                        image=input_image,
-                        prompt=prompt.strip(),
-                        model=clean_model_id,
-                        strength=strength
-                    )
-                    print("✅ Image modified successfully using Replicate provider!")
-                else:
-                    raise Exception("Using router endpoint fallback")
-                
-            except Exception as provider_error:
-                print(f"Provider method failed: {provider_error}")
-                
-                # Fallback to router endpoint (using correct format)
-                api_url = f"https://router.huggingface.co/models/{model_id}"
-                headers = {
-                    "Authorization": f"Bearer {self.api_token}",
-                    "Content-Type": "application/json"
-                }
-                
-                # Convert image to base64 
-                img_buffer = io.BytesIO()
-                input_image.save(img_buffer, format='PNG')
-                img_b64 = base64.b64encode(img_buffer.getvalue()).decode()
-                
-                json_payload = {
-                    "inputs": {
-                        "image": img_b64,
-                        "prompt": prompt.strip()
-                    },
-                    "parameters": {
-                        "strength": strength,
-                        "guidance_scale": 7.5,
-                        "num_inference_steps": 20
-                    }
-                }
-                
-                response = requests.post(
-                    api_url,
-                    headers=headers,
-                    json=json_payload,
-                    timeout=120
+                print("🚀 Using FLUX Kontext via Replicate provider...")
+                provider_client = InferenceClient(provider="replicate", api_key=self.api_token)
+                modified_image = provider_client.image_to_image(
+                    image=input_image,
+                    prompt=prompt.strip(),
+                    model=model_id,
+                    strength=strength
                 )
+                print("✅ Image modified successfully using FLUX Kontext!")
                 
-                if response.status_code == 200:
-                    modified_image = Image.open(io.BytesIO(response.content))
-                elif response.status_code == 503:
-                    raise Exception("Model is loading, please wait and try again")
-                elif response.status_code == 429:
-                    raise Exception("Rate limit exceeded, please wait before trying again") 
-                elif response.status_code == 402:
-                    raise Exception("This model requires payment - check your billing settings")
-                else:
-                    # Try JSON with base64 as last resort
-                    img_buffer.seek(0)
-                    img_b64 = base64.b64encode(img_buffer.getvalue()).decode()
-                    
-                    json_payload = {
-                        "inputs": {
-                            "image": img_b64,
-                            "prompt": prompt.strip()
-                        },
-                        "parameters": {
-                            "strength": strength,
-                            "guidance_scale": 7.5,
-                            "num_inference_steps": 20
-                        }
-                    }
-                    
-                    response = requests.post(
-                        api_url,
-                        headers={**headers, "Content-Type": "application/json"},
-                        json=json_payload,
-                        timeout=120
-                    )
-                    
-                    if response.status_code == 200:
-                        modified_image = Image.open(io.BytesIO(response.content))
-                    else:
-                        raise Exception(f"All methods failed. API returned {response.status_code}: {response.text[:500]}")
+            except Exception as error:
+                print(f"FLUX Kontext failed: {error}")
+                raise Exception(f"Image modification failed: {error}")
             
             print("✅ Image modified successfully!")
             
@@ -304,9 +228,9 @@ class HuggingFaceImageGenerator:
         print("🤖 Available image generation models:")
         for name, model_id in self.models.items():
             print(f"  • {name}: {model_id}")
-        print(f"\n�️ Available image-to-image models:")
+        print(f"\n✏️ Available image-to-image models:")
         for name, model_id in self.img2img_models.items():
-            print(f"  • {name}: {model_id}")
+            print(f"  • {name}: {model_id} (Replicate provider)")
         print(f"\n💡 Default text-to-image model: {self.default_model}")
         print(f"✏️ Default image-to-image model: {self.default_img2img_model}")
 
