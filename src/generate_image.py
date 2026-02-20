@@ -36,13 +36,16 @@ class HuggingFaceImageGenerator:
         
         # Image-to-image models for modification
         self.img2img_models = {
-            "instruct_pix2pix": "timbrooks/instruct-pix2pix",
+            "flux2_dev": "black-forest-labs/FLUX.2-dev",
+            "flux2_klein_9b": "black-forest-labs/FLUX.2-klein-9B",
+            "flux2_klein_4b": "black-forest-labs/FLUX.2-klein-4B", 
+            "flux1_kontext": "black-forest-labs/FLUX.1-Kontext-dev",
             "stable_diffusion_img2img": "runwayml/stable-diffusion-v1-5",
-            "controlnet": "lllyasviel/sd-controlnet-canny"
+            "instruct_pix2pix": "timbrooks/instruct-pix2pix"
         }
         
         self.default_model = self.models["flux_schnell"]  # Faster model for free tier
-        self.default_img2img_model = self.img2img_models["instruct_pix2pix"]
+        self.default_img2img_model = self.img2img_models["flux2_klein_4b"]  # Updated to use FLUX.2
 
     def generate_image(self, prompt, model=None, width=512, height=512, save_path=None):
         """Generate an image from a text prompt using Hugging Face Inference API
