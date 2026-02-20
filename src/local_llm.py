@@ -13,6 +13,7 @@ from web_search import web_search
 from moltbook import MoltbookClient
 from gmail import GmailClient, get_system_info
 from generate_image import HuggingFaceImageGenerator
+from image_captioning import LocalImageCaptioner
 
 
 class LocalLLM:
@@ -39,6 +40,13 @@ class LocalLLM:
         except ValueError as e:
             print(f"⚠️  GmailClient not available: {e}")
             self.gmail_client = None
+        
+        # Initialize LocalImageCaptioner
+        try:
+            self.image_captioner = LocalImageCaptioner()
+        except Exception as e:
+            print(f"⚠️  LocalImageCaptioner not available: {e}")
+            self.image_captioner = None
         
         # Tool definitions
         self.tools = {
@@ -310,6 +318,38 @@ class LocalLLM:
                     },
                     "required": ["image_path", "prompt"]
                 }
+            },
+            "caption_image": {
+                "name": "caption_image",
+                "description": "Generate a descriptive caption for an image using local AI model.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to caption (jpg/png)"
+                        }
+                    },
+                    "required": ["image_path"]
+                }
+            },
+            "analyze_image": {
+                "name": "analyze_image",
+                "description": "Analyze an image and answer a specific question about it using local AI model.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the image file to analyze (jpg/png)"
+                        },
+                        "question": {
+                            "type": "string",
+                            "description": "Question to ask about the image"
+                        }
+                    },
+                    "required": ["image_path", "question"]
+                }
             }
         }
         
@@ -510,6 +550,8 @@ Available tools:
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 - Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
 - Modify image: {"tool": "modify_image", "parameters": {"image_path": "path/to/image.jpg", "prompt": "description of modifications", "strength": 0.8}}
+- Caption image: {"tool": "caption_image", "parameters": {"image_path": "path/to/image.jpg"}}
+- Analyze image: {"tool": "analyze_image", "parameters": {"image_path": "path/to/image.jpg", "question": "What do you see in this image?"}}
 
 Tool calls should be valid json.
 
@@ -540,6 +582,8 @@ Available tools:
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 - Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
 - Modify image: {"tool": "modify_image", "parameters": {"image_path": "path/to/image.jpg", "prompt": "description of modifications", "strength": 0.8}}
+- Caption image: {"tool": "caption_image", "parameters": {"image_path": "path/to/image.jpg"}}
+- Analyze image: {"tool": "analyze_image", "parameters": {"image_path": "path/to/image.jpg", "question": "What do you see in this image?"}}
 
 Tool calls should be valid json.
 
@@ -869,6 +913,53 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                     
             except Exception as e:
                 return f"❌ Failed to modify image: {e}"
+        
+        elif tool_name == "caption_image":
+            try:
+                image_path = parameters.get('image_path')
+                
+                if not image_path:
+                    return "❌ Error: Image path is required"
+                
+                if self.image_captioner is None:
+                    return "❌ Error: Local image captioning not available. Install required packages: pip install torch transformers pillow"
+                
+                print(f"📝 Generating caption for: {image_path}")
+                
+                # Generate caption using local model
+                caption = self.image_captioner.caption_image(image_path)
+                
+                if "❌" in caption:
+                    return caption  # Return error message as-is
+                else:
+                    return f"✅ Image caption generated!\n📸 Image: {image_path}\n📝 Caption: {caption}"
+                    
+            except Exception as e:
+                return f"❌ Failed to caption image: {e}"
+        
+        elif tool_name == "analyze_image":
+            try:
+                image_path = parameters.get('image_path')
+                question = parameters.get('question')
+                
+                if not image_path or not question:
+                    return "❌ Error: Both image_path and question are required"
+                
+                if self.image_captioner is None:
+                    return "❌ Error: Local image captioning not available. Install required packages: pip install torch transformers pillow"
+                
+                print(f"🔍 Analyzing image: {image_path} with question: {question}")
+                
+                # Analyze image using local model
+                answer = self.image_captioner.analyze_image_with_question(image_path, question)
+                
+                if "❌" in answer:
+                    return answer  # Return error message as-is
+                else:
+                    return f"✅ Image analysis completed!\n📸 Image: {image_path}\n❓ Question: {question}\n💬 Answer: {answer}"
+                    
+            except Exception as e:
+                return f"❌ Failed to analyze image: {e}"
         
         else:
             return f"Error: Unknown tool '{tool_name}'"
