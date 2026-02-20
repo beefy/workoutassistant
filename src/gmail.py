@@ -115,6 +115,100 @@ class GmailClient:
             print(f"❌ Send with attachment failed: {e}")
             return False
 
+    def send_email_with_attachments(self, to_email, subject, body, file_paths, is_html=False):
+        """Send an email with multiple file attachments
+        
+        Args:
+            to_email (str): Recipient email address
+            subject (str): Email subject
+            body (str): Email body text
+            file_paths (list): List of file paths to attach
+            is_html (bool): Whether body is HTML format
+            
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        if not all([to_email, subject, body, file_paths]):
+            print("❌ Send failed: to_email, subject, body, and file_paths are required")
+            return False
+        
+        # Convert single file path to list for compatibility
+        if isinstance(file_paths, str):
+            file_paths = [file_paths]
+        
+        if not file_paths:
+            print("❌ Send failed: At least one file path must be provided")
+            return False
+        
+        # Check all files exist before proceeding
+        missing_files = []
+        for file_path in file_paths:
+            if not os.path.exists(file_path):
+                missing_files.append(file_path)
+        
+        if missing_files:
+            print(f"❌ Send failed: Files not found: {missing_files}")
+            return False
+            
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = self.email
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            # Add body text
+            msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
+            
+            # Add all attachments
+            total_size = 0
+            attached_files = []
+            
+            for file_path in file_paths:
+                filename = os.path.basename(file_path)
+                file_size = os.path.getsize(file_path)
+                total_size += file_size
+                
+                # Check for reasonable size limit (25MB total for Gmail)
+                if total_size > 25 * 1024 * 1024:
+                    print(f"⚠️ Warning: Total attachment size ({total_size / (1024*1024):.1f}MB) exceeds Gmail limit")
+                
+                # Guess the content type based on the file's extension
+                content_type, encoding = mimetypes.guess_type(file_path)
+                if content_type is None or encoding is not None:
+                    content_type = 'application/octet-stream'
+                
+                main_type, sub_type = content_type.split('/', 1)
+                
+                with open(file_path, 'rb') as fp:
+                    attachment = MIMEBase(main_type, sub_type)
+                    attachment.set_payload(fp.read())
+                    encoders.encode_base64(attachment)
+                    attachment.add_header(
+                        'Content-Disposition',
+                        f'attachment; filename= {filename}'
+                    )
+                    msg.attach(attachment)
+                
+                attached_files.append(f"{filename} ({file_size} bytes)")
+            
+            # Send email
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(self.email, self.password)
+            server.sendmail(self.email, to_email, msg.as_string())
+            server.quit()
+            
+            print(f"✅ Email with {len(file_paths)} attachments sent to {to_email}")
+            print(f"📎 Attached files:")
+            for file_info in attached_files:
+                print(f"   • {file_info}")
+            print(f"📊 Total size: {total_size / 1024:.1f} KB")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Send with attachments failed: {e}")
+            return False
+
     def schedule_email(self, to_email, subject, body, send_time, is_html=False):
         """Schedule an email to be sent at a future time"""
         if not all([to_email, subject, body, send_time]):
@@ -252,6 +346,52 @@ class GmailClient:
         except Exception as e:
             print(f"❌ Count failed: {e}")
             return 0
+
+    def email_to_admin(self, subject, body=None, file_path=None, file_paths=None, is_html=False):
+        """Send email to admin (uses GMAIL_ADDRESS as both sender and recipient)
+        
+        Args:
+            subject (str): Email subject
+            body (str, optional): Email body. If None, uses system info
+            file_path (str, optional): Single file path to attach (for compatibility)
+            file_paths (list, optional): Multiple file paths to attach
+            is_html (bool): Whether body is HTML format
+            
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        admin_email = self.email  # Send to self (admin)
+        
+        # Use system info as default body if none provided
+        if body is None:
+            body = get_system_info()
+        
+        try:
+            # Handle both single and multiple file attachments
+            if file_paths or file_path:
+                # Combine file_path and file_paths if both provided
+                all_files = []
+                if file_path:
+                    all_files.append(file_path)
+                if file_paths:
+                    if isinstance(file_paths, list):
+                        all_files.extend(file_paths)
+                    else:
+                        all_files.append(file_paths)
+                
+                success = self.send_email_with_attachments(
+                    admin_email, subject, body, all_files, is_html
+                )
+            else:
+                success = self.send_email(admin_email, subject, body, is_html)
+            
+            if success:
+                print(f"📧 Admin notification sent: {subject}")
+            return success
+            
+        except Exception as e:
+            print(f"❌ Admin email failed: {e}")
+            return False
 
 
 def get_system_info():

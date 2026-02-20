@@ -5,11 +5,11 @@ import os
 
 def process_email():
     gmail = GmailClient()
-    llm = LocalLLM()
 
     # Collect new emails
     new_emails = gmail.check_emails()
     for email_info in new_emails:
+        llm = LocalLLM()
         sender = email_info['from'].replace("<", "").replace(">", "")
         senders_email = sender.split()[-1] if " " in sender else sender
         subject = email_info['subject']
@@ -30,9 +30,15 @@ def process_email():
         prompt = f"{sender} says 'Re: {subject}:\n{body}'"
         response = llm.prompt(prompt)
         print(f"Generated response: {response}")
+        print(f"Generated images in this session: {llm.generated_images}")
 
         # Send response email
-        gmail.send_email(senders_email, f"Re: {subject}", response)
+        if llm.generated_images:
+            print(f"📧 Sending email with attachments to {senders_email}")
+            gmail.send_email_with_attachments(senders_email, f"Re: {subject}", response, llm.generated_images)
+        else:
+            print(f"📧 Sending email to {senders_email}")
+            gmail.send_email(senders_email, f"Re: {subject}", response)
 
         print(f"📧 Completed processing email from {sender}: {subject}")
 

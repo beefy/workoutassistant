@@ -23,7 +23,8 @@ class LocalLLM:
         self.model = None
         self.tools_enabled = True
         self.tool_call_memo = set()  # Store hash of executed tool calls to prevent duplicates
-        
+        self.generated_images = []
+
         # Initialize MoltbookClient
         try:
             self.moltbook_client = MoltbookClient()
@@ -543,8 +544,8 @@ IMPORTANT: Start your response with "Dear User, ..." and end your response with 
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
 Do not include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
+Do not include file paths of saved images in your final response.
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-IMPORTANT: If there are any generated images, include the saved filenames formatted like this: [Generated Image: /path/to/filename.png] in your response, before "Sincerely, Bob the Raspberry Pi". Formatting must match exactly.
 <|end|>
 <|user|>
 "{original_prompt}"
@@ -816,6 +817,7 @@ IMPORTANT: If there are any generated images, include the saved filenames format
                 # Generate the image
                 image_client = HuggingFaceImageGenerator()
                 result = image_client.generate_and_save(prompt)
+                self.generated_images.append(result)  # Keep track of generated images in this session
                 
                 if result:
                     # Result is file path when save=True
