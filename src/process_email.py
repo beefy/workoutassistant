@@ -54,8 +54,10 @@ def process_email():
         body = email_info['body']
         llm.attachments = email_info.get('attachments', [])  # Pass attachments
         parsed_body = parse_email_body(body)
-        print(parsed_body["body"])
-        exit()
+        body = parsed_body["body"]
+        cc = email_info.get('cc', '')
+        if not cc:
+            cc = []
 
         print(f"Processing email from {sender} with subject '{subject}'")
 
@@ -80,10 +82,10 @@ def process_email():
         # Send response email
         if llm.generated_images:
             print(f"📧 Sending email with attachments to {senders_email}")
-            gmail.send_email_with_attachments(senders_email, f"Re: {subject}", response, llm.generated_images)
+            gmail.send_email_with_attachments(senders_email, f"Re: {subject}", response, llm.generated_images, cc=cc)
         else:
             print(f"📧 Sending email to {senders_email}")
-            gmail.send_email(senders_email, f"Re: {subject}", response)
+            gmail.send_email(senders_email, f"Re: {subject}", response, cc=cc)
 
         print(f"📧 Completed processing email from {sender}: {subject}")
         llm.generated_images = []  # Clear generated images for next email

@@ -25,7 +25,7 @@ class GmailClient:
         self.email = email_address
         self.password = app_password
 
-    def send_email(self, to_email, subject, body, is_html=False):
+    def send_email(self, to_email, subject, body, is_html=False, cc=None):
         if not all([to_email, subject, body]):
             print("❌ Send failed: to_email, subject, and body are required")
             return False
@@ -36,21 +36,35 @@ class GmailClient:
             msg['To'] = to_email
             msg['Subject'] = subject
             
+            # Handle CC addresses
+            all_recipients = [to_email]
+            if cc:
+                if isinstance(cc, str):
+                    cc_list = [cc]
+                elif isinstance(cc, list):
+                    cc_list = cc
+                else:
+                    cc_list = [str(cc)]
+                
+                msg['Cc'] = ', '.join(cc_list)
+                all_recipients.extend(cc_list)
+            
             msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
             
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
             server.login(self.email, self.password)
-            server.sendmail(self.email, to_email, msg.as_string())
+            server.sendmail(self.email, all_recipients, msg.as_string())
             server.quit()
             
-            print(f"✅ Email sent to {to_email}")
+            cc_info = f" (CC: {', '.join(cc_list)})" if cc else ""
+            print(f"✅ Email sent to {to_email}{cc_info}")
             return True
         except Exception as e:
             print(f"❌ Send failed: {e}")
             return False
 
-    def send_email_with_attachment(self, to_email, subject, body, file_path, is_html=False):
+    def send_email_with_attachment(self, to_email, subject, body, file_path, is_html=False, cc=None):
         """Send an email with a file attachment
         
         Args:
@@ -59,6 +73,7 @@ class GmailClient:
             body (str): Email body text
             file_path (str): Path to file to attach
             is_html (bool): Whether body is HTML format
+            cc (str or list): CC recipient(s) - can be single email or list of emails
             
         Returns:
             bool: True if email sent successfully, False otherwise
@@ -76,6 +91,19 @@ class GmailClient:
             msg['From'] = self.email
             msg['To'] = to_email
             msg['Subject'] = subject
+            
+            # Handle CC addresses
+            all_recipients = [to_email]
+            if cc:
+                if isinstance(cc, str):
+                    cc_list = [cc]
+                elif isinstance(cc, list):
+                    cc_list = cc
+                else:
+                    cc_list = [str(cc)]
+                
+                msg['Cc'] = ', '.join(cc_list)
+                all_recipients.extend(cc_list)
             
             # Add body text
             msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
@@ -104,10 +132,11 @@ class GmailClient:
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
             server.login(self.email, self.password)
-            server.sendmail(self.email, to_email, msg.as_string())
+            server.sendmail(self.email, all_recipients, msg.as_string())
             server.quit()
             
-            print(f"✅ Email with attachment sent to {to_email}")
+            cc_info = f" (CC: {', '.join(cc_list)})" if cc else ""
+            print(f"✅ Email with attachment sent to {to_email}{cc_info}")
             print(f"📎 Attached file: {filename} ({os.path.getsize(file_path)} bytes)")
             return True
             
@@ -115,7 +144,7 @@ class GmailClient:
             print(f"❌ Send with attachment failed: {e}")
             return False
 
-    def send_email_with_attachments(self, to_email, subject, body, file_paths, is_html=False):
+    def send_email_with_attachments(self, to_email, subject, body, file_paths, is_html=False, cc=None):
         """Send an email with multiple file attachments
         
         Args:
@@ -124,6 +153,7 @@ class GmailClient:
             body (str): Email body text
             file_paths (list): List of file paths to attach
             is_html (bool): Whether body is HTML format
+            cc (str or list): CC recipient(s) - can be single email or list of emails
             
         Returns:
             bool: True if email sent successfully, False otherwise
@@ -155,6 +185,19 @@ class GmailClient:
             msg['From'] = self.email
             msg['To'] = to_email
             msg['Subject'] = subject
+            
+            # Handle CC addresses
+            all_recipients = [to_email]
+            if cc:
+                if isinstance(cc, str):
+                    cc_list = [cc]
+                elif isinstance(cc, list):
+                    cc_list = cc
+                else:
+                    cc_list = [str(cc)]
+                
+                msg['Cc'] = ', '.join(cc_list)
+                all_recipients.extend(cc_list)
             
             # Add body text
             msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
@@ -195,10 +238,11 @@ class GmailClient:
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
             server.login(self.email, self.password)
-            server.sendmail(self.email, to_email, msg.as_string())
+            server.sendmail(self.email, all_recipients, msg.as_string())
             server.quit()
             
-            print(f"✅ Email with {len(file_paths)} attachments sent to {to_email}")
+            cc_info = f" (CC: {', '.join(cc_list)})" if cc else ""
+            print(f"✅ Email with {len(file_paths)} attachments sent to {to_email}{cc_info}")
             print(f"📎 Attached files:")
             for file_info in attached_files:
                 print(f"   • {file_info}")
@@ -327,6 +371,7 @@ class GmailClient:
                         'uid': msg_id.decode(),
                         'subject': email_message.get('Subject', 'No Subject'),
                         'from': email_message.get('From', 'Unknown'),
+                        'cc': email_message.get('Cc', ''),
                         'date': email_message.get('Date', 'No Date'),
                         'body': body or "Could not extract body",
                         'attachments': attachments
