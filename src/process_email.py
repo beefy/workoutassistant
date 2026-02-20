@@ -30,7 +30,7 @@ def process_email():
             continue  # Skip processing emails from the bot to itself
 
         # Generate response using LLM
-        prompt = f"{sender} says 'Re: {subject}:\n{body}'"
+        prompt = f"{subject}\n{body}"
         response = llm.prompt(prompt)
         print(f"Generated response: {response}")
         print(f"Generated images in this session: {llm.generated_images}")
@@ -41,7 +41,7 @@ def process_email():
             gmail.send_email_with_attachments(senders_email, subject, response, llm.generated_images)
         else:
             print(f"📧 Sending email to {senders_email}")
-            gmail.send_email(senders_email, subject, response)
+            gmail.send_email(senders_email, f"Re: {subject}", response)
 
         print(f"📧 Completed processing email from {sender}: {subject}")
         llm.generated_images = []  # Clear generated images for next email
