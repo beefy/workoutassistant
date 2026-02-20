@@ -2,9 +2,12 @@ from gmail import GmailClient
 from local_llm import LocalLLM
 from approve_list import is_email_approved, add_to_approve_list
 import os
+from talon import quotations
+import re
 
 def parse_email_body(body):
     """
+    # TODO: reply history parsing??
     Parse email body to separate the most recent email from the email chain history.
     
     Args:
@@ -21,12 +24,23 @@ def parse_email_body(body):
             ]
         }
     """
-    return
+    if not body or not body.strip():
+        return {"body": "", "history": []}
     
-    return {
-        "body": current_body,
-        "history": history_messages
-    }
+    # Use talon to extract the new content (removes quoted replies)
+    try:
+        new_content = quotations.extract_from(body)
+        return {
+            "body": new_content.strip() if new_content else "",
+            "history": []  # Talon focuses on new content extraction, not history parsing
+        }
+    except Exception as e:
+        print(f"⚠️ Talon parsing failed: {e}")
+        # Fallback: use entire body
+        return {
+            "body": body.strip(),
+            "history": []
+        }
 
 def process_email():
     gmail = GmailClient()
@@ -40,9 +54,8 @@ def process_email():
         subject = email_info['subject']
         body = email_info['body']
         llm.attachments = email_info.get('attachments', [])  # Pass attachments
-        # parsed_body = parse_email_body(body)
-
-        print(body)
+        parsed_body = parse_email_body(body)
+        print(parsed_body["body"])
         exit()
 
         print(f"Processing email from {sender} with subject '{subject}'")
