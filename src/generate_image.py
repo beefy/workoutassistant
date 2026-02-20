@@ -165,70 +165,84 @@ class HuggingFaceImageGenerator:
             # Load the input image
             input_image = Image.open(image_path)
             
-            # For FLUX.2 models, use direct API approach since InferenceClient.image_to_image doesn't work
-            # Convert PIL image to bytes
-            img_buffer = io.BytesIO()
-            input_image.save(img_buffer, format='PNG')
-            img_buffer.seek(0)
-            
-            # Use the correct Hugging Face router endpoint
-            api_url = f"https://router.huggingface.co/models/{model_id}"
-            headers = {
-                "Authorization": f"Bearer {self.api_token}"
-            }
-            
-            # Method 1: Try multipart form data (for most img2img models)
-            files = {
-                'inputs': ('image.png', img_buffer.getvalue(), 'image/png')
-            }
-            data = {
-                'parameters': f'{{"prompt": "{prompt.strip()}", "strength": {strength}}}'
-            }
-            
-            response = requests.post(
-                api_url,
-                headers=headers,
-                files=files,
-                data=data,
-                timeout=120
-            )
-            
-            if response.status_code == 200:
-                modified_image = Image.open(io.BytesIO(response.content))
-            elif response.status_code == 503:
-                raise Exception("Model is loading, please wait and try again")
-            elif response.status_code == 429:
-                raise Exception("Rate limit exceeded, please wait before trying again") 
-            elif response.status_code == 402:
-                raise Exception("This model requires payment - check your billing settings")
-            else:
-                # Method 2: Try JSON payload with base64 image
-                img_buffer.seek(0)
-                img_b64 = base64.b64encode(img_buffer.getvalue()).decode()
+            # Try using InferenceClient with providers that support image-to-image
+            try:
+                # First try with a provider that supports image_to_image
+                provider_client = InferenceClient(provider="replicate", api_key=self.api_token)
+                modified_image = provider_client.image_to_image(
+                    image=input_image,
+                    prompt=prompt.strip(),
+                    model=model_id,
+                    strength=strength
+                )
+                print("✅ Image modified successfully using provider!")
                 
-                json_payload = {
-                    "inputs": {
-                        "image": img_b64,
-                        "prompt": prompt.strip()
-                    },
-                    "parameters": {
-                        "strength": strength,
-                        "guidance_scale": 7.5,
-                        "num_inference_steps": 20
-                    }
+            except Exception as provider_error:
+                print(f"Provider method failed: {provider_error}")
+                
+                # Fallback to api-inference endpoint (not router)
+                api_url = f"https://api-inference.huggingface.co/models/{model_id}"
+                headers = {
+                    "Authorization": f"Bearer {self.api_token}"
+                }
+                
+                # Convert PIL image to bytes
+                img_buffer = io.BytesIO()
+                input_image.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                
+                # Try multipart form data
+                files = {
+                    'inputs': ('image.png', img_buffer.getvalue(), 'image/png')
+                }
+                data = {
+                    'parameters': f'{{"prompt": "{prompt.strip()}", "strength": {strength}}}'
                 }
                 
                 response = requests.post(
                     api_url,
-                    headers={**headers, "Content-Type": "application/json"},
-                    json=json_payload,
+                    headers=headers,
+                    files=files,
+                    data=data,
                     timeout=120
                 )
                 
                 if response.status_code == 200:
                     modified_image = Image.open(io.BytesIO(response.content))
+                elif response.status_code == 503:
+                    raise Exception("Model is loading, please wait and try again")
+                elif response.status_code == 429:
+                    raise Exception("Rate limit exceeded, please wait before trying again") 
+                elif response.status_code == 402:
+                    raise Exception("This model requires payment - check your billing settings")
                 else:
-                    raise Exception(f"API returned {response.status_code}: {response.text[:500]}")
+                    # Try JSON with base64 as last resort
+                    img_buffer.seek(0)
+                    img_b64 = base64.b64encode(img_buffer.getvalue()).decode()
+                    
+                    json_payload = {
+                        "inputs": {
+                            "image": img_b64,
+                            "prompt": prompt.strip()
+                        },
+                        "parameters": {
+                            "strength": strength,
+                            "guidance_scale": 7.5,
+                            "num_inference_steps": 20
+                        }
+                    }
+                    
+                    response = requests.post(
+                        api_url,
+                        headers={**headers, "Content-Type": "application/json"},
+                        json=json_payload,
+                        timeout=120
+                    )
+                    
+                    if response.status_code == 200:
+                        modified_image = Image.open(io.BytesIO(response.content))
+                    else:
+                        raise Exception(f"All methods failed. API returned {response.status_code}: {response.text[:500]}")
             
             print("✅ Image modified successfully!")
             
