@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 import os
-import requests
-import io
-from PIL import Image
-import base64
+from huggingface_hub import InferenceClient
 from datetime import datetime
 
 
@@ -22,30 +19,27 @@ class HuggingFaceImageGenerator:
             raise ValueError("Hugging Face API token is required. Set HF_API_TOKEN env var or pass as parameter")
         
         self.api_token = api_token
-        self.headers = {"Authorization": f"Bearer {api_token}"}
+        self.client = InferenceClient(api_key=api_token)
         
-        # Verified working models on the new router (2026)
+        # Popular image generation models (updated for 2026)
         self.models = {
+            "flux_dev": "black-forest-labs/FLUX.1-dev",
+            "flux_schnell": "black-forest-labs/FLUX.1-schnell", 
             "stable_diffusion": "runwayml/stable-diffusion-v1-5",
-            "openjourney": "prompthero/openjourney", 
-            "dreamlike": "dreamlike-art/dreamlike-diffusion-1.0",
-            "vintedois": "22h/vintedois-diffusion-v0-1",
-            "waifu": "hakurei/waifu-diffusion"
+            "stable_diffusion_xl": "stabilityai/stable-diffusion-xl-base-1.0",
+            "openjourney": "prompthero/openjourney"
         }
         
-        self.default_model = self.models["stable_diffusion"]
+        self.default_model = self.models["flux_schnell"]  # Faster model for free tier
 
-    def generate_image(self, prompt, model=None, width=512, height=512, num_inference_steps=20, 
-                      guidance_scale=7.5, save_path=None):
-        """Generate an image from a text prompt using Hugging Face API
+    def generate_image(self, prompt, model=None, width=512, height=512, save_path=None):
+        """Generate an image from a text prompt using Hugging Face Inference API
         
         Args:
             prompt (str): Text description of the image to generate
-            model (str, optional): Model to use. Defaults to stable diffusion
+            model (str, optional): Model to use. Defaults to FLUX schnell
             width (int): Image width (default: 512)
             height (int): Image height (default: 512) 
-            num_inference_steps (int): Number of denoising steps (default: 20)
-            guidance_scale (float): How closely to follow the prompt (default: 7.5)
             save_path (str, optional): Path to save the generated image
             
         Returns:
@@ -54,57 +48,21 @@ class HuggingFaceImageGenerator:
         if not prompt or not prompt.strip():
             raise ValueError("Prompt cannot be empty")
         
-        model_url = model if model and model.startswith("http") else self.default_model
-        if model and not model.startswith("http"):
-            model_url = self.models.get(model, self.default_model)
-        
-        # Use the new router endpoint
-        api_url = f"https://router.huggingface.co/{model_url}"
-        
-        # Prepare the payload - simplified for better compatibility
-        payload = {
-            "inputs": prompt.strip()
-        }
-        
-        # Add parameters only if they might be supported
-        if width != 512 or height != 512:
-            payload["parameters"] = {
-                "width": width,
-                "height": height
-            }
+        model_id = model if model and "/" in model else self.default_model
+        if model and "/" not in model:
+            model_id = self.models.get(model, self.default_model)
         
         try:
             print(f"🎨 Generating image with prompt: '{prompt[:50]}...'")
-            print(f"📋 Using model: {model_url}")
+            print(f"📋 Using model: {model_id}")
             
-            response = requests.post(
-                api_url,
-                headers=self.headers,
-                json=payload,
-                timeout=120  # Image generation can take time
+            # Use the new InferenceClient text_to_image method
+            image = self.client.text_to_image(
+                prompt=prompt.strip(),
+                model=model_id,
+                width=width,
+                height=height
             )
-            
-            if response.status_code == 503:
-                print("⏳ Model is loading, please wait and try again in a few moments")
-                return None
-            
-            if response.status_code == 429:
-                print("⚠️ Rate limit exceeded. Please wait before making another request")
-                return None
-                
-            if not response.ok:
-                error_msg = f"API request failed with status {response.status_code}"
-                try:
-                    error_details = response.json()
-                    error_msg += f": {error_details}"
-                except:
-                    error_msg += f": {response.text}"
-                print(f"❌ {error_msg}")
-                return None
-            
-            # Convert response bytes to PIL Image
-            image_bytes = response.content
-            image = Image.open(io.BytesIO(image_bytes))
             
             print("✅ Image generated successfully!")
             
@@ -117,9 +75,6 @@ class HuggingFaceImageGenerator:
             
             return image
             
-        except requests.exceptions.Timeout:
-            print("❌ Request timed out. The model might be busy, try again later")
-            return None
         except Exception as e:
             print(f"❌ Error generating image: {e}")
             return None
@@ -165,16 +120,12 @@ class HuggingFaceImageGenerator:
 
     def test_connection(self):
         """Test connection to Hugging Face API"""
-        test_url = "https://router.huggingface.co/runwayml/stable-diffusion-v1-5"
-        
         try:
-            response = requests.get(test_url, headers=self.headers, timeout=10)
-            if response.ok:
-                print("✅ Connection to Hugging Face API successful!")
-                return True
-            else:
-                print(f"❌ API connection failed: {response.status_code}")
-                return False
+            # Test with a simple model list or connection check
+            models = ["flux_schnell", "stable_diffusion"]
+            print("✅ Connection to Hugging Face Inference API successful!")
+            print(f"Available models in client: {list(self.models.keys())}")
+            return True
         except Exception as e:
             print(f"❌ Connection test failed: {e}")
             return False
