@@ -14,6 +14,7 @@ def process_email():
         senders_email = sender.split()[-1] if " " in sender else sender
         subject = email_info['subject']
         body = email_info['body']
+        llm.attachments = email_info.get('attachments', [])  # Pass attachments
 
         print(f"Processing email from {sender} with subject '{subject}'")
 
@@ -46,6 +47,7 @@ def process_email():
         print(f"📧 Completed processing email from {sender}: {subject}")
         llm.generated_images = []  # Clear generated images for next email
         llm.tool_call_memo = set()  # Clear tool call memo for next email
+        llm.attachments = []  # Clear attachments for next email
 
 
 if __name__ == "__main__":

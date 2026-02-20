@@ -24,6 +24,7 @@ class LocalLLM:
         self.tools_enabled = True
         self.tool_call_memo = set()  # Store hash of executed tool calls to prevent duplicates
         self.generated_images = []
+        self.attachments = []
 
         # Initialize MoltbookClient
         try:
@@ -287,6 +288,28 @@ class LocalLLM:
                     },
                     "required": ["prompt"]
                 }
+            },
+            "modify_image": {
+                "name": "modify_image", 
+                "description": "Modify an existing image using AI image-to-image generation with a text prompt.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "image_path": {
+                            "type": "string",
+                            "description": "Path to the existing image file to modify (jpg/png)"
+                        },
+                        "prompt": {
+                            "type": "string", 
+                            "description": "Description of how to modify the image"
+                        },
+                        "strength": {
+                            "type": "number",
+                            "description": "How much to change the image (0.0-1.0, default 0.8)"
+                        }
+                    },
+                    "required": ["image_path", "prompt"]
+                }
             }
         }
         
@@ -486,6 +509,7 @@ Available tools:
 - Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 - Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
+- Modify image: {"tool": "modify_image", "parameters": {"image_path": "path/to/image.jpg", "prompt": "description of modifications", "strength": 0.8}}
 
 Tool calls should be valid json.
 
@@ -498,7 +522,7 @@ Thank you!
 IMPORTANT: Start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
         """
         
-        return f"<|system|>Tool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
+        return f"<|system|>File Attachments From User:{self.attachments}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
 
     def _build_intermediate_prompt(self, original_prompt, tool_results, iteration_num, history):
         """Build a prompt for intermediate LLM call after tool execution"""
@@ -515,6 +539,7 @@ Available tools:
 - Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 - Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
+- Modify image: {"tool": "modify_image", "parameters": {"image_path": "path/to/image.jpg", "prompt": "description of modifications", "strength": 0.8}}
 
 Tool calls should be valid json.
 
@@ -527,12 +552,13 @@ Thank you!
 IMPORTANT: Start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
         """
 
-        return f"<|system|>Number of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
+        return f"<|system|>File Attachments From User:{self.attachments}\nNumber of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
 
     def _build_final_prompt(self, original_prompt, tool_results, history):
         """Build a prompt for the second LLM call that includes tool results"""
         return f"""
 <|system|>
+File Attachments From User:{self.attachments}
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
 Do not include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
@@ -747,48 +773,48 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                 return f"Search results for '{query}':\n\n{result}\n\n"
             except Exception as e:
                 return f"❌ Failed to search: {e}"
-        
-        elif tool_name == "send_email":
-            if self.gmail_client is None:
-                return "❌ GmailClient not available (missing credentials)"
-            recipient = parameters.get('recipient')
-            subject = parameters.get('subject')
-            body = parameters.get('body')
-            try:
-                success = self.gmail_client.send_email(recipient, subject, body)
-                if success:
-                    return f"✅ Email sent successfully to {recipient}"
-                else:
-                    return f"❌ Failed to send email to {recipient}"
-            except Exception as e:
-                return f"❌ Failed to send email: {e}"
-        
-        elif tool_name == "schedule_email":
-            if self.gmail_client is None:
-                return "❌ GmailClient not available (missing credentials)"
-            recipient = parameters.get('recipient')
-            subject = parameters.get('subject')
-            body = parameters.get('body')
-            send_time = parameters.get('send_time')
             
-            # Validate that send_time is in the future
-            try:
-                from datetime import datetime
-                send_datetime = datetime.strptime(send_time, "%Y-%m-%d %H:%M")
-                current_datetime = datetime.now()
+            # elif tool_name == "send_email":
+            #     if self.gmail_client is None:
+            #         return "❌ GmailClient not available (missing credentials)"
+            #     recipient = parameters.get('recipient')
+            #     subject = parameters.get('subject')
+            #     body = parameters.get('body')
+            #     try:
+            #         success = self.gmail_client.send_email(recipient, subject, body)
+            #         if success:
+            #             return f"✅ Email sent successfully to {recipient}"
+            #         else:
+            #             return f"❌ Failed to send email to {recipient}"
+            #     except Exception as e:
+            #         return f"❌ Failed to send email: {e}"
+            
+            # elif tool_name == "schedule_email":
+            #     if self.gmail_client is None:
+            #         return "❌ GmailClient not available (missing credentials)"
+            #     recipient = parameters.get('recipient')
+            #     subject = parameters.get('subject')
+            #     body = parameters.get('body')
+            #     send_time = parameters.get('send_time')
                 
-                if send_datetime <= current_datetime:
-                    return f"❌ Cannot schedule email for {send_time} - time must be in the future. Current time is {current_datetime.strftime('%Y-%m-%d %H:%M')}"
-                
-                success = self.gmail_client.schedule_email(recipient, subject, body, send_time)
-                if success:
-                    return f"✅ Email scheduled successfully for {recipient} at {send_time}"
-                else:
-                    return f"❌ Failed to schedule email for {recipient}"
-            except ValueError as e:
-                return f"❌ Invalid date format for send_time. Use YYYY-MM-DD HH:MM format: {e}"
-            except Exception as e:
-                return f"❌ Failed to schedule email: {e}"
+            #     # Validate that send_time is in the future
+            #     try:
+            #         from datetime import datetime
+            #         send_datetime = datetime.strptime(send_time, "%Y-%m-%d %H:%M")
+            #         current_datetime = datetime.now()
+                    
+            #         if send_datetime <= current_datetime:
+            #             return f"❌ Cannot schedule email for {send_time} - time must be in the future. Current time is {current_datetime.strftime('%Y-%m-%d %H:%M')}"
+                    
+            #         success = self.gmail_client.schedule_email(recipient, subject, body, send_time)
+            #         if success:
+            #             return f"✅ Email scheduled successfully for {recipient} at {send_time}"
+            #         else:
+            #             return f"❌ Failed to schedule email for {recipient}"
+            #     except ValueError as e:
+            #         return f"❌ Invalid date format for send_time. Use YYYY-MM-DD HH:MM format: {e}"
+            #     except Exception as e:
+            #         return f"❌ Failed to schedule email: {e}"
         
         elif tool_name == "get_system_info":
             try:
@@ -819,6 +845,30 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                     
             except Exception as e:
                 return f"❌ Failed to generate image: {e}"
+        
+        elif tool_name == "modify_image":
+            try:
+                image_path = parameters.get('image_path')
+                prompt = parameters.get('prompt')
+                strength = parameters.get('strength', 0.8)
+                
+                if not image_path or not prompt:
+                    return "❌ Error: Both image_path and prompt are required"
+                
+                print(f"✏️ Modifying image: {image_path} with prompt: {prompt[:50]}...")
+                
+                # Modify the image
+                image_client = HuggingFaceImageGenerator()
+                result = image_client.modify_and_save(image_path, prompt, strength=strength)
+                
+                if result:
+                    self.generated_images.append(result)  # Keep track of modified images
+                    return f"✅ Image modified successfully!\n📸 Original: {image_path}\n📸 Modified: {result}\n💡 Prompt: {prompt}"
+                else:
+                    return f"❌ Failed to modify image: {image_path} with prompt: {prompt}"
+                    
+            except Exception as e:
+                return f"❌ Failed to modify image: {e}"
         
         else:
             return f"Error: Unknown tool '{tool_name}'"

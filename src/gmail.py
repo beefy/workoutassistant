@@ -280,16 +280,45 @@ class GmailClient:
                         
                     email_message = email.message_from_bytes(msg_data[0][1])
                     
-                    # Extract body
+                    # Extract body and attachments
                     body = ""
+                    attachments = []
+                    
                     if email_message.is_multipart():
                         for part in email_message.walk():
-                            if part.get_content_type() == "text/plain" and "attachment" not in str(part.get("Content-Disposition")):
+                            content_type = part.get_content_type()
+                            content_disposition = str(part.get("Content-Disposition", ""))
+                            
+                            # Extract text body
+                            if content_type == "text/plain" and "attachment" not in content_disposition:
                                 payload = part.get_payload(decode=True)
-                                if payload:
+                                if payload and not body:  # Use first text part found
                                     body = payload.decode('utf-8', errors='ignore')
-                                    break
+                            
+                            # Extract JPG/PNG attachments
+                            elif "attachment" in content_disposition and content_type in ["image/jpeg", "image/jpg", "image/png"]:
+                                filename = part.get_filename()
+                                if filename:
+                                    # Create attachments directory if it doesn't exist
+                                    attachments_dir = os.path.join(os.path.dirname(__file__), '..', 'email_attachments')
+                                    os.makedirs(attachments_dir, exist_ok=True)
+                                    
+                                    # Generate unique filename with timestamp
+                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    file_ext = os.path.splitext(filename)[1].lower()
+                                    safe_filename = f"{timestamp}_{filename}"
+                                    file_path = os.path.join(attachments_dir, safe_filename)
+                                    
+                                    try:
+                                        # Save attachment to file
+                                        with open(file_path, 'wb') as f:
+                                            f.write(part.get_payload(decode=True))
+                                        attachments.append(file_path)
+                                        print(f"💾 Saved attachment: {safe_filename}")
+                                    except Exception as attach_error:
+                                        print(f"❌ Failed to save attachment {filename}: {attach_error}")
                     else:
+                        # Single part message
                         payload = email_message.get_payload(decode=True)
                         if payload:
                             body = payload.decode('utf-8', errors='ignore')
@@ -299,7 +328,8 @@ class GmailClient:
                         'subject': email_message.get('Subject', 'No Subject'),
                         'from': email_message.get('From', 'Unknown'),
                         'date': email_message.get('Date', 'No Date'),
-                        'body': body or "Could not extract body"
+                        'body': body or "Could not extract body",
+                        'attachments': attachments
                     })
                     
                     # Mark as read if requested
