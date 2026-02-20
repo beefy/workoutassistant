@@ -5,11 +5,11 @@ import os
 
 def process_email():
     gmail = GmailClient()
+    llm = LocalLLM()
 
     # Collect new emails
     new_emails = gmail.check_emails()
     for email_info in new_emails:
-        llm = LocalLLM()
         sender = email_info['from'].replace("<", "").replace(">", "")
         senders_email = sender.split()[-1] if " " in sender else sender
         subject = email_info['subject']
@@ -41,6 +41,7 @@ def process_email():
             gmail.send_email(senders_email, f"Re: {subject}", response)
 
         print(f"📧 Completed processing email from {sender}: {subject}")
+        llm.generated_images = []  # Clear generated images for next email
 
 
 if __name__ == "__main__":
