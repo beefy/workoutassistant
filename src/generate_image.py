@@ -2,6 +2,7 @@
 import os
 from huggingface_hub import InferenceClient
 from datetime import datetime
+from PIL import Image
 
 
 class HuggingFaceImageGenerator:
@@ -30,7 +31,15 @@ class HuggingFaceImageGenerator:
             "openjourney": "prompthero/openjourney"
         }
         
+        # Image-to-image models for modification
+        self.img2img_models = {
+            "instruct_pix2pix": "timbrooks/instruct-pix2pix",
+            "stable_diffusion_img2img": "runwayml/stable-diffusion-v1-5",
+            "controlnet": "lllyasviel/sd-controlnet-canny"
+        }
+        
         self.default_model = self.models["flux_schnell"]  # Faster model for free tier
+        self.default_img2img_model = self.img2img_models["instruct_pix2pix"]
 
     def generate_image(self, prompt, model=None, width=512, height=512, save_path=None):
         """Generate an image from a text prompt using Hugging Face Inference API
@@ -111,12 +120,143 @@ class HuggingFaceImageGenerator:
         
         return save_path if image else None
 
+    def modify_image(self, image_path, prompt, model=None, save_path=None, strength=0.8):
+        """Modify an existing image using a text prompt
+        
+        Args:
+            image_path (str): Path to the input image (jpg/png)
+            prompt (str): Description of how to modify the image
+            model (str, optional): Model to use. Defaults to InstructPix2Pix
+            save_path (str, optional): Path to save the modified image
+            strength (float): How much to change the image (0.0-1.0, default 0.8)
+            
+        Returns:
+            PIL.Image: Modified image object, or None if failed
+        """
+        if not os.path.exists(image_path):
+            print(f"❌ Input image not found: {image_path}")
+            return None
+            
+        if not prompt or not prompt.strip():
+            print("❌ Modification prompt cannot be empty")
+            return None
+        
+        # Validate image format
+        if not image_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+            print("❌ Only PNG and JPG images are supported")
+            return None
+        
+        model_id = model if model and "/" in model else self.default_img2img_model
+        if model and "/" not in model:
+            model_id = self.img2img_models.get(model, self.default_img2img_model)
+        
+        try:
+            print(f"🖼️ Loading input image: {os.path.basename(image_path)}")
+            print(f"✏️ Modification prompt: '{prompt[:50]}...'")
+            print(f"📋 Using model: {model_id}")
+            
+            # Load the input image
+            input_image = Image.open(image_path)
+            
+            # Use the InferenceClient image_to_image method
+            modified_image = self.client.image_to_image(
+                image=input_image,
+                prompt=prompt.strip(),
+                model=model_id,
+                strength=strength
+            )
+            
+            print("✅ Image modified successfully!")
+            
+            # Save image if path provided
+            if save_path:
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                modified_image.save(save_path)
+                print(f"💾 Modified image saved to: {save_path}")
+            
+            return modified_image
+            
+        except Exception as e:
+            print(f"❌ Error modifying image: {e}")
+            # Try fallback approach if image_to_image fails
+            try:
+                print("🔄 Trying alternative approach...")
+                return self._modify_image_fallback(image_path, prompt, model_id, save_path)
+            except Exception as fallback_e:
+                print(f"❌ Fallback also failed: {fallback_e}")
+                return None
+
+    def _modify_image_fallback(self, image_path, prompt, model_id, save_path):
+        """Fallback method for image modification using text generation"""
+        # This is a simpler approach that might work if direct img2img fails
+        input_image = Image.open(image_path)
+        
+        # Some models might accept image input differently
+        try:
+            # Alternative API call format
+            response = self.client.post(
+                model=model_id,
+                inputs={
+                    "image": input_image,
+                    "prompt": prompt
+                }
+            )
+            
+            if hasattr(response, 'save') or isinstance(response, Image.Image):
+                if save_path:
+                    response.save(save_path)
+                return response
+            else:
+                return None
+                
+        except Exception as e:
+            print(f"❌ Fallback method failed: {e}")
+            return None
+
+    def modify_and_save(self, image_path, prompt, filename=None, model=None, **kwargs):
+        """Modify an image and automatically save it with timestamp
+        
+        Args:
+            image_path (str): Path to input image
+            prompt (str): Modification prompt
+            filename (str, optional): Custom filename. If not provided, uses timestamp
+            model (str, optional): Model to use for modification
+            **kwargs: Additional parameters for modify_image()
+            
+        Returns:
+            str: Path to saved modified image file, or None if failed
+        """
+        if not filename:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_prompt = "".join(c for c in prompt[:30] if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            safe_prompt = safe_prompt.replace(' ', '_')
+            input_name = os.path.splitext(os.path.basename(image_path))[0]
+            filename = f"modified_{input_name}_{timestamp}_{safe_prompt}.png"
+        
+        # Ensure filename has image extension
+        if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            filename += '.png'
+        
+        # Create images directory
+        images_dir = os.path.join(os.path.dirname(__file__), '..', 'generated_images')
+        os.makedirs(images_dir, exist_ok=True)
+        
+        save_path = os.path.join(images_dir, filename)
+        
+        image = self.modify_image(image_path, prompt, model=model, save_path=save_path, **kwargs)
+        
+        return save_path if image else None
+
     def list_available_models(self):
         """List available image generation models"""
         print("🤖 Available image generation models:")
         for name, model_id in self.models.items():
             print(f"  • {name}: {model_id}")
-        print(f"\n💡 Default model: {self.default_model}")
+        print(f"\n�️ Available image-to-image models:")
+        for name, model_id in self.img2img_models.items():
+            print(f"  • {name}: {model_id}")
+        print(f"\n💡 Default text-to-image model: {self.default_model}")
+        print(f"✏️ Default image-to-image model: {self.default_img2img_model}")
 
     def test_connection(self):
         """Test connection to Hugging Face API"""
@@ -156,6 +296,31 @@ def generate_image_simple(prompt, save=True, model=None):
         return None
 
 
+def modify_image_simple(image_path, prompt, save=True, model=None):
+    """Simple function to modify an image with minimal setup
+    
+    Args:
+        image_path (str): Path to input image file
+        prompt (str): Description of how to modify the image  
+        save (bool): Whether to save the modified image automatically
+        model (str, optional): Model to use
+        
+    Returns:
+        PIL.Image or str: Image object if save=False, file path if save=True
+    """
+    try:
+        generator = HuggingFaceImageGenerator()
+        
+        if save:
+            return generator.modify_and_save(image_path, prompt, model=model)
+        else:
+            return generator.modify_image(image_path, prompt, model=model)
+            
+    except Exception as e:
+        print(f"❌ Failed to modify image: {e}")
+        return None
+
+
 if __name__ == "__main__":
     # Example usage
     try:
@@ -173,6 +338,10 @@ if __name__ == "__main__":
         
         if image_path:
             print(f"🎉 Generated image saved to: {image_path}")
+
+            # Modify the image with a new prompt
+            modification_prompt = "Make it look like a Van Gogh painting"
+            modified_image_path = generator.modify_and_save(image_path, modification_prompt)
         
     except Exception as e:
         print(f"❌ Error: {e}")
