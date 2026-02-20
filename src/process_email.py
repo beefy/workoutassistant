@@ -70,7 +70,7 @@ def process_email():
             print(f"❌ {sender} is not approved. Ignoring email.")
             continue
 
-        if os.getenv("GMAIL_ADDRESS").replace(".", "") in senders_email.replace(".", ""):
+        if os.getenv("GMAIL_ADDRESS").replace(".", "").lower() in senders_email.replace(".", "").lower():
             continue  # Skip processing emails from the bot to itself
 
         # Generate response using LLM
