@@ -24,13 +24,13 @@ class HuggingFaceImageGenerator:
         self.api_token = api_token
         self.headers = {"Authorization": f"Bearer {api_token}"}
         
-        # Popular free image generation models
+        # Popular free image generation models (updated for 2026)
         self.models = {
-            "stable_diffusion": "stabilityai/stable-diffusion-2-1",
-            "dalle_mini": "flax-community/dalle-mini",
-            "kandinsky": "kandinsky-community/kandinsky-2-1",
-            "stable_diffusion_xl": "stabilityai/stable-diffusion-xl-base-1.0",
-            "playground": "playgroundai/playground-v2-1024px-aesthetic"
+            "stable_diffusion": "runwayml/stable-diffusion-v1-5",
+            "stable_diffusion_2": "stabilityai/stable-diffusion-2-1",
+            "openjourney": "prompthero/openjourney",
+            "anything_v4": "andite/anything-v4.0",
+            "realistic_vision": "SG161222/Realistic_Vision_V2.0"
         }
         
         self.default_model = self.models["stable_diffusion"]
@@ -58,7 +58,8 @@ class HuggingFaceImageGenerator:
         if model and not model.startswith("http"):
             model_url = self.models.get(model, self.default_model)
         
-        api_url = f"https://router.huggingface.co/models/{model_url}"
+        # Try new router endpoint first, fallback to direct model endpoint
+        api_url = f"https://api-inference.huggingface.co/models/{model_url}"
         
         # Prepare the payload
         payload = {
@@ -163,7 +164,7 @@ class HuggingFaceImageGenerator:
 
     def test_connection(self):
         """Test connection to Hugging Face API"""
-        test_url = "https://router.huggingface.co/models/stabilityai/stable-diffusion-2-1"
+        test_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
         
         try:
             response = requests.get(test_url, headers=self.headers, timeout=10)
