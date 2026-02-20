@@ -488,6 +488,7 @@ Available tools:
 - Send email: {"tool": "send_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body"}}
 - Schedule email: {"tool": "schedule_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}}
 - Get system info: {"tool": "get_system_info", "parameters": {}}
+- Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
 
 Tool calls should be valid json.
 
