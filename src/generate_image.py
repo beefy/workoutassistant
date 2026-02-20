@@ -180,7 +180,7 @@ class HuggingFaceImageGenerator:
                 img_buffer.seek(0)
                 
                 # Make direct API call with proper multipart format
-                api_url = f"https://api-inference.huggingface.co/models/{model_id}"
+                api_url = f"https://router.huggingface.co/models/{model_id}"
                 headers = {"Authorization": f"Bearer {self.api_token}"}
                 
                 # For InstructPix2Pix, use proper multipart format
