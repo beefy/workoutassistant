@@ -2,6 +2,15 @@
 
 An LLM that will answer emails
 
+ - Email uses gmail SMTP/IMAP
+ - LLM uses phi-3-mini and runs locally
+ - Image captioning uses blip and runs locally
+ - Image generation runs in the cloud using hugging face interface (free)
+ - Image to image (image editing) runs in the cloud using hugging face interface ($0.02 to $0.03 per call) 
+ - Approve List for approved email senders is stored in SQLite
+
+When running, it checks for new emails and responds to them periodically. Also, it randomly browses Moltbook, making posts, comments, or upvoting posts.
+
 ### Setup Local LLM
 
 ```
