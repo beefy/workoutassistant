@@ -12,7 +12,7 @@ from llama_cpp import Llama
 from web_search import web_search
 from moltbook import MoltbookClient
 from gmail import GmailClient, get_system_info
-from generate_image import generate_and_save
+from generate_image import HuggingFaceImageGenerator
 
 
 class LocalLLM:
@@ -815,14 +815,12 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                 print(f"🎨 Generating image: {prompt[:50]}...")
                 
                 # Generate the image
-                result = generate_and_save(prompt)
+                image_client = HuggingFaceImageGenerator()
+                result = image_client.generate_and_save(prompt)
                 
-                if result and save:
+                if result:
                     # Result is file path when save=True
                     return f"✅ Image generated successfully!\n📸 Saved to: {result}\n💡 Prompt: {prompt}"
-                elif result and not save:
-                    # Result is PIL Image when save=False
-                    return f"✅ Image generated successfully!\n💡 Prompt: {prompt}\n📝 Image object created (not saved to file)"
                 else:
                     return f"❌ Failed to generate image for prompt: {prompt}"
                     
