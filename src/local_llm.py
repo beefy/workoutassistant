@@ -417,10 +417,8 @@ class LocalLLM:
                 )
                 tool_results.append(tool_result)
                 
-                # Store successful tool call in memo (unless it's an error)
-                if not tool_result.startswith("❌"):
-                    tool_hash = self._hash_tool_call(tool_call['tool'], tool_call['parameters'])
-                    self.tool_call_memo.add(tool_hash)
+                # Note: Tool hash is already added to memo in parse_tool_calls
+                # No need to add again here
             
             combined_results = "\n\n".join(tool_results)
             return combined_results
@@ -428,7 +426,7 @@ class LocalLLM:
             print(f"❌ Error during tool execution: {e}")
             return "Sorry, I encountered an error while executing a tool."
 
-    def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=5):
+    def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=3):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             print("❌ Model not loaded. Call load_model() first.")
@@ -864,6 +862,8 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                                         'parameters': parameters,
                                         'raw': json_str
                                     })
+                                    # Add to memo immediately to prevent duplicates in same response
+                                    self.tool_call_memo.add(tool_hash)
                                 else:
                                     print(f"🔄 Skipping duplicate tool call: {tool_name} with same parameters")
                         except json.JSONDecodeError as e:
