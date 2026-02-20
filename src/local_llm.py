@@ -8,6 +8,7 @@ import time
 import os
 import json
 import re
+import torch
 from llama_cpp import Llama
 from web_search import web_search
 from moltbook import MoltbookClient
@@ -365,6 +366,37 @@ class LocalLLM:
         """Enable or disable tool functionality"""
         self.tools_enabled = enabled
         print(f"🔧 Tools {'enabled' if enabled else 'disabled'}")
+    
+    def _temporarily_unload_llm(self):
+        """Temporarily unload LLM to free RAM for image processing"""
+        if self.model is not None:
+            print("📋 Temporarily unloading LLM to free RAM for image processing...")
+            # Store model path for reloading
+            self._stored_model_path = self.model_path
+            del self.model
+            self.model = None
+            
+            # Force garbage collection
+            import gc
+            gc.collect()
+            
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            print("✅ LLM temporarily unloaded")
+            return True
+        return False
+    
+    def _reload_llm(self):
+        """Reload LLM after image processing"""
+        if self.model is None and hasattr(self, '_stored_model_path'):
+            print("🔄 Reloading LLM...")
+            self.model_path = self._stored_model_path
+            success = self.load_model()
+            if success:
+                print("✅ LLM reloaded successfully")
+            return success
+        return True  # Already loaded
 
     def find_model_file(self):
         print("\n🔍 Searching for model files...")
@@ -926,13 +958,27 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                 
                 print(f"📝 Generating caption for: {image_path}")
                 
-                # Generate caption using local model
-                caption = self.image_captioner.caption_image(image_path)
+                # Temporarily unload LLM to free RAM
+                llm_was_loaded = self._temporarily_unload_llm()
                 
-                if "❌" in caption:
-                    return caption  # Return error message as-is
-                else:
-                    return f"✅ Image caption generated!\n📸 Image: {image_path}\n📝 Caption: {caption}"
+                try:
+                    # Generate caption using local model
+                    caption = self.image_captioner.caption_image(image_path, auto_unload=True)
+                    
+                    # Reload LLM
+                    if llm_was_loaded:
+                        self._reload_llm()
+                    
+                    if "❌" in caption:
+                        return caption  # Return error message as-is
+                    else:
+                        return f"✅ Image caption generated!\n📸 Image: {image_path}\n📝 Caption: {caption}"
+                        
+                except Exception as e:
+                    # Always try to reload LLM on error
+                    if llm_was_loaded:
+                        self._reload_llm()
+                    raise e
                     
             except Exception as e:
                 return f"❌ Failed to caption image: {e}"
@@ -950,13 +996,27 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                 
                 print(f"🔍 Analyzing image: {image_path} with question: {question}")
                 
-                # Analyze image using local model
-                answer = self.image_captioner.analyze_image_with_question(image_path, question)
+                # Temporarily unload LLM to free RAM
+                llm_was_loaded = self._temporarily_unload_llm()
                 
-                if "❌" in answer:
-                    return answer  # Return error message as-is
-                else:
-                    return f"✅ Image analysis completed!\n📸 Image: {image_path}\n❓ Question: {question}\n💬 Answer: {answer}"
+                try:
+                    # Analyze image using local model
+                    answer = self.image_captioner.analyze_image_with_question(image_path, question, auto_unload=True)
+                    
+                    # Reload LLM
+                    if llm_was_loaded:
+                        self._reload_llm()
+                    
+                    if "❌" in answer:
+                        return answer  # Return error message as-is
+                    else:
+                        return f"✅ Image analysis completed!\n📸 Image: {image_path}\n❓ Question: {question}\n💬 Answer: {answer}"
+                        
+                except Exception as e:
+                    # Always try to reload LLM on error
+                    if llm_was_loaded:
+                        self._reload_llm()
+                    raise e
                     
             except Exception as e:
                 return f"❌ Failed to analyze image: {e}"

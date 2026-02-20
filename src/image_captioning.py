@@ -15,11 +15,11 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 class LocalImageCaptioner:
-    """Local image captioning using BLIP model optimized for CPU inference"""
+    """Local image captioning using BLIP model optimized for CPU inference with memory management"""
     
     def __init__(self, model_name="Salesforce/blip-image-captioning-base"):
         """
-        Initialize the local image captioning model
+        Initialize the local image captioning model with lazy loading
         
         Args:
             model_name (str): Hugging Face model identifier. 
@@ -33,7 +33,10 @@ class LocalImageCaptioner:
         # Check if we're on Raspberry Pi
         self.is_pi = self._is_raspberry_pi()
         
-        self._load_model()
+        # Don't load model immediately to save RAM
+        print(f"📋 LocalImageCaptioner initialized with model: {self.model_name}")
+        if self.is_pi:
+            print("🍓 Raspberry Pi detected - using memory management strategy")
     
     def _is_raspberry_pi(self):
         """Detect if running on Raspberry Pi"""
@@ -45,10 +48,14 @@ class LocalImageCaptioner:
     
     def _load_model(self):
         """Load the image captioning model and processor"""
+        if self.is_available():
+            print("📋 Image captioning model already loaded")
+            return True
+            
         try:
-            print(f"🤖 Loading local image captioning model: {self.model_name}")
+            print(f"🤖 Loading image captioning model: {self.model_name}")
             if self.is_pi:
-                print("🍓 Raspberry Pi detected - optimizing for CPU")
+                print("🍓 Loading on Raspberry Pi - this may take 30-60 seconds...")
             
             # Load processor
             print("📋 Loading image processor...")
@@ -66,19 +73,41 @@ class LocalImageCaptioner:
             # Set to evaluation mode
             self.model.eval()
             
-            print("✅ Local image captioning model loaded successfully!")
+            print("✅ Image captioning model loaded successfully!")
+            return True
             
         except Exception as e:
-            print(f"❌ Failed to load local image captioning model: {e}")
+            print(f"❌ Failed to load image captioning model: {e}")
             print("💡 Try installing: pip install torch transformers pillow")
             self.model = None
             self.processor = None
+            return False
+    
+    def _unload_model(self):
+        """Unload the model to free up RAM"""
+        if self.model is not None:
+            print("🗑️ Unloading image captioning model to free RAM...")
+            del self.model
+            self.model = None
+        
+        if self.processor is not None:
+            del self.processor
+            self.processor = None
+        
+        # Force garbage collection
+        import gc
+        gc.collect()
+        
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        print("✅ Image captioning model unloaded")
     
     def is_available(self):
         """Check if the local model is available for use"""
         return self.model is not None and self.processor is not None
     
-    def caption_image(self, image_path, max_length=50, num_beams=4):
+    def caption_image(self, image_path, max_length=50, num_beams=4, auto_unload=True):
         """
         Generate a caption for an image using the local model
         
@@ -86,15 +115,17 @@ class LocalImageCaptioner:
             image_path (str): Path to the image file
             max_length (int): Maximum length of generated caption
             num_beams (int): Number of beams for beam search (higher = better quality, slower)
+            auto_unload (bool): Whether to unload model after use to free RAM
             
         Returns:
             str: Generated image caption or error message
         """
-        if not self.is_available():
-            return "❌ Local image captioning model not available"
-        
         if not os.path.exists(image_path):
             return f"❌ Image file not found: {image_path}"
+        
+        # Load model if not already loaded
+        if not self._load_model():
+            return "❌ Failed to load image captioning model"
         
         try:
             print(f"🔍 Analyzing image: {os.path.basename(image_path)}")
@@ -125,12 +156,20 @@ class LocalImageCaptioner:
             caption = caption.strip().capitalize()
             
             print("✅ Caption generated successfully!")
+            
+            # Unload model to free RAM if requested
+            if auto_unload:
+                self._unload_model()
+            
             return caption
             
         except Exception as e:
+            # Always try to unload on error
+            if auto_unload:
+                self._unload_model()
             return f"❌ Error generating caption: {e}"
     
-    def analyze_image_with_question(self, image_path, question, max_length=50):
+    def analyze_image_with_question(self, image_path, question, max_length=50, auto_unload=True):
         """
         Answer a question about an image using visual question answering
         
@@ -138,15 +177,17 @@ class LocalImageCaptioner:
             image_path (str): Path to the image file
             question (str): Question to ask about the image
             max_length (int): Maximum length of generated answer
+            auto_unload (bool): Whether to unload model after use to free RAM
             
         Returns:
             str: Generated answer or error message
         """
-        if not self.is_available():
-            return "❌ Local image captioning model not available"
-        
         if not os.path.exists(image_path):
             return f"❌ Image file not found: {image_path}"
+        
+        # Load model if not already loaded
+        if not self._load_model():
+            return "❌ Failed to load image captioning model"
         
         try:
             print(f"🔍 Analyzing image: {os.path.basename(image_path)}")
@@ -175,9 +216,17 @@ class LocalImageCaptioner:
             answer = answer.strip().capitalize()
             
             print("✅ Answer generated successfully!")
+            
+            # Unload model to free RAM if requested
+            if auto_unload:
+                self._unload_model()
+            
             return answer
             
         except Exception as e:
+            # Always try to unload on error
+            if auto_unload:
+                self._unload_model()
             return f"❌ Error generating answer: {e}"
     
     def get_model_info(self):
