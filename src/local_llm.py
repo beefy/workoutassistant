@@ -484,15 +484,11 @@ To call a tool, output a JSON object with the format:
 
 Available tools:
 - Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
-- Send email: {"tool": "send_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body"}}
-- Schedule email: {"tool": "schedule_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}}
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 - Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
 
 Tool calls should be valid json.
 
-Do not send someone an email unless the user explicitly asks you to.
-Your final response will be sent to the user, you don't need to email them with your response.
 Do not use a tool call unless you need to.
 
 Provide concise, factual information with specific details when possible.
@@ -517,15 +513,11 @@ To call a tool, output a JSON object with the format:
 
 Available tools:
 - Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
-- Send email: {"tool": "send_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body"}}
-- Schedule email: {"tool": "schedule_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}}
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 - Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
 
 Tool calls should be valid json.
 
-Do not send someone an email unless the user explicitly asks you to.
-Your final response will be sent to the user, you don't need to email them with your response.
 Do not use a tool call unless you need to.
 
 Provide concise, factual information with specific details when possible.

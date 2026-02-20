@@ -89,9 +89,9 @@ def browse_moltbook():
     
     print("🔍 Browsing Moltbook...")
     # Randomly decide what to do
-    if random.random() < 0.8:  # 80% chance to comment on a post
+    if random.random() < 0.7:  # 70% chance to comment on a post
         comment_on_a_post(moltbook_client, llm)
-    elif random.random() < 0.9:  # 10% chance to upvote/downvote
+    elif random.random() < 0.9:  # 20% chance to upvote/downvote
         vote_on_a_post(moltbook_client, llm)
     else:
         # 10% chance to create a new post

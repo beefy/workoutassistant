@@ -42,6 +42,7 @@ def process_email():
 
         print(f"📧 Completed processing email from {sender}: {subject}")
         llm.generated_images = []  # Clear generated images for next email
+        llm.tool_call_memo = set()  # Clear tool call memo for next email
 
 
 if __name__ == "__main__":
