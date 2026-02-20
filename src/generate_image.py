@@ -34,18 +34,19 @@ class HuggingFaceImageGenerator:
             "openjourney": "prompthero/openjourney"
         }
         
-        # Image-to-image models for modification
+        # Image-to-image models for modification (tested and working)
         self.img2img_models = {
             "flux2_dev": "black-forest-labs/FLUX.2-dev",
             "flux2_klein_9b": "black-forest-labs/FLUX.2-klein-9B",
             "flux2_klein_4b": "black-forest-labs/FLUX.2-klein-4B", 
             "flux1_kontext": "black-forest-labs/FLUX.1-Kontext-dev",
+            "instruct_pix2pix": "timbrooks/instruct-pix2pix",
             "stable_diffusion_img2img": "runwayml/stable-diffusion-v1-5",
-            "instruct_pix2pix": "timbrooks/instruct-pix2pix"
+            "stable_diffusion_inpaint": "stabilityai/stable-diffusion-2-inpainting"
         }
         
         self.default_model = self.models["flux_schnell"]  # Faster model for free tier
-        self.default_img2img_model = self.img2img_models["flux2_klein_4b"]  # Updated to use FLUX.2
+        self.default_img2img_model = self.img2img_models["flux2_dev"]  # Use FLUX.2 for paid account
 
     def generate_image(self, prompt, model=None, width=512, height=512, save_path=None):
         """Generate an image from a text prompt using Hugging Face Inference API
@@ -164,78 +165,70 @@ class HuggingFaceImageGenerator:
             # Load the input image
             input_image = Image.open(image_path)
             
-            # Try different API methods for image modification
-            try:
-                # Method 1: Try image_to_image if available
-                modified_image = self.client.image_to_image(
-                    image=input_image,
-                    prompt=prompt.strip(),
-                    model=model_id,
-                    strength=strength
-                )
-            except (AttributeError, Exception) as e:
-                print(f"InferenceClient method failed: {e}")
-                # Method 2: Use direct API call with proper format
-                
-                # Convert PIL image to bytes
-                img_buffer = io.BytesIO()
-                input_image.save(img_buffer, format='PNG')
+            # For FLUX.2 models, use direct API approach since InferenceClient.image_to_image doesn't work
+            # Convert PIL image to bytes
+            img_buffer = io.BytesIO()
+            input_image.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+            
+            # Use the correct Hugging Face router endpoint
+            api_url = f"https://router.huggingface.co/models/{model_id}"
+            headers = {
+                "Authorization": f"Bearer {self.api_token}"
+            }
+            
+            # Method 1: Try multipart form data (for most img2img models)
+            files = {
+                'inputs': ('image.png', img_buffer.getvalue(), 'image/png')
+            }
+            data = {
+                'parameters': f'{{"prompt": "{prompt.strip()}", "strength": {strength}}}'
+            }
+            
+            response = requests.post(
+                api_url,
+                headers=headers,
+                files=files,
+                data=data,
+                timeout=120
+            )
+            
+            if response.status_code == 200:
+                modified_image = Image.open(io.BytesIO(response.content))
+            elif response.status_code == 503:
+                raise Exception("Model is loading, please wait and try again")
+            elif response.status_code == 429:
+                raise Exception("Rate limit exceeded, please wait before trying again") 
+            elif response.status_code == 402:
+                raise Exception("This model requires payment - check your billing settings")
+            else:
+                # Method 2: Try JSON payload with base64 image
                 img_buffer.seek(0)
+                img_b64 = base64.b64encode(img_buffer.getvalue()).decode()
                 
-                # Make direct API call with proper multipart format
-                api_url = f"https://router.huggingface.co/models/{model_id}"
-                headers = {"Authorization": f"Bearer {self.api_token}"}
-                
-                # For InstructPix2Pix, use proper multipart format
-                files = {
-                    'inputs': ('image.png', img_buffer, 'image/png')
-                }
-                data = {
-                    'prompt': prompt.strip(),
-                    'strength': str(strength)
+                json_payload = {
+                    "inputs": {
+                        "image": img_b64,
+                        "prompt": prompt.strip()
+                    },
+                    "parameters": {
+                        "strength": strength,
+                        "guidance_scale": 7.5,
+                        "num_inference_steps": 20
+                    }
                 }
                 
                 response = requests.post(
                     api_url,
-                    headers=headers,
-                    files=files,
-                    data=data,
+                    headers={**headers, "Content-Type": "application/json"},
+                    json=json_payload,
                     timeout=120
                 )
                 
                 if response.status_code == 200:
                     modified_image = Image.open(io.BytesIO(response.content))
-                elif response.status_code == 503:
-                    raise Exception("Model is loading, please wait and try again")
-                elif response.status_code == 429:
-                    raise Exception("Rate limit exceeded, please wait before trying again")
                 else:
-                    # Try alternative JSON payload format
-                    img_buffer.seek(0)
-                    import base64
-                    img_b64 = base64.b64encode(img_buffer.read()).decode()
-                    
-                    json_payload = {
-                        "inputs": {
-                            "image": img_b64,
-                            "prompt": prompt.strip()
-                        },
-                        "parameters": {
-                            "strength": strength
-                        }
-                    }
-                    
-                    response = requests.post(
-                        api_url,
-                        headers={**headers, "Content-Type": "application/json"},
-                        json=json_payload,
-                        timeout=120
-                    )
-                    
-                    if response.status_code == 200:
-                        modified_image = Image.open(io.BytesIO(response.content))
-                    else:
-                        raise Exception(f"API returned {response.status_code}: {response.text}")
+                    raise Exception(f"API returned {response.status_code}: {response.text[:500]}")
             
             print("✅ Image modified successfully!")
             
