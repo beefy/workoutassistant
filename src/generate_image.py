@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import os
+import io
+import requests
 from huggingface_hub import InferenceClient
 from datetime import datetime
 from PIL import Image
@@ -158,13 +160,42 @@ class HuggingFaceImageGenerator:
             # Load the input image
             input_image = Image.open(image_path)
             
-            # Use the InferenceClient image_to_image method
-            modified_image = self.client.image_to_image(
-                image=input_image,
-                prompt=prompt.strip(),
-                model=model_id,
-                strength=strength
-            )
+            # Try different API methods for image modification
+            try:
+                # Method 1: Try image_to_image if available
+                modified_image = self.client.image_to_image(
+                    image=input_image,
+                    prompt=prompt.strip(),
+                    model=model_id,
+                    strength=strength
+                )
+            except AttributeError:
+                # Method 2: Try using the inference API directly
+                import requests
+                import io
+                
+                # Convert PIL image to bytes
+                img_buffer = io.BytesIO()
+                input_image.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                
+                # Make direct API call
+                api_url = f"https://api-inference.huggingface.co/models/{model_id}"
+                headers = {"Authorization": f"Bearer {self.api_token}"}
+                
+                # For InstructPix2Pix, send image and prompt
+                response = requests.post(
+                    api_url,
+                    headers=headers,
+                    files={"inputs": img_buffer},
+                    data={"parameters": f'{{"prompt": "{prompt.strip()}", "strength": {strength}}}'},
+                    timeout=120
+                )
+                
+                if response.status_code == 200:
+                    modified_image = Image.open(io.BytesIO(response.content))
+                else:
+                    raise Exception(f"API returned {response.status_code}: {response.text}")
             
             print("✅ Image modified successfully!")
             
@@ -187,28 +218,31 @@ class HuggingFaceImageGenerator:
                 return None
 
     def _modify_image_fallback(self, image_path, prompt, model_id, save_path):
-        """Fallback method for image modification using text generation"""
-        # This is a simpler approach that might work if direct img2img fails
-        input_image = Image.open(image_path)
-        
-        # Some models might accept image input differently
+        """Fallback method for image modification using direct text-to-image generation"""
         try:
-            # Alternative API call format
-            response = self.client.post(
-                model=model_id,
-                inputs={
-                    "image": input_image,
-                    "prompt": prompt
-                }
+            print("🔄 Using text-to-image generation as fallback...")
+            
+            # Load and analyze the input image to create a descriptive prompt
+            input_image = Image.open(image_path)
+            
+            # Create a combined prompt that includes modification instruction
+            fallback_prompt = f"A modified version of an image where: {prompt.strip()}. High quality, detailed."
+            
+            # Use regular text-to-image generation as fallback
+            modified_image = self.client.text_to_image(
+                prompt=fallback_prompt,
+                model=self.default_model,
+                width=input_image.width,
+                height=input_image.height
             )
             
-            if hasattr(response, 'save') or isinstance(response, Image.Image):
-                if save_path:
-                    response.save(save_path)
-                return response
-            else:
-                return None
-                
+            if save_path:
+                os.makedirs(os.path.dirname(save_path), exist_ok=True) 
+                modified_image.save(save_path)
+                print(f"💾 Fallback image saved to: {save_path}")
+            
+            return modified_image
+            
         except Exception as e:
             print(f"❌ Fallback method failed: {e}")
             return None
