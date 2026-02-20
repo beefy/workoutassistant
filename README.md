@@ -18,6 +18,43 @@ wget https://huggingface.co/mradermacher/Phi-3-mini-128k-instruct-ft-i1-GGUF/res
 
 You may need to create a hugging face user and browse the web UI for models: https://huggingface.co/docs/huggingface_hub/v1.4.0/quick-start#authentication
 
+### Local Image Captioning Setup
+
+The image captioning module automatically downloads the BLIP-base model (~1.2GB) on first use. For manual installation:
+
+```bash
+# Install required packages
+pip install torch transformers pillow
+
+# Test the image captioning (will auto-download model)
+python src/image_captioning.py
+```
+
+**Model Details:**
+- **Model**: Salesforce BLIP-base (blip-image-captioning-base)
+- **Size**: ~1.2GB download
+- **RAM Usage**: ~2-3GB during inference
+- **Performance**: 10-30 seconds per image on Raspberry Pi, 2-5 seconds on desktop CPU
+- **Capabilities**: Image captioning and visual question answering
+
+**Raspberry Pi Optimization:**
+- Uses CPU-only inference (no GPU required)
+- Optimized for low memory usage with `low_cpu_mem_usage=True`
+- Automatically detected Pi hardware for performance messaging
+
+**Usage Example:**
+```python
+from src.image_captioning import caption_image_local, ask_about_image_local
+
+# Basic image captioning
+caption = caption_image_local('path/to/image.jpg')
+print(f"Caption: {caption}")
+
+# Visual question answering
+answer = ask_about_image_local('path/to/image.jpg', 'What colors are in this image?')
+print(f"Answer: {answer}")
+```
+
 ### SQLite Database Setup
 
 SQLite comes pre-installed on most systems. To verify:

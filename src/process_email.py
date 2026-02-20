@@ -39,7 +39,7 @@ def process_email():
         # Send response email
         if llm.generated_images:
             print(f"📧 Sending email with attachments to {senders_email}")
-            gmail.send_email_with_attachments(senders_email, subject, response, llm.generated_images)
+            gmail.send_email_with_attachments(senders_email, f"Re: {subject}", response, llm.generated_images)
         else:
             print(f"📧 Sending email to {senders_email}")
             gmail.send_email(senders_email, f"Re: {subject}", response)

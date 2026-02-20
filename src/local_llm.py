@@ -561,8 +561,8 @@ IMPORTANT: Start your response with "Dear User, ..." and end your response with 
 File Attachments From User:{self.attachments}
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
-Do not include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
-Do not include file paths of saved images in your final response.
+DO NOT include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
+DO NOT include file paths of saved images in your final response.
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 <|end|>
 <|user|>
