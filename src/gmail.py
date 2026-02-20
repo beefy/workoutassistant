@@ -4,6 +4,9 @@ import imaplib
 import email
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+import mimetypes
 import os
 import threading
 import time
@@ -45,6 +48,71 @@ class GmailClient:
             return True
         except Exception as e:
             print(f"❌ Send failed: {e}")
+            return False
+
+    def send_email_with_attachment(self, to_email, subject, body, file_path, is_html=False):
+        """Send an email with a file attachment
+        
+        Args:
+            to_email (str): Recipient email address
+            subject (str): Email subject
+            body (str): Email body text
+            file_path (str): Path to file to attach
+            is_html (bool): Whether body is HTML format
+            
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        if not all([to_email, subject, body, file_path]):
+            print("❌ Send failed: to_email, subject, body, and file_path are required")
+            return False
+        
+        if not os.path.exists(file_path):
+            print(f"❌ Send failed: File not found: {file_path}")
+            return False
+            
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = self.email
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            # Add body text
+            msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
+            
+            # Add attachment
+            filename = os.path.basename(file_path)
+            
+            # Guess the content type based on the file's extension
+            content_type, encoding = mimetypes.guess_type(file_path)
+            if content_type is None or encoding is not None:
+                content_type = 'application/octet-stream'
+            
+            main_type, sub_type = content_type.split('/', 1)
+            
+            with open(file_path, 'rb') as fp:
+                attachment = MIMEBase(main_type, sub_type)
+                attachment.set_payload(fp.read())
+                encoders.encode_base64(attachment)
+                attachment.add_header(
+                    'Content-Disposition',
+                    f'attachment; filename= {filename}'
+                )
+                msg.attach(attachment)
+            
+            # Send email
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(self.email, self.password)
+            server.sendmail(self.email, to_email, msg.as_string())
+            server.quit()
+            
+            print(f"✅ Email with attachment sent to {to_email}")
+            print(f"📎 Attached file: {filename} ({os.path.getsize(file_path)} bytes)")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Send with attachment failed: {e}")
             return False
 
     def schedule_email(self, to_email, subject, body, send_time, is_html=False):
