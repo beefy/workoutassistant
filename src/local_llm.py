@@ -12,6 +12,7 @@ from llama_cpp import Llama
 from web_search import web_search
 from moltbook import MoltbookClient
 from gmail import GmailClient, get_system_info
+from generate_image import generate_and_save
 
 
 class LocalLLM:
@@ -271,6 +272,20 @@ class LocalLLM:
                 "name": "get_system_info",
                 "description": "Get current system information including date/time, CPU usage, memory usage.",
                 "parameters": {"type": "object", "properties": {}, "required": []}
+            },
+            "generate_image": {
+                "name": "generate_image",
+                "description": "Generate an AI image from a text prompt using Hugging Face models.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string", 
+                            "description": "Detailed description of the image to generate"
+                        }
+                    },
+                    "required": ["prompt"]
+                }
             }
         }
         
@@ -505,6 +520,7 @@ Available tools:
 - Send email: {"tool": "send_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body"}}
 - Schedule email: {"tool": "schedule_email", "parameters": {"recipient": "email address", "subject": "email subject", "body": "email body", "send_time": "YYYY-MM-DD HH:MM"}}
 - Get system info: {"tool": "get_system_info", "parameters": {}}
+- Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
 
 Tool calls should be valid json.
 
@@ -528,6 +544,7 @@ IMPORTANT: Start your response with "Dear User, ..." and end your response with 
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
 Do not include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
+If there are any generated images, include the saved filenames formatted like this: [Generated Image: filename.jpg] in your response.
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 <|end|>
 <|user|>
@@ -787,6 +804,30 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
                 return f"System Information:\n\n{system_info}"
             except Exception as e:
                 return f"❌ Failed to get system info: {e}"
+        
+        elif tool_name == "generate_image":
+            try:
+                prompt = parameters.get('prompt')
+                
+                if not prompt:
+                    return "❌ Error: Image prompt is required"
+                
+                print(f"🎨 Generating image: {prompt[:50]}...")
+                
+                # Generate the image
+                result = generate_and_save(prompt)
+                
+                if result and save:
+                    # Result is file path when save=True
+                    return f"✅ Image generated successfully!\n📸 Saved to: {result}\n💡 Prompt: {prompt}"
+                elif result and not save:
+                    # Result is PIL Image when save=False
+                    return f"✅ Image generated successfully!\n💡 Prompt: {prompt}\n📝 Image object created (not saved to file)"
+                else:
+                    return f"❌ Failed to generate image for prompt: {prompt}"
+                    
+            except Exception as e:
+                return f"❌ Failed to generate image: {e}"
         
         else:
             return f"Error: Unknown tool '{tool_name}'"
