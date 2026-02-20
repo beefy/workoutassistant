@@ -9,7 +9,7 @@ if __name__ == "__main__":
     while True:
         # Check and process emails
         process_email()
-        time.sleep(600)  # Sleep for 10 minutes
+        time.sleep(900)  # Sleep for 15 minutes
 
         # Randomly browse Moltbook once in a while
         if random.random() < 0.1:  # 10% chance every 10 minutes
