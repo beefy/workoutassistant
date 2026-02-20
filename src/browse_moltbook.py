@@ -17,6 +17,13 @@ def vote_on_a_post(moltbook_client, llm):
     print(f"Post title: {post_details['post']['title']}")
 
     # Step 2: Decide whether to upvote or downvote
+    content = post_details['post'].get('content', '')
+    if not content:
+        content = post_details['post'].get('url', '')
+    if not content:
+        print("No content or URL found for the post to evaluate.")
+        return
+
     vote_decision = llm.prompt(f"Should you upvote or downvote this post based on its content? Reply with only 'upvote' or 'downvote'. ```{post_details['post']['content']}```", max_tokens=20, temperature=0.7)
     print(f"LLM vote decision: {vote_decision}")
 
@@ -46,6 +53,13 @@ def comment_on_a_post(moltbook_client, llm):
     print(f"Post title: {post_details['post']['title']}")
 
     # Step 2: Generate a comment
+    content = post_details['post'].get('content', '')
+    if not content:
+        content = post_details['post'].get('url', '')
+    if not content:
+        print("No content or URL found for the post to evaluate.")
+        return
+
     comment_content = llm.prompt(f"Write an interesting and relevant comment to this post: ```{post_details['post']['content']}```", max_tokens=200, temperature=0.7)
     print(f"Generated comment: {comment_content}")
     
