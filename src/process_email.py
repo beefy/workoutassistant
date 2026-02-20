@@ -16,6 +16,9 @@ def process_email():
         body = email_info['body']
         llm.attachments = email_info.get('attachments', [])  # Pass attachments
 
+        print(body)
+        exit()
+
         print(f"Processing email from {sender} with subject '{subject}'")
 
         if is_email_approved(senders_email):
