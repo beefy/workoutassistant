@@ -36,17 +36,15 @@ class HuggingFaceImageGenerator:
         
         # Image-to-image models for modification (tested and working)
         self.img2img_models = {
-            "flux2_dev": "black-forest-labs/FLUX.2-dev",
-            "flux2_klein_9b": "black-forest-labs/FLUX.2-klein-9B",
-            "flux2_klein_4b": "black-forest-labs/FLUX.2-klein-4B", 
-            "flux1_kontext": "black-forest-labs/FLUX.1-Kontext-dev",
-            "instruct_pix2pix": "timbrooks/instruct-pix2pix",
+            "flux_schnell_replicate": "black-forest-labs/FLUX.1-schnell",  # Available on Replicate
+            "flux_dev_replicate": "black-forest-labs/FLUX.1-dev",  # Available on Replicate 
+            "instruct_pix2pix": "timbrooks/instruct-pix2pix",  # For router endpoint
             "stable_diffusion_img2img": "runwayml/stable-diffusion-v1-5",
             "stable_diffusion_inpaint": "stabilityai/stable-diffusion-2-inpainting"
         }
         
         self.default_model = self.models["flux_schnell"]  # Faster model for free tier
-        self.default_img2img_model = self.img2img_models["instruct_pix2pix"]  # Reliable instruction-based editing model
+        self.default_img2img_model = self.img2img_models["flux_schnell_replicate"]  # FLUX model available on Replicate
 
     def generate_image(self, prompt, model=None, width=512, height=512, save_path=None):
         """Generate an image from a text prompt using Hugging Face Inference API
@@ -167,43 +165,52 @@ class HuggingFaceImageGenerator:
             
             # Try using InferenceClient with providers that support image-to-image
             try:
-                # First try with a provider that supports image_to_image
-                provider_client = InferenceClient(provider="replicate", api_key=self.api_token)
-                modified_image = provider_client.image_to_image(
-                    image=input_image,
-                    prompt=prompt.strip(),
-                    model=model_id,
-                    strength=strength
-                )
-                print("✅ Image modified successfully using provider!")
+                # First try with a provider that supports image_to_image (use correct model for Replicate)
+                if "replicate" in model_id or "FLUX" in model_id or "flux" in model_id.lower():
+                    # Use FLUX model with Replicate provider
+                    clean_model_id = model_id.replace("_replicate", "")  # Remove suffix
+                    provider_client = InferenceClient(provider="replicate", api_key=self.api_token)
+                    modified_image = provider_client.image_to_image(
+                        image=input_image,
+                        prompt=prompt.strip(),
+                        model=clean_model_id,
+                        strength=strength
+                    )
+                    print("✅ Image modified successfully using Replicate provider!")
+                else:
+                    raise Exception("Using router endpoint fallback")
                 
             except Exception as provider_error:
                 print(f"Provider method failed: {provider_error}")
                 
-                # Fallback to api-inference endpoint (not router)
-                api_url = f"https://api-inference.huggingface.co/models/{model_id}"
+                # Fallback to router endpoint (using correct format)
+                api_url = f"https://router.huggingface.co/models/{model_id}"
                 headers = {
-                    "Authorization": f"Bearer {self.api_token}"
+                    "Authorization": f"Bearer {self.api_token}",
+                    "Content-Type": "application/json"
                 }
                 
-                # Convert PIL image to bytes
+                # Convert image to base64 
                 img_buffer = io.BytesIO()
                 input_image.save(img_buffer, format='PNG')
-                img_buffer.seek(0)
+                img_b64 = base64.b64encode(img_buffer.getvalue()).decode()
                 
-                # Try multipart form data
-                files = {
-                    'inputs': ('image.png', img_buffer.getvalue(), 'image/png')
-                }
-                data = {
-                    'parameters': f'{{"prompt": "{prompt.strip()}", "strength": {strength}}}'
+                json_payload = {
+                    "inputs": {
+                        "image": img_b64,
+                        "prompt": prompt.strip()
+                    },
+                    "parameters": {
+                        "strength": strength,
+                        "guidance_scale": 7.5,
+                        "num_inference_steps": 20
+                    }
                 }
                 
                 response = requests.post(
                     api_url,
                     headers=headers,
-                    files=files,
-                    data=data,
+                    json=json_payload,
                     timeout=120
                 )
                 
