@@ -2,8 +2,7 @@ from gmail import GmailClient
 from local_llm import LocalLLM
 from approve_list import is_email_approved, add_to_approve_list
 import os
-from talon import quotations
-import re
+from email_reply_parser import EmailReplyParser
 
 def parse_email_body(body):
     """
@@ -27,15 +26,15 @@ def parse_email_body(body):
     if not body or not body.strip():
         return {"body": "", "history": []}
     
-    # Use talon to extract the new content (removes quoted replies)
     try:
-        new_content = quotations.extract_from(body)
+        # Use email-reply-parser to extract the new content
+        new_content = EmailReplyParser.parse_reply(body)
         return {
             "body": new_content.strip() if new_content else "",
-            "history": []  # Talon focuses on new content extraction, not history parsing
+            "history": []  # email-reply-parser focuses on new content extraction, not history parsing
         }
     except Exception as e:
-        print(f"⚠️ Talon parsing failed: {e}")
+        print(f"⚠️ Email parsing failed: {e}")
         # Fallback: use entire body
         return {
             "body": body.strip(),

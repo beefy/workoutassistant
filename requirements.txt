@@ -6,4 +6,4 @@ psutil>=5.9.0
 huggingface_hub>=0.20.0
 torch>=2.0.0
 transformers>=4.30.0
-talon>=1.0.0
+email-reply-parser>=0.5.12
