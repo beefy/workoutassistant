@@ -46,7 +46,7 @@ class HuggingFaceImageGenerator:
         }
         
         self.default_model = self.models["flux_schnell"]  # Faster model for free tier
-        self.default_img2img_model = self.img2img_models["flux2_klein_4b"]  # Use FLUX.2 for paid account
+        self.default_img2img_model = self.img2img_models["instruct_pix2pix"]  # Reliable instruction-based editing model
 
     def generate_image(self, prompt, model=None, width=512, height=512, save_path=None):
         """Generate an image from a text prompt using Hugging Face Inference API
