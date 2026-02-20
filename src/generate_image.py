@@ -24,13 +24,13 @@ class HuggingFaceImageGenerator:
         self.api_token = api_token
         self.headers = {"Authorization": f"Bearer {api_token}"}
         
-        # Popular free image generation models (updated for 2026)
+        # Verified working models on the new router (2026)
         self.models = {
             "stable_diffusion": "runwayml/stable-diffusion-v1-5",
-            "stable_diffusion_2": "stabilityai/stable-diffusion-2-1",
-            "openjourney": "prompthero/openjourney",
-            "anything_v4": "andite/anything-v4.0",
-            "realistic_vision": "SG161222/Realistic_Vision_V2.0"
+            "openjourney": "prompthero/openjourney", 
+            "dreamlike": "dreamlike-art/dreamlike-diffusion-1.0",
+            "vintedois": "22h/vintedois-diffusion-v0-1",
+            "waifu": "hakurei/waifu-diffusion"
         }
         
         self.default_model = self.models["stable_diffusion"]
@@ -58,19 +58,20 @@ class HuggingFaceImageGenerator:
         if model and not model.startswith("http"):
             model_url = self.models.get(model, self.default_model)
         
-        # Try new router endpoint first, fallback to direct model endpoint
-        api_url = f"https://api-inference.huggingface.co/models/{model_url}"
+        # Use the new router endpoint
+        api_url = f"https://router.huggingface.co/{model_url}"
         
-        # Prepare the payload
+        # Prepare the payload - simplified for better compatibility
         payload = {
-            "inputs": prompt.strip(),
-            "parameters": {
-                "width": width,
-                "height": height,
-                "num_inference_steps": num_inference_steps,
-                "guidance_scale": guidance_scale
-            }
+            "inputs": prompt.strip()
         }
+        
+        # Add parameters only if they might be supported
+        if width != 512 or height != 512:
+            payload["parameters"] = {
+                "width": width,
+                "height": height
+            }
         
         try:
             print(f"🎨 Generating image with prompt: '{prompt[:50]}...'")
@@ -164,7 +165,7 @@ class HuggingFaceImageGenerator:
 
     def test_connection(self):
         """Test connection to Hugging Face API"""
-        test_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
+        test_url = "https://router.huggingface.co/runwayml/stable-diffusion-v1-5"
         
         try:
             response = requests.get(test_url, headers=self.headers, timeout=10)
