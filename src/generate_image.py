@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import io
+import base64
 import requests
 from huggingface_hub import InferenceClient
 from datetime import datetime
@@ -169,33 +170,69 @@ class HuggingFaceImageGenerator:
                     model=model_id,
                     strength=strength
                 )
-            except AttributeError:
-                # Method 2: Try using the inference API directly
-                import requests
-                import io
+            except (AttributeError, Exception) as e:
+                print(f"InferenceClient method failed: {e}")
+                # Method 2: Use direct API call with proper format
                 
                 # Convert PIL image to bytes
                 img_buffer = io.BytesIO()
                 input_image.save(img_buffer, format='PNG')
                 img_buffer.seek(0)
                 
-                # Make direct API call
+                # Make direct API call with proper multipart format
                 api_url = f"https://api-inference.huggingface.co/models/{model_id}"
                 headers = {"Authorization": f"Bearer {self.api_token}"}
                 
-                # For InstructPix2Pix, send image and prompt
+                # For InstructPix2Pix, use proper multipart format
+                files = {
+                    'inputs': ('image.png', img_buffer, 'image/png')
+                }
+                data = {
+                    'prompt': prompt.strip(),
+                    'strength': str(strength)
+                }
+                
                 response = requests.post(
                     api_url,
                     headers=headers,
-                    files={"inputs": img_buffer},
-                    data={"parameters": f'{{"prompt": "{prompt.strip()}", "strength": {strength}}}'},
+                    files=files,
+                    data=data,
                     timeout=120
                 )
                 
                 if response.status_code == 200:
                     modified_image = Image.open(io.BytesIO(response.content))
+                elif response.status_code == 503:
+                    raise Exception("Model is loading, please wait and try again")
+                elif response.status_code == 429:
+                    raise Exception("Rate limit exceeded, please wait before trying again")
                 else:
-                    raise Exception(f"API returned {response.status_code}: {response.text}")
+                    # Try alternative JSON payload format
+                    img_buffer.seek(0)
+                    import base64
+                    img_b64 = base64.b64encode(img_buffer.read()).decode()
+                    
+                    json_payload = {
+                        "inputs": {
+                            "image": img_b64,
+                            "prompt": prompt.strip()
+                        },
+                        "parameters": {
+                            "strength": strength
+                        }
+                    }
+                    
+                    response = requests.post(
+                        api_url,
+                        headers={**headers, "Content-Type": "application/json"},
+                        json=json_payload,
+                        timeout=120
+                    )
+                    
+                    if response.status_code == 200:
+                        modified_image = Image.open(io.BytesIO(response.content))
+                    else:
+                        raise Exception(f"API returned {response.status_code}: {response.text}")
             
             print("✅ Image modified successfully!")
             
@@ -209,42 +246,6 @@ class HuggingFaceImageGenerator:
             
         except Exception as e:
             print(f"❌ Error modifying image: {e}")
-            # Try fallback approach if image_to_image fails
-            try:
-                print("🔄 Trying alternative approach...")
-                return self._modify_image_fallback(image_path, prompt, model_id, save_path)
-            except Exception as fallback_e:
-                print(f"❌ Fallback also failed: {fallback_e}")
-                return None
-
-    def _modify_image_fallback(self, image_path, prompt, model_id, save_path):
-        """Fallback method for image modification using direct text-to-image generation"""
-        try:
-            print("🔄 Using text-to-image generation as fallback...")
-            
-            # Load and analyze the input image to create a descriptive prompt
-            input_image = Image.open(image_path)
-            
-            # Create a combined prompt that includes modification instruction
-            fallback_prompt = f"A modified version of an image where: {prompt.strip()}. High quality, detailed."
-            
-            # Use regular text-to-image generation as fallback
-            modified_image = self.client.text_to_image(
-                prompt=fallback_prompt,
-                model=self.default_model,
-                width=input_image.width,
-                height=input_image.height
-            )
-            
-            if save_path:
-                os.makedirs(os.path.dirname(save_path), exist_ok=True) 
-                modified_image.save(save_path)
-                print(f"💾 Fallback image saved to: {save_path}")
-            
-            return modified_image
-            
-        except Exception as e:
-            print(f"❌ Fallback method failed: {e}")
             return None
 
     def modify_and_save(self, image_path, prompt, filename=None, model=None, **kwargs):
