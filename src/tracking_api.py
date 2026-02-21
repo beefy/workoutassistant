@@ -1,5 +1,6 @@
 import requests
 import os
+import base64
 
 def login(username, password):
     # curl -X POST "https://api.bobtheraspberrypi.com/api/v1/auth/login" \
@@ -7,12 +8,10 @@ def login(username, password):
     #     -H "Content-Type: application/json"
     url = "https://api.bobtheraspberrypi.com/api/v1/auth/login"
     credentials = f"{username}:{password}"
+    encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('ascii')
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Basic {credentials.encode('utf-8').hex()}"
-    }
-    headers = {
-        "Content-Type": "application/json"
+        "Authorization": f"Basic {encoded_credentials}"
     }
     
     response = requests.post(url, headers=headers)
