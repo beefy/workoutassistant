@@ -98,6 +98,36 @@ def system_info_update(token):
     else:
         print(f"Failed to send system info. Status code: {response.status_code}, Response: {response.text}")
 
+def response_time_update(token, received_time, response_time):
+    agent_name = os.getenv("TRACKING_API_USERNAME")
+    if not agent_name:
+        print("TRACKING_API_USERNAME environment variable not set.")
+        return
+
+    url = "https://api.bobtheraspberrypi.com/api/v1/response-times/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}"
+    }
+    # {
+    #     "agent_name": "string",
+    #     "received_time": "2026-02-21T20:09:06.641Z",
+    #     "response_time": 0
+    # }
+
+    payload = {
+        "agent_name": agent_name,
+        "received_time": received_time,
+        "response_time": response_time
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    if response.status_code == 200 or response.status_code == 201:
+        print("Response time info sent successfully!")
+    else:
+        print(f"Failed to send response time info. Status code: {response.status_code}, Response: {response.text}")
+
 if __name__ == "__main__":
     username = os.getenv("TRACKING_API_USERNAME")
     password = os.getenv("TRACKING_API_PASSWORD")
@@ -108,3 +138,4 @@ if __name__ == "__main__":
         if token:
             status_update(token, "Testing Status Update API")
             system_info_update(token)
+            response_time_update(token, datetime.datetime.now(datetime.UTC).isoformat(), datetime.datetime.now(datetime.UTC).isoformat())
