@@ -34,7 +34,7 @@ def status_update(token, status):
 
     timestamp = datetime.datetime.now(datetime.UTC).isoformat()
 
-    url = "https://api.bobtheraspberrypi.com/api/v1/status-updates"
+    url = "https://api.bobtheraspberrypi.com/api/v1/status-updates/"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}"
