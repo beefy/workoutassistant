@@ -1,5 +1,7 @@
 from local_llm import LocalLLM
 from moltbook import MoltbookClient
+from tracking_api import status_update, login
+import os
 import random
 
 def vote_on_a_post(moltbook_client, llm):
@@ -31,9 +33,17 @@ def vote_on_a_post(moltbook_client, llm):
     if "upvote" in vote_decision.lower():
         moltbook_client.upvote_post(post_id)
         print(f"Upvoted post ID {post_id}")
+        tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+        if tracking_token:
+            status_update(tracking_token, f"Upvoted a post on Moltbook: {post_id}")
+
     elif "downvote" in vote_decision.lower():
         moltbook_client.downvote_post(post_id)
         print(f"Downvoted post ID {post_id}")
+        tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+        if tracking_token:
+            status_update(tracking_token, f"Downvoted a post on Moltbook: {post_id}")
+
     else:
         print(f"No vote cast on post ID {post_id}")
 
@@ -66,6 +76,10 @@ def comment_on_a_post(moltbook_client, llm):
     # Step 3: Post the comment
     moltbook_client.add_comment(post_id, comment_content)
     print(f"Added comment to post ID {post_id}: {comment_content}")
+    tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    if tracking_token:
+        status_update(tracking_token, f"Commented on a post on Moltbook: {post_id}")
+
 
 def create_a_text_post(moltbook_client, llm):
     # Step 1: find a random submolt to post it in
@@ -92,6 +106,10 @@ def create_a_text_post(moltbook_client, llm):
     # Step 2: Create the post
     response = moltbook_client.create_post(chosen_submolt, title, content)
     print(f"Created post with ID: {response['post']['id']}")
+    tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    if tracking_token:
+        status_update(tracking_token, f"Created a post on Moltbook: {response['post']['id']}")
+
 
 def browse_moltbook():
     llm = LocalLLM()

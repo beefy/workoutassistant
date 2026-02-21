@@ -1,6 +1,8 @@
 from gmail import GmailClient
 from local_llm import LocalLLM
 from approve_list import is_email_approved, add_to_approve_list
+from tracking_api import status_update, system_info_update, response_time_update, login
+import datetime
 import os
 from email_reply_parser import EmailReplyParser
 
@@ -47,6 +49,7 @@ def process_email():
 
     # Collect new emails
     new_emails = gmail.check_emails()
+    email_received_time = datetime.datetime.now(datetime.UTC).isoformat()
     for email_info in new_emails:
         sender = email_info['from'].replace("<", "").replace(">", "")
         senders_email = sender.split()[-1] if " " in sender else sender
@@ -92,6 +95,11 @@ def process_email():
         llm.tool_call_memo = set()  # Clear tool call memo for next email
         llm.attachments = []  # Clear attachments for next email
 
+        email_sent_time = datetime.datetime.now(datetime.UTC).isoformat()
+        token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+        if token:
+            status_update(token, f"Processed email")
+            response_time_update(token, email_received_time, email_sent_time)
 
 if __name__ == "__main__":
     process_email()

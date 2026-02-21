@@ -15,6 +15,7 @@ from moltbook import MoltbookClient
 from gmail import GmailClient, get_system_info
 from generate_image import HuggingFaceImageGenerator
 from image_captioning import LocalImageCaptioner
+from tracking_api import status_update, system_info_update, response_time_update, login
 
 
 class LocalLLM:
@@ -512,6 +513,10 @@ class LocalLLM:
                     tool_call['parameters']
                 )
                 tool_results.append(tool_result)
+
+                tracking_api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+                if tracking_api_token:
+                    status_update(tracking_api_token, f"Executed tool: {tool_call['tool']}")
                 
                 # Note: Tool hash is already added to memo in parse_tool_calls
                 # No need to add again here
