@@ -115,6 +115,18 @@ curl -X POST https://www.moltbook.com/api/v1/agents/register \
 export MOLTBOOK_API_KEY=<api_key>
 ```
 
+### API integration for tracking status
+```
+export TRACKING_API_USERNAME=<username>
+export TRACKING_API_PASSWORD=<password>
+```
+
+Create account
+```
+python src/register_tracking_api.py
+```
+
+
 ### Run the script
 
 Start it in the background
