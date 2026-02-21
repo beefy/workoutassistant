@@ -1,5 +1,6 @@
 import os
 import requests
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 class MoltbookClient:
     def __init__(self):
@@ -15,6 +16,11 @@ class MoltbookClient:
             "Content-Type": "application/json"
         }
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def create_post(self, submolt, title, content):
         # curl -X POST https://www.moltbook.com/api/v1/posts \
         #     -H "Authorization: Bearer YOUR_API_KEY" \
@@ -42,6 +48,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def create_link_post(self, submolt, title, url):
         # curl -X POST https://www.moltbook.com/api/v1/posts \
         #     -H "Authorization: Bearer YOUR_API_KEY" \
@@ -60,6 +71,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def get_feed(self):
         # curl "https://www.moltbook.com/api/v1/posts?sort=hot&limit=25" \
         #     -H "Authorization: Bearer YOUR_API_KEY"
@@ -70,6 +86,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def get_posts_from_submolt(self, submolt):
         # curl "https://www.moltbook.com/api/v1/posts?submolt=general&sort=new" \
         #     -H "Authorization: Bearer YOUR_API_KEY"
@@ -80,6 +101,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def get_single_post(self, post_id):
         # url https://www.moltbook.com/api/v1/posts/POST_ID \
         #     -H "Authorization: Bearer YOUR_API_KEY"
@@ -90,6 +116,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def add_comment(self, post_id, content):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/comments \
         # -H "Authorization: Bearer YOUR_API_KEY" \
@@ -104,6 +135,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def reply_to_comment(self, post_id, parent_comment_id, content):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/comments \
         #     -H "Authorization: Bearer YOUR_API_KEY" \
@@ -121,6 +157,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def get_comments(self, post_id):
         # curl "https://www.moltbook.com/api/v1/posts/POST_ID/comments?sort=top" \
         # -H "Authorization: Bearer YOUR_API_KEY"
@@ -131,6 +172,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def upvote_post(self, post_id):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/upvote \
         #     -H "Authorization: Bearer YOUR_API_KEY"
@@ -141,6 +187,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def downvote_post(self, post_id):
         # curl -X POST https://www.moltbook.com/api/v1/posts/POST_ID/downvote \
         #   -H "Authorization: Bearer YOUR_API_KEY"
@@ -151,6 +202,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def upvote_comment(self, comment_id):
         # curl -X POST https://www.moltbook.com/api/v1/comments/COMMENT_ID/upvote \
         #     -H "Authorization: Bearer YOUR_API_KEY"
@@ -161,6 +217,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def list_submolts(self):
         # curl https://www.moltbook.com/api/v1/submolts \
         # -H "Authorization: Bearer YOUR_API_KEY"
@@ -171,6 +232,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def subscribe_to_submolt(self, submolt):
         # curl -X POST https://www.moltbook.com/api/v1/submolts/SUBMOLT_NAME/subscribe \
         #     -H "Authorization
@@ -181,6 +247,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def unsubscribe_from_submolt(self, submolt):
         # curl -X DELETE https://www.moltbook.com/api/v1/submolts/SUBMOLT_NAME/subscribe \
         # -H "Authorization: Bearer YOUR_API_KEY"
@@ -191,6 +262,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def follow_user(self, username):
         # curl -X POST https://www.moltbook.com/api/v1/agents/MOLTY_NAME/follow \
         # -H "Authorization: Bearer YOUR_API_KEY"
@@ -201,6 +277,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def unfollow_user(self, username):
         # curl -X DELETE https://www.moltbook.com/api/v1/agents/MOLTY_NAME/follow \
         # -H "Authorization: Bearer YOUR_API_KEY"
@@ -211,6 +292,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def get_personalized_feed(self):
         # curl "https://www.moltbook.com/api/v1/feed?sort=hot&limit=25" \
         #   -H "Authorization: Bearer YOUR_API_KEY"
@@ -221,6 +307,11 @@ class MoltbookClient:
         response.raise_for_status()
         return response.json()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError))
+    )
     def search_posts_and_comments(self, query):
         # curl "https://www.moltbook.com/api/v1/search?q=how+do+agents+handle+memory&limit=20" \
         #   -H "Authorization: Bearer YOUR_API_KEY"

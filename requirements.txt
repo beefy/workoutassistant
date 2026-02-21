@@ -7,3 +7,4 @@ huggingface_hub>=0.20.0
 torch>=2.0.0
 transformers>=4.30.0
 email-reply-parser>=0.5.12
+tenacity>=8.0.0
