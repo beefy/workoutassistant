@@ -32,9 +32,9 @@ def status_update(token, status):
         print("TRACKING_API_USERNAME environment variable not set.")
         return
 
-    timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+    timestamp = datetime.datetime.now(datetime.UTC).isoformat()
 
-    url = "https://api.bobtheraspberrypi.com/api/v1/status/update"
+    url = "https://api.bobtheraspberrypi.com/api/v1/status-updates"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}"
