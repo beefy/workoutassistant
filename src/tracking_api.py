@@ -128,6 +128,34 @@ def response_time_update(token, received_time, response_time):
     else:
         print(f"Failed to send response time info. Status code: {response.status_code}, Response: {response.text}")
 
+def heartbeat(token):
+    agent_name = os.getenv("TRACKING_API_USERNAME")
+    if not agent_name:
+        print("TRACKING_API_USERNAME environment variable not set.")
+        return
+
+    url = "https://api.bobtheraspberrypi.com/api/v1/heartbeat/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}"
+    }
+    # {
+    #     "agent_name": "string",
+    #     "last_heartbeat_ts": "2026-02-21T20:09:06.641Z"
+    # }
+
+    payload = {
+        "agent_name": agent_name,
+        "last_heartbeat_ts": datetime.datetime.now(datetime.UTC).isoformat()
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    if response.status_code == 200 or response.status_code == 201:
+        print("Heartbeat sent successfully!")
+    else:
+        print(f"Failed to send heartbeat. Status code: {response.status_code}, Response: {response.text}")
+
 if __name__ == "__main__":
     username = os.getenv("TRACKING_API_USERNAME")
     password = os.getenv("TRACKING_API_PASSWORD")
@@ -139,3 +167,4 @@ if __name__ == "__main__":
             status_update(token, "Testing Status Update API")
             system_info_update(token)
             response_time_update(token, datetime.datetime.now(datetime.UTC).isoformat(), datetime.datetime.now(datetime.UTC).isoformat())
+            heartbeat(token)
