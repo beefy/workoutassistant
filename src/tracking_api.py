@@ -2,16 +2,20 @@ import requests
 import os
 
 def login(username, password):
+    # curl -X POST "https://api.bobtheraspberrypi.com/api/v1/auth/login" \
+    #     -u "username:password" \
+    #     -H "Content-Type: application/json"
     url = "https://api.bobtheraspberrypi.com/api/v1/auth/login"
-    payload = {
-        "username": username,
-        "password": password
+    credentials = f"{username}:{password}"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Basic {credentials.encode('utf-8').hex()}"
     }
     headers = {
         "Content-Type": "application/json"
     }
     
-    response = requests.post(url, json=payload, headers=headers)
+    response = requests.post(url, headers=headers)
     
     if response.status_code == 200:
         print("Login successful!")
