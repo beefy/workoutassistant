@@ -117,8 +117,8 @@ def response_time_update(token, received_time, response_time):
 
     payload = {
         "agent_name": agent_name,
-        "received_time": received_time,
-        "response_time": response_time
+        "received_ts": received_time,
+        "sent_ts": response_time
     }
 
     response = requests.post(url, json=payload, headers=headers)
