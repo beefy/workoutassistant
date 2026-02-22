@@ -24,9 +24,14 @@ class LLMRequest:
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.future = Future()  # Used for thread synchronization
+        self.timestamp = time.time()  # Add timestamp for FIFO ordering
         
     def __lt__(self, other):
-        """Enable priority queue ordering (lower number = higher priority)"""
+        """Enable priority queue ordering (lower number = higher priority, older timestamp = first)"""
+        if self.priority == other.priority:
+            # Same priority: older request (smaller timestamp) goes first
+            return self.timestamp < other.timestamp
+        # Different priority: lower priority number goes first
         return self.priority < other.priority
 
 
