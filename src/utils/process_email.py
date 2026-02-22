@@ -80,6 +80,7 @@ def process_email():
             unsubscribe_user(senders_email)  # Mongodb newsletter list
 
             gmail.send_email(senders_email, f"Re: {subject}", "You have been unsubscribed.")
+            continue
 
         if os.getenv("GMAIL_ADDRESS").replace(".", "").lower() in senders_email.replace(".", "").lower():
             continue  # Skip processing emails from the bot to itself
