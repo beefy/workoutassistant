@@ -10,7 +10,7 @@ def main():
         while True:
             # Check and process emails
             process_email()
-            time.sleep(900)  # Sleep for 15 minutes
+            time.sleep(300)  # Sleep for 5 minutes
     except Exception as e:
         print(f"⚠️ An error occurred: {e}")
         admin_email = os.getenv("ADMIN_EMAIL")
