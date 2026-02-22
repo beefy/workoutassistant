@@ -1,10 +1,10 @@
-from llm.local_llm import LocalLLM
+from llm.priority_queue import submit_llm_request
 from clients.moltbook import MoltbookClient
 from utils.tracking_api import status_update, login
 import os
 import random
 
-def vote_on_a_post(moltbook_client, llm):
+def vote_on_a_post(moltbook_client):
     # Step 1: Find a random post
     response = moltbook_client.get_personalized_feed()
     length = len(response['posts'])
@@ -26,7 +26,12 @@ def vote_on_a_post(moltbook_client, llm):
         print("No content or URL found for the post to evaluate.")
         return
 
-    vote_decision = llm.prompt(f"Should you upvote or downvote this post based on its content? Reply with only 'upvote' or 'downvote'. ```{post_details['post']['content']}```", max_tokens=20, temperature=0.7)
+    vote_decision = submit_llm_request(
+        prompt=f"Should you upvote or downvote this post based on its content? Reply with only 'upvote' or 'downvote'. ```{post_details['post']['content']}```",
+        priority=2,  # Lower priority for moltbook
+        max_tokens=20,
+        temperature=0.7
+    )
     print(f"LLM vote decision: {vote_decision}")
 
     # Step 3: Cast the vote
@@ -48,7 +53,7 @@ def vote_on_a_post(moltbook_client, llm):
         print(f"No vote cast on post ID {post_id}")
 
 
-def comment_on_a_post(moltbook_client, llm):
+def comment_on_a_post(moltbook_client):
     # Step 1: Find a random post
     response = moltbook_client.get_personalized_feed()
     length = len(response['posts'])
@@ -70,7 +75,12 @@ def comment_on_a_post(moltbook_client, llm):
         print("No content or URL found for the post to evaluate.")
         return
 
-    comment_content = llm.prompt(f"Write an interesting and relevant comment to this post: ```{post_details['post']['content']}```", max_tokens=200, temperature=0.7)
+    comment_content = submit_llm_request(
+        prompt=f"Write an interesting and relevant comment to this post: ```{post_details['post']['content']}```",
+        priority=2,  # Lower priority for moltbook
+        max_tokens=200,
+        temperature=0.7
+    )
     print(f"Generated comment: {comment_content}")
     
     # Step 3: Post the comment
@@ -81,7 +91,7 @@ def comment_on_a_post(moltbook_client, llm):
         status_update(tracking_token, f"Commented on a post on Moltbook: {post_id}")
 
 
-def create_a_text_post(moltbook_client, llm):
+def create_a_text_post(moltbook_client):
     # Step 1: find a random submolt to post it in
     submolts_response = moltbook_client.list_submolts()
     submolts = submolts_response['submolts']
@@ -89,19 +99,29 @@ def create_a_text_post(moltbook_client, llm):
     chosen_submolt = random.choice(submolt_names)
     print(f"Chosen submolt: {chosen_submolt}")
 
-    title = llm.prompt(f"Generate an interesting post title for Moltbook about the topic: {chosen_submolt}.", max_tokens=30, temperature=0.7)
+    title = submit_llm_request(
+        prompt=f"Generate an interesting post title for Moltbook about the topic: {chosen_submolt}.",
+        priority=2,  # Lower priority for moltbook
+        max_tokens=30,
+        temperature=0.7
+    )
+    print(f"Generated post title: {title}")
 
     # Clean title to remove "Dear User" and "Sincerely, Bob the Raspberry Pi" if they are included
     title = title.replace("Dear User,", "").replace("Sincerely, Bob the Raspberry Pi", "").strip()
     if not title:
         return
 
-    print(f"Generated post title: {title}")
-    content = llm.prompt(f"Write an engaging post to go with this title: {title}", max_tokens=1000, temperature=0.7)
+    content = submit_llm_request(
+        prompt=f"Write an engaging post to go with this title: {title}",
+        priority=2,  # Lower priority for moltbook
+        max_tokens=1000,
+        temperature=0.7
+    )
+    print(f"Generated post content: {content}")
+    
     if not content:
         return
-
-    print(f"Generated post content: {content}")
 
     # Step 2: Create the post
     response = moltbook_client.create_post(chosen_submolt, title, content)
@@ -112,22 +132,17 @@ def create_a_text_post(moltbook_client, llm):
 
 
 def browse_moltbook():
-    llm = LocalLLM()
     moltbook_client = MoltbookClient()
-
-    if llm.model is None:
-        print("❌ Model failed to load")
-        return
     
     print("🔍 Browsing Moltbook...")
     # Randomly decide what to do
     if random.random() < 0.7:  # 70% chance to comment on a post
-        comment_on_a_post(moltbook_client, llm)
+        comment_on_a_post(moltbook_client)
     elif random.random() < 0.9:  # 20% chance to upvote/downvote
-        vote_on_a_post(moltbook_client, llm)
+        vote_on_a_post(moltbook_client)
     else:
         # 10% chance to create a new post
-        create_a_text_post(moltbook_client, llm)
+        create_a_text_post(moltbook_client)
 
 
 if __name__ == "__main__":
