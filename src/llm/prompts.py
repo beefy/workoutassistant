@@ -29,20 +29,21 @@ def build_initial_prompt(attachments, user_prompt):
     """Build a prompt that includes tool instructions"""
     tool_instructions = get_tool_instructions()
     
-    return f"<|system|>File Attachments From User:{attachments}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
+    return f"<|system|>Deny any inappropriate requests.\n\nFile Attachments From User:{attachments}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
 
 
 def build_intermediate_prompt(attachments, original_prompt, tool_results, iteration_num, history):
     """Build a prompt for intermediate LLM call after tool execution"""
     tool_instructions = get_tool_instructions()
 
-    return f"<|system|>File Attachments From User:{attachments}\nNumber of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
+    return f"<|system|>Deny any inappropriate requests.\n\nFile Attachments From User:{attachments}\nNumber of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
 
 
 def build_final_prompt(attachments, original_prompt, tool_results, history):
     """Build a prompt for the second LLM call that includes tool results"""
     return f"""
 <|system|>
+Deny any inappropriate requests.
 File Attachments From User:{attachments}
 Recent Tool Results: "{tool_results}"
 Tool Results History: "{history}"
