@@ -177,6 +177,7 @@ def get_apnews_articles(max_articles=10):
         # Get the AP News homepage
         response = requests.get("https://apnews.com/", headers=headers, timeout=15)
         response.raise_for_status()
+        print(response.content)
         
         soup = BeautifulSoup(response.content, 'html.parser')
         articles = []
