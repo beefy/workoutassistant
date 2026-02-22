@@ -9,6 +9,7 @@ prompt = f"Summarize the following news articles in a concise way:\n\n{response}
 
 response = submit_llm_request(
     prompt=prompt,
+    max_tokens=500,
     priority=2,  # Low priority for news summarization
 )
 
