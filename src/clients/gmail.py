@@ -12,6 +12,7 @@ import threading
 import time
 from datetime import datetime
 import psutil
+from utils.tracking_api import login, status_update
 
 
 class GmailClient:
@@ -321,6 +322,11 @@ class GmailClient:
                 for msg_id in recent_ids:
                     mail.store(msg_id, '+FLAGS', '\\Seen')
                 print(f"✅ Marked {len(recent_ids)} emails as read")
+            
+            if recent_ids:
+                tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+                if tracking_token:
+                    status_update(tracking_token, f"Read {len(recent_ids)} new emails")
             
             for msg_id in recent_ids:
                 try:
