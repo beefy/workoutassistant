@@ -163,3 +163,126 @@ def fetch_page_content(url, max_length=3000):
     except Exception as e:
         print(f"⚠️  Failed to fetch content from {url}: {e}")
         return "Content could not be retrieved from this page."
+
+
+def get_apnews_articles(max_articles=10):
+    """Scrape front page articles from AP News"""
+    print("📰 Fetching AP News front page articles...")
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        # Get the AP News homepage
+        response = requests.get("https://apnews.com/", headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        articles = []
+        
+        # Find article links and titles from PagePromo-title elements
+        article_elements = soup.select('h2.PagePromo-title a.Link')
+        
+        print(f"📄 Found {len(article_elements)} potential articles")
+        
+        for i, article_link in enumerate(article_elements[:max_articles]):
+            try:
+                # Extract title from the span inside the link
+                title_span = article_link.select_one('span.PagePromoContentIcons-text')
+                if not title_span:
+                    # Fallback: get text content directly
+                    title = article_link.get_text(strip=True)
+                else:
+                    title = title_span.get_text(strip=True)
+                
+                # Get the article URL
+                url = article_link.get('href', '')
+                
+                # Handle relative URLs
+                if url.startswith('/'):
+                    url = f"https://apnews.com{url}"
+                elif not url.startswith('http'):
+                    continue  # Skip invalid URLs
+                
+                # Skip if we don't have both title and URL
+                if not title or not url:
+                    continue
+                
+                print(f"📖 Fetching article {i+1}/{max_articles}: {title[:60]}...")
+                
+                # Fetch the full article content
+                article_content = fetch_apnews_article_content(url, headers)
+                
+                articles.append({
+                    'title': title,
+                    'url': url,
+                    'content': article_content
+                })
+                
+            except Exception as e:
+                print(f"⚠️  Error processing article {i+1}: {e}")
+                continue
+        
+        print(f"✅ Successfully fetched {len(articles)} AP News articles")
+        return articles
+        
+    except Exception as e:
+        print(f"❌ Failed to fetch AP News articles: {e}")
+        return []
+
+
+def fetch_apnews_article_content(url, headers):
+    """Fetch the full text content from an AP News article page"""
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Look for the main article content
+        article_body = soup.select_one('.RichTextStoryBody.RichTextBody')
+        
+        if not article_body:
+            # Fallback selectors if the main one doesn't work
+            fallback_selectors = [
+                '.RichTextStoryBody',
+                '.RichTextBody',
+                '[data-module="ArticleBody"]',
+                '.Article-content',
+                'div[data-key="article-body"]'
+            ]
+            
+            for selector in fallback_selectors:
+                article_body = soup.select_one(selector)
+                if article_body:
+                    break
+        
+        if not article_body:
+            print("⚠️  Could not find article content with any selector")
+            return "Article content could not be extracted."
+        
+        # Remove unwanted elements within the article
+        for element in article_body.find_all(['script', 'style', 'aside', '.ad', '.advertisement']):
+            element.decompose()
+        
+        # Get the text content
+        paragraphs = article_body.find_all(['p', 'div'])
+        text_content = []
+        
+        for para in paragraphs:
+            text = para.get_text(strip=True)
+            if text and len(text) > 10:  # Filter out very short fragments
+                text_content.append(text)
+        
+        # Join paragraphs with line breaks
+        article_text = '\n\n'.join(text_content)
+        
+        # Clean up extra whitespace
+        article_text = ' '.join(article_text.split())
+        
+        return article_text if article_text else "Article content could not be extracted."
+        
+    except Exception as e:
+        print(f"⚠️  Failed to fetch article content from {url}: {e}")
+        return "Failed to retrieve article content."
