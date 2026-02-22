@@ -16,6 +16,7 @@ from clients.gmail import GmailClient, get_system_info
 from clients.generate_image import HuggingFaceImageGenerator
 from clients.image_captioning import LocalImageCaptioner
 from utils.tracking_api import status_update, system_info_update, response_time_update, login
+from llm.prompts import build_initial_prompt, build_intermediate_prompt, build_final_prompt
 
 
 class LocalLLM:
@@ -49,311 +50,6 @@ class LocalLLM:
         except Exception as e:
             print(f"⚠️  LocalImageCaptioner not available: {e}")
             self.image_captioner = None
-        
-        # Tool definitions
-        self.tools = {
-            "web_search": {
-                "name": "web_search",
-                "description": "Search the web for current information. Use this when you need up-to-date information or facts not in your training data.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The search query to look up on the web"
-                        }
-                    },
-                    "required": ["query"]
-                }
-            },
-            "create_post": {
-                "name": "create_post",
-                "description": "Create a new post on Moltbook in a specific submolt.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "submolt": {"type": "string", "description": "The submolt to post in"},
-                        "title": {"type": "string", "description": "The title of the post"},
-                        "content": {"type": "string", "description": "The content/body of the post"}
-                    },
-                    "required": ["submolt", "title", "content"]
-                }
-            },
-            "create_link_post": {
-                "name": "create_link_post",
-                "description": "Create a link post on Moltbook in a specific submolt.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "submolt": {"type": "string", "description": "The submolt to post in"},
-                        "title": {"type": "string", "description": "The title of the post"},
-                        "url": {"type": "string", "description": "The URL to link to"}
-                    },
-                    "required": ["submolt", "title", "url"]
-                }
-            },
-            "get_feed": {
-                "name": "get_feed",
-                "description": "Get the hot feed from Moltbook.",
-                "parameters": {"type": "object", "properties": {}, "required": []}
-            },
-            "get_personalized_feed": {
-                "name": "get_personalized_feed",
-                "description": "Get your personalized feed from Moltbook based on subscriptions and follows.",
-                "parameters": {"type": "object", "properties": {}, "required": []}
-            },
-            "get_posts_from_submolt": {
-                "name": "get_posts_from_submolt",
-                "description": "Get posts from a specific submolt.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "submolt": {"type": "string", "description": "The submolt name"}
-                    },
-                    "required": ["submolt"]
-                }
-            },
-            "get_single_post": {
-                "name": "get_single_post",
-                "description": "Get details of a specific post by ID.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "post_id": {"type": "string", "description": "The post ID"}
-                    },
-                    "required": ["post_id"]
-                }
-            },
-            "add_comment": {
-                "name": "add_comment",
-                "description": "Add a comment to a post.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "post_id": {"type": "string", "description": "The post ID"},
-                        "content": {"type": "string", "description": "The comment content"}
-                    },
-                    "required": ["post_id", "content"]
-                }
-            },
-            "reply_to_comment": {
-                "name": "reply_to_comment",
-                "description": "Reply to a specific comment.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "post_id": {"type": "string", "description": "The post ID"},
-                        "parent_comment_id": {"type": "string", "description": "The comment ID to reply to"},
-                        "content": {"type": "string", "description": "The reply content"}
-                    },
-                    "required": ["post_id", "parent_comment_id", "content"]
-                }
-            },
-            "get_comments": {
-                "name": "get_comments",
-                "description": "Get comments for a specific post.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "post_id": {"type": "string", "description": "The post ID"}
-                    },
-                    "required": ["post_id"]
-                }
-            },
-            "upvote_post": {
-                "name": "upvote_post",
-                "description": "Upvote a post.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "post_id": {"type": "string", "description": "The post ID"}
-                    },
-                    "required": ["post_id"]
-                }
-            },
-            "downvote_post": {
-                "name": "downvote_post",
-                "description": "Downvote a post.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "post_id": {"type": "string", "description": "The post ID"}
-                    },
-                    "required": ["post_id"]
-                }
-            },
-            "upvote_comment": {
-                "name": "upvote_comment",
-                "description": "Upvote a comment.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "comment_id": {"type": "string", "description": "The comment ID"}
-                    },
-                    "required": ["comment_id"]
-                }
-            },
-            "list_submolts": {
-                "name": "list_submolts",
-                "description": "Get a list of all available submolts.",
-                "parameters": {"type": "object", "properties": {}, "required": []}
-            },
-            "subscribe_to_submolt": {
-                "name": "subscribe_to_submolt",
-                "description": "Subscribe to a submolt.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "submolt": {"type": "string", "description": "The submolt name"}
-                    },
-                    "required": ["submolt"]
-                }
-            },
-            "unsubscribe_from_submolt": {
-                "name": "unsubscribe_from_submolt",
-                "description": "Unsubscribe from a submolt.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "submolt": {"type": "string", "description": "The submolt name"}
-                    },
-                    "required": ["submolt"]
-                }
-            },
-            "follow_user": {
-                "name": "follow_user",
-                "description": "Follow a user/agent.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "username": {"type": "string", "description": "The username to follow"}
-                    },
-                    "required": ["username"]
-                }
-            },
-            "unfollow_user": {
-                "name": "unfollow_user",
-                "description": "Unfollow a user/agent.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "username": {"type": "string", "description": "The username to unfollow"}
-                    },
-                    "required": ["username"]
-                }
-            },
-            "search_posts_and_comments": {
-                "name": "search_posts_and_comments",
-                "description": "Search for posts and comments on Moltbook.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "The search query"}
-                    },
-                    "required": ["query"]
-                }
-            },
-            "send_email": {
-                "name": "send_email",
-                "description": "Send an email to a specific recipient.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "recipient": {"type": "string", "description": "Email address of the recipient"},
-                        "subject": {"type": "string", "description": "Email subject line"},
-                        "body": {"type": "string", "description": "Email body content"}
-                    },
-                    "required": ["recipient", "subject", "body"]
-                }
-            },
-            "schedule_email": {
-                "name": "schedule_email",
-                "description": "Schedule an email to be sent at a future time.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "recipient": {"type": "string", "description": "Email address of the recipient"},
-                        "subject": {"type": "string", "description": "Email subject line"},
-                        "body": {"type": "string", "description": "Email body content"},
-                        "send_time": {"type": "string", "description": "When to send (YYYY-MM-DD HH:MM format)"}
-                    },
-                    "required": ["recipient", "subject", "body", "send_time"]
-                }
-            },
-            "get_system_info": {
-                "name": "get_system_info",
-                "description": "Get current system information including date/time, CPU usage, memory usage.",
-                "parameters": {"type": "object", "properties": {}, "required": []}
-            },
-            "generate_image": {
-                "name": "generate_image",
-                "description": "Generate an AI image from a text prompt using Hugging Face models.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "prompt": {
-                            "type": "string", 
-                            "description": "Detailed description of the image to generate"
-                        }
-                    },
-                    "required": ["prompt"]
-                }
-            },
-            "modify_image": {
-                "name": "modify_image", 
-                "description": "Modify an existing image using AI image-to-image generation with a text prompt.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "image_path": {
-                            "type": "string",
-                            "description": "Path to the existing image file to modify (jpg/png)"
-                        },
-                        "prompt": {
-                            "type": "string", 
-                            "description": "Description of how to modify the image"
-                        },
-                        "strength": {
-                            "type": "number",
-                            "description": "How much to change the image (0.0-1.0, default 0.8)"
-                        }
-                    },
-                    "required": ["image_path", "prompt"]
-                }
-            },
-            "caption_image": {
-                "name": "caption_image",
-                "description": "Generate a descriptive caption for an image using local AI model.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "image_path": {
-                            "type": "string",
-                            "description": "Path to the image file to caption (jpg/png)"
-                        }
-                    },
-                    "required": ["image_path"]
-                }
-            },
-            "analyze_image": {
-                "name": "analyze_image",
-                "description": "Analyze an image and answer a specific question about it using local AI model.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "image_path": {
-                            "type": "string",
-                            "description": "Path to the image file to analyze (jpg/png)"
-                        },
-                        "question": {
-                            "type": "string",
-                            "description": "Question to ask about the image"
-                        }
-                    },
-                    "required": ["image_path", "question"]
-                }
-            }
-        }
         
         print(f"Local LLM Configuration:")
         print(f"  Model Path: {self.model_path}")
@@ -535,7 +231,7 @@ class LocalLLM:
         
         # LLM Call
         print(f"🤔 Generating response for: \"{prompt[:50]}...\"")
-        response = self.execute_prompt(self._build_tool_prompt(prompt), max_tokens, temperature, stop)
+        response = self.execute_prompt(build_initial_prompt(self.attachments, prompt), max_tokens, temperature, stop)
         print(f"Initial response generated. Checking for tool calls...")
 
         if not self.tools_enabled:
@@ -563,94 +259,13 @@ class LocalLLM:
             print(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
-            response = self.execute_prompt(self._build_intermediate_prompt(prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
+            response = self.execute_prompt(build_intermediate_prompt(self.attachments, prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
             tool_calls = self.parse_tool_calls(response)
 
         # Final LLM call
-        response = self.execute_prompt(self._build_final_prompt(prompt, tool_results, history), max_tokens, temperature, stop)
+        response = self.execute_prompt(build_final_prompt(self.attachments, prompt, tool_results, history), max_tokens, temperature, stop)
         cleaned_response = self.clean_response(response)
         return cleaned_response    
-
-    def _build_tool_prompt(self, user_prompt):
-        """Build a prompt that includes tool instructions"""
-        if not self.tools_enabled:
-            return user_prompt
-        
-        tool_instructions = """
-YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
-
-To call a tool, output a JSON object with the format:
-{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}
-
-Available tools:
-- Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
-- Get system info: {"tool": "get_system_info", "parameters": {}}
-- Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
-- Modify image: {"tool": "modify_image", "parameters": {"image_path": "path/to/image.jpg", "prompt": "description of modifications", "strength": 0.8}}
-- Caption image: {"tool": "caption_image", "parameters": {"image_path": "path/to/image.jpg"}}
-- Analyze image: {"tool": "analyze_image", "parameters": {"image_path": "path/to/image.jpg", "question": "What do you see in this image?"}}
-
-Tool calls should be valid json.
-
-Do not use a tool call unless you need to.
-
-Provide concise, factual information with specific details when possible.
-Please keep your response short because the context window is limited.
-Thank you!
-
-IMPORTANT: Start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-        """
-        
-        return f"<|system|>File Attachments From User:{self.attachments}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
-
-    def _build_intermediate_prompt(self, original_prompt, tool_results, iteration_num, history):
-        """Build a prompt for intermediate LLM call after tool execution"""
-        if not self.tools_enabled:
-            return original_prompt
-        
-        tool_instructions = """
-YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
-
-To call a tool, output a JSON object with the format:
-{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}
-
-Available tools:
-- Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
-- Get system info: {"tool": "get_system_info", "parameters": {}}
-- Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
-- Modify image: {"tool": "modify_image", "parameters": {"image_path": "path/to/image.jpg", "prompt": "description of modifications", "strength": 0.8}}
-- Caption image: {"tool": "caption_image", "parameters": {"image_path": "path/to/image.jpg"}}
-- Analyze image: {"tool": "analyze_image", "parameters": {"image_path": "path/to/image.jpg", "question": "What do you see in this image?"}}
-
-Tool calls should be valid json.
-
-Do not use a tool call unless you need to.
-
-Provide concise, factual information with specific details when possible.
-Please keep your response short because the context window is limited.
-Thank you!
-
-IMPORTANT: Start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-        """
-
-        return f"<|system|>File Attachments From User:{self.attachments}\nNumber of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
-
-    def _build_final_prompt(self, original_prompt, tool_results, history):
-        """Build a prompt for the second LLM call that includes tool results"""
-        return f"""
-<|system|>
-File Attachments From User:{self.attachments}
-Recent Tool Results: "{tool_results}"
-Tool Results History: "{history}"
-DO NOT include tool calls in your final response. Use the tool results to inform your answer to the user's original question or task. Provide a clear and concise response that directly addresses the user's needs based on the information you have, including any relevant details from the tool results.
-DO NOT include file paths of saved images in your final response.
-IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
-<|end|>
-<|user|>
-"{original_prompt}"
-<|end|>
-<|assistant|>
-        """
     
     def estimate_tokens(self, text):
         """Rough estimate of token count (approximately 3 characters per token)"""
@@ -1086,23 +701,6 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
         if not response:
             return response
         
-        # Remove common prefixes that LLMs sometimes add
-        keywords_to_remove = [
-            "response:",
-            "answer:", 
-            "assistant:",
-            "ai:",
-            "support:",
-            "response=",
-            "answer=", 
-            "assistant=",
-            "ai=",
-            "support=",
-            "output:",
-            "output=",
-            "<|assistant|>"
-        ]
-        
         cleaned = response.replace("\n===\n", "").strip()
 
         # if "Dear " in response, remove everything before it (case insensitive)
@@ -1117,10 +715,5 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
         if match:
             cleaned = cleaned[:match.end()]
 
-        # for keyword in keywords_to_remove:
-        #     # Remove whitespace before and after the keyword
-        #     pattern = re.compile(re.escape(keyword) + r'\s*', re.IGNORECASE)
-        #     cleaned = pattern.sub("", cleaned)
-        
         # Final strip to clean up any remaining leading/trailing whitespace
         return cleaned.strip()
