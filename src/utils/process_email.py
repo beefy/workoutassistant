@@ -76,10 +76,8 @@ def process_email():
         if "UNSUBSCRIBE" in body:
             print(f"📩 {sender} requested to unsubscribe. Removing from approve list...")
             
-            remove_from_approve_list(senders_email)
-            token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
-            if token:
-                unsubscribe_user(token, senders_email)
+            remove_from_approve_list(senders_email)  # SQLite approve list
+            unsubscribe_user(senders_email)  # Mongodb newsletter list
 
             gmail.send_email(senders_email, f"Re: {subject}", "You have been unsubscribed.")
 

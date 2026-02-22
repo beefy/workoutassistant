@@ -157,7 +157,7 @@ def heartbeat(token):
         print(f"Failed to send heartbeat. Status code: {response.status_code}, Response: {response.text}")
 
 
-def unsubscribe_user(token, email):
+def unsubscribe_user(email):
     url = f"https://api.bobtheraspberrypi.com/api/v1/newsletter/unsubscribe?email={email}"
     headers = {
         "Content-Type": "application/json",
