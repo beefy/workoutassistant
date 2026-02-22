@@ -22,3 +22,17 @@ def add_to_approve_list(email):
         print(f"❌ Failed to add {email} to approve list")
 
     return result
+
+def remove_from_approve_list(email):
+    db = SQLiteClient()
+    if not is_email_approved(email):
+        print(f"⚠️ {email} is not in the approve list")
+        return True
+
+    result = db.execute_query("DELETE FROM approve_list WHERE email = ?", (email,))
+    if result and result[0].get("affected_rows", 0) > 0:
+        print(f"✅ Removed {email} from approve list")
+        return True
+    else:
+        print(f"❌ Failed to remove {email} from approve list")
+        return False

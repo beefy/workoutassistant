@@ -1,7 +1,7 @@
 from clients.gmail import GmailClient
 from llm.priority_queue import submit_llm_request
-from utils.approve_list import is_email_approved, add_to_approve_list
-from utils.tracking_api import status_update, system_info_update, response_time_update, login
+from utils.approve_list import is_email_approved, add_to_approve_list, remove_from_approve_list
+from utils.tracking_api import status_update, system_info_update, response_time_update, login, unsubscribe_user
 import datetime
 import os
 from email_reply_parser import EmailReplyParser
@@ -72,6 +72,16 @@ def process_email():
         else:
             print(f"❌ {sender} is not approved. Ignoring email.")
             continue
+
+        if "UNSUBSCRIBE" in body:
+            print(f"📩 {sender} requested to unsubscribe. Removing from approve list...")
+            
+            remove_from_approve_list(senders_email)
+            token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+            if token:
+                unsubscribe_user(token, senders_email)
+
+            gmail.send_email(senders_email, f"Re: {subject}", "You have been unsubscribed.")
 
         if os.getenv("GMAIL_ADDRESS").replace(".", "").lower() in senders_email.replace(".", "").lower():
             continue  # Skip processing emails from the bot to itself

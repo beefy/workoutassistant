@@ -156,6 +156,19 @@ def heartbeat(token):
     else:
         print(f"Failed to send heartbeat. Status code: {response.status_code}, Response: {response.text}")
 
+
+def unsubscribe_user(token, email):
+    url = f"https://api.bobtheraspberrypi.com/api/v1/newsletter/unsubscribe?email={email}"
+    headers = {
+        "Content-Type": "application/json",
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        print(f"Successfully unsubscribed {email} from newsletter.")
+    else:
+        print(f"Failed to unsubscribe {email}. Status code: {response.status_code}, Response: {response.text}")
+
+
 if __name__ == "__main__":
     username = os.getenv("TRACKING_API_USERNAME")
     password = os.getenv("TRACKING_API_PASSWORD")
