@@ -16,7 +16,7 @@ When running, it checks for new emails and responds to them periodically. Also, 
 
 Install this
 ```
-sudo apt update && sudo apt install -y chromium-browser chromium-chromedriver
+sudo apt install -y chromium chromium-driver
 ```
 
 ### Setup Local LLM
