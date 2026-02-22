@@ -1,4 +1,4 @@
-from tasks import heartbeat, use_moltbook, respond_to_email
+from tasks import heartbeat, use_moltbook, respond_to_email, newsletter
 import threading
 
 if __name__ == "__main__":
@@ -6,6 +6,7 @@ if __name__ == "__main__":
     threading.Thread(target=heartbeat.main, daemon=True).start()
     threading.Thread(target=use_moltbook.main, daemon=True).start()
     threading.Thread(target=respond_to_email.main, daemon=True).start()
+    threading.Thread(target=newsletter.main, daemon=True).start()
     
     # keep main thread alive - wait for keyboard interrupt
     try:

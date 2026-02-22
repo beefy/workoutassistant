@@ -23,7 +23,7 @@ prompt = "Summarize the following news summaries into a single concise summary o
 
 response = submit_llm_request(
     prompt=prompt,
-    max_tokens=500,
+    max_tokens=1000,
     priority=2,  # Low priority for news summarization
 )
 
