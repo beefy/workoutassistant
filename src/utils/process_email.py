@@ -1,7 +1,7 @@
-from gmail import GmailClient
-from local_llm import LocalLLM
-from approve_list import is_email_approved, add_to_approve_list
-from tracking_api import status_update, system_info_update, response_time_update, login
+from clients.gmail import GmailClient
+from llm.local_llm import LocalLLM
+from utils.approve_list import is_email_approved, add_to_approve_list
+from utils.tracking_api import status_update, system_info_update, response_time_update, login
 import datetime
 import os
 from email_reply_parser import EmailReplyParser

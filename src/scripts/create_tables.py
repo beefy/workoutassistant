@@ -1,4 +1,4 @@
-from db import SQLiteClient
+from clients.db import SQLiteClient
 import os
 
 

@@ -1,4 +1,4 @@
-from local_llm import LocalLLM
+from llm.local_llm import LocalLLM
 import os
 
 client = LocalLLM()

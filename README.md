@@ -86,7 +86,7 @@ sudo yum install sqlite
 
 Create the initial tables
 ```
-PYTHONPATH=src python src/create_tables.py
+PYTHONPATH=src python src/scripts/create_tables.py
 ```
 
 ### Email setup
@@ -123,7 +123,7 @@ export TRACKING_API_PASSWORD=<password>
 
 Create account
 ```
-python src/register_tracking_api.py
+python src/scripts/register_tracking_api.py
 ```
 
 

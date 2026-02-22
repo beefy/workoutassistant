@@ -10,12 +10,12 @@ import json
 import re
 import torch
 from llama_cpp import Llama
-from web_search import web_search
-from moltbook import MoltbookClient
-from gmail import GmailClient, get_system_info
-from generate_image import HuggingFaceImageGenerator
-from image_captioning import LocalImageCaptioner
-from tracking_api import status_update, system_info_update, response_time_update, login
+from utils.web_search import web_search
+from clients.moltbook import MoltbookClient
+from clients.gmail import GmailClient, get_system_info
+from clients.generate_image import HuggingFaceImageGenerator
+from clients.image_captioning import LocalImageCaptioner
+from utils.tracking_api import status_update, system_info_update, response_time_update, login
 
 
 class LocalLLM:

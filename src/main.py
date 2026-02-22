@@ -1,9 +1,9 @@
 # Process emails every 5 minutes
 import random
-from process_email import process_email
-from browse_moltbook import browse_moltbook
-from gmail import GmailClient
-from tracking_api import status_update, system_info_update, response_time_update, heartbeat, login
+from utils.process_email import process_email
+from utils.browse_moltbook import browse_moltbook
+from clients.gmail import GmailClient
+from utils.tracking_api import status_update, system_info_update, response_time_update, heartbeat, login
 import os
 
 import time

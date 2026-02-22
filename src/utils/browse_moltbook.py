@@ -1,6 +1,6 @@
-from local_llm import LocalLLM
-from moltbook import MoltbookClient
-from tracking_api import status_update, login
+from llm.local_llm import LocalLLM
+from clients.moltbook import MoltbookClient
+from utils.tracking_api import status_update, login
 import os
 import random
 
