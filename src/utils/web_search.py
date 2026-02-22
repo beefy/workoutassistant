@@ -1,5 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
 
 
 def web_search(query, num_results=2):
@@ -166,36 +172,77 @@ def fetch_page_content(url, max_length=3000):
 
 
 def get_apnews_articles(max_articles=10):
-    """Scrape front page articles from AP News"""
-    print("📰 Fetching AP News front page articles...")
+    """Scrape front page articles from AP News using Selenium for dynamic content"""
+    print("📰 Fetching AP News front page articles with headless browser...")
     
+    driver = None
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
+        # Set up Chrome options for headless browsing
+        chrome_options = Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
         
-        # Get the AP News homepage
-        response = requests.get("https://apnews.com/", headers=headers, timeout=15)
-        response.raise_for_status()
-        print(response.content)
+        # Initialize the Chrome driver
+        driver = webdriver.Chrome(options=chrome_options)
         
-        soup = BeautifulSoup(response.content, 'html.parser')
+        # Get the AP News homepage and wait for content to load
+        driver.get("https://apnews.com/")
+        
+        # Wait for the page to load and articles to appear
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "h2.PagePromo-title, .PageList-items-item, .CardHeadline"))
+        )
+        
+        # Give it a moment for dynamic content to fully load
+        time.sleep(3)
+        
+        # Get page source and parse with BeautifulSoup
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
         articles = []
         
-        # Find article links and titles from PagePromo-title elements
-        article_elements = soup.select('h2.PagePromo-title a.Link')
+        # Try multiple selectors for article links
+        article_selectors = [
+            'h2.PagePromo-title a.Link',
+            'h2.PagePromo-title a',
+            '.CardHeadline a',
+            '.PageList-items-item a',
+            'h3 a[href*="/article/"]',
+            'h2 a[href*="/article/"]',
+            'a[href*="/article/"]'
+        ]
         
-        print(f"📄 Found {len(article_elements)} potential articles")
+        article_elements = []
+        for selector in article_selectors:
+            article_elements = soup.select(selector)
+            if article_elements:
+                print(f"📄 Found {len(article_elements)} articles using selector: {selector}")
+                break
         
-        for i, article_link in enumerate(article_elements[:max_articles]):
+        if not article_elements:
+            print("❌ No article links found with any selector")
+            return []
+        
+        # Process articles
+        processed_urls = set()  # Avoid duplicates
+        
+        for i, article_link in enumerate(article_elements[:max_articles * 2]):  # Get more to account for filtering
             try:
-                # Extract title from the span inside the link
+                if len(articles) >= max_articles:
+                    break
+                    
+                # Extract title
                 title_span = article_link.select_one('span.PagePromoContentIcons-text')
-                if not title_span:
-                    # Fallback: get text content directly
-                    title = article_link.get_text(strip=True)
-                else:
+                if title_span:
                     title = title_span.get_text(strip=True)
+                else:
+                    title = article_link.get_text(strip=True)
+                
+                if not title or len(title) < 10:
+                    continue
                 
                 # Get the article URL
                 url = article_link.get('href', '')
@@ -204,25 +251,28 @@ def get_apnews_articles(max_articles=10):
                 if url.startswith('/'):
                     url = f"https://apnews.com{url}"
                 elif not url.startswith('http'):
-                    continue  # Skip invalid URLs
-                
-                # Skip if we don't have both title and URL
-                if not title or not url:
                     continue
                 
-                print(f"📖 Fetching article {i+1}/{max_articles}: {title[:60]}...")
+                # Skip duplicates and non-article URLs
+                if url in processed_urls or '/article/' not in url:
+                    continue
+                
+                processed_urls.add(url)
+                
+                print(f"📖 Fetching article {len(articles)+1}/{max_articles}: {title[:60]}...")
                 
                 # Fetch the full article content
-                article_content = fetch_apnews_article_content(url, headers)
+                article_content = fetch_apnews_article_content_selenium(url)
                 
-                articles.append({
-                    'title': title,
-                    'url': url,
-                    'content': article_content
-                })
+                if article_content and "could not be extracted" not in article_content.lower():
+                    articles.append({
+                        'title': title,
+                        'url': url,
+                        'content': article_content
+                    })
                 
             except Exception as e:
-                print(f"⚠️  Error processing article {i+1}: {e}")
+                print(f"⚠️  Error processing article: {e}")
                 continue
         
         print(f"✅ Successfully fetched {len(articles)} AP News articles")
@@ -231,59 +281,105 @@ def get_apnews_articles(max_articles=10):
     except Exception as e:
         print(f"❌ Failed to fetch AP News articles: {e}")
         return []
+    
+    finally:
+        if driver:
+            driver.quit()
 
 
-def fetch_apnews_article_content(url, headers):
-    """Fetch the full text content from an AP News article page"""
+def fetch_apnews_article_content_selenium(url):
+    """Fetch the full text content from an AP News article page using Selenium"""
+    driver = None
     try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
+        # Set up Chrome options for headless browsing
+        chrome_options = Options()
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--window-size=1920,1080')
         
-        soup = BeautifulSoup(response.content, 'html.parser')
+        # Initialize the Chrome driver
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(url)
         
-        # Look for the main article content
-        article_body = soup.select_one('.RichTextStoryBody.RichTextBody')
+        # Wait for article content to load
+        WebDriverWait(driver, 10).until(
+            EC.any_of(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".RichTextStoryBody.RichTextBody")),
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".RichTextStoryBody")),
+                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-module='ArticleBody']")),
+                EC.presence_of_element_located((By.CSS_SELECTOR, "article"))
+            )
+        )
         
-        if not article_body:
-            # Fallback selectors if the main one doesn't work
-            fallback_selectors = [
-                '.RichTextStoryBody',
-                '.RichTextBody',
-                '[data-module="ArticleBody"]',
-                '.Article-content',
-                'div[data-key="article-body"]'
-            ]
-            
-            for selector in fallback_selectors:
-                article_body = soup.select_one(selector)
-                if article_body:
-                    break
+        # Give content time to fully load
+        time.sleep(2)
+        
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        
+        # Look for the main article content with multiple selectors
+        content_selectors = [
+            '.RichTextStoryBody.RichTextBody',
+            '.RichTextStoryBody',
+            '.RichTextBody',
+            '[data-module="ArticleBody"]',
+            '.Article-content',
+            'div[data-key="article-body"]',
+            'article',
+            '.story-body',
+            '.article-body'
+        ]
+        
+        article_body = None
+        for selector in content_selectors:
+            article_body = soup.select_one(selector)
+            if article_body:
+                break
         
         if not article_body:
             print("⚠️  Could not find article content with any selector")
             return "Article content could not be extracted."
         
-        # Remove unwanted elements within the article
-        for element in article_body.find_all(['script', 'style', 'aside', '.ad', '.advertisement']):
+        # Remove unwanted elements
+        for element in article_body.find_all(['script', 'style', 'aside', 'nav', 'footer', '.ad', '.advertisement', '.related-articles']):
             element.decompose()
         
-        # Get the text content
-        paragraphs = article_body.find_all(['p', 'div'])
+        # Get text content from paragraphs and divs
+        content_elements = article_body.find_all(['p', 'div', 'h1', 'h2', 'h3'])
         text_content = []
         
-        for para in paragraphs:
-            text = para.get_text(strip=True)
-            if text and len(text) > 10:  # Filter out very short fragments
-                text_content.append(text)
+        for element in content_elements:
+            text = element.get_text(strip=True)
+            if text and len(text) > 15:  # Filter out very short fragments
+                # Skip common boilerplate text
+                skip_phrases = [
+                    'subscribe', 'newsletter', 'cookie', 'privacy policy',
+                    'advertisement', 'related articles', 'share this',
+                    'follow us', 'download our app'
+                ]
+                if not any(phrase in text.lower() for phrase in skip_phrases):
+                    text_content.append(text)
         
-        # Join paragraphs with line breaks
+        # Join with double line breaks for readability
         article_text = '\n\n'.join(text_content)
         
-        # Clean up extra whitespace
-        article_text = ' '.join(article_text.split())
+        # Clean up extra whitespace while preserving paragraph structure
+        lines = article_text.split('\n')
+        cleaned_lines = [' '.join(line.split()) for line in lines if line.strip()]
+        article_text = '\n'.join(cleaned_lines)
         
-        return article_text if article_text else "Article content could not be extracted."
+        return article_text if article_text and len(article_text) > 50 else "Article content could not be extracted."
         
     except Exception as e:
         print(f"⚠️  Failed to fetch article content from {url}: {e}")
         return "Failed to retrieve article content."
+    
+    finally:
+        if driver:
+            driver.quit()
+
+
+def fetch_apnews_article_content(url, headers):
+    """Legacy function - falls back to Selenium version"""
+    return fetch_apnews_article_content_selenium(url)
