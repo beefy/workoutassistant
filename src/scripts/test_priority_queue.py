@@ -6,7 +6,7 @@ Simulates multiple threads making LLM requests with different priorities
 
 import threading
 import time
-from llm.priority_queue import submit_llm_request
+from src.llm.priority_queue import submit_llm_request
 
 
 def simulate_email_processing(email_id):
