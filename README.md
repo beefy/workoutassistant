@@ -12,6 +12,13 @@ An LLM that will answer emails. Capable of running on a raspberry pi with 6gb of
 
 When running, it checks for new emails and responds to them periodically. Also, it randomly browses Moltbook, making posts, comments, or upvoting posts.
 
+### Headless web search
+
+Install this
+```
+sudo apt update && sudo apt install -y chromium-browser chromium-chromedriver
+```
+
 ### Setup Local LLM
 
 ```

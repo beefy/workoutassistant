@@ -8,6 +8,59 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
+import platform
+import os
+
+
+def get_chrome_driver():
+    """Get ChromeDriver with ARM architecture support for Raspberry Pi"""
+    chrome_options = Options()
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument('--window-size=1920,1080')
+    chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
+    
+    # Try multiple approaches to get a working ChromeDriver
+    driver = None
+    
+    # Method 1: Try system-installed chromedriver first (best for Raspberry Pi)
+    try:
+        # Common locations for system-installed chromedriver
+        system_paths = [
+            '/usr/bin/chromedriver',
+            '/usr/local/bin/chromedriver',
+            '/usr/lib/chromium-browser/chromedriver'
+        ]
+        
+        for chromedriver_path in system_paths:
+            if os.path.exists(chromedriver_path) and os.access(chromedriver_path, os.X_OK):
+                print(f"🔧 Using system ChromeDriver: {chromedriver_path}")
+                service = Service(chromedriver_path)
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                return driver
+    except Exception as e:
+        print(f"⚠️ System ChromeDriver failed: {e}")
+    
+    # Method 2: Try webdriver-manager (may not work on ARM)
+    try:
+        print("🔧 Attempting to use webdriver-manager...")
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        return driver
+    except Exception as e:
+        print(f"⚠️ webdriver-manager failed: {e}")
+    
+    # Method 3: Try default Chrome without specifying driver path
+    try:
+        print("🔧 Trying default Chrome setup...")
+        driver = webdriver.Chrome(options=chrome_options)
+        return driver
+    except Exception as e:
+        print(f"⚠️ Default Chrome setup failed: {e}")
+    
+    raise Exception("Could not initialize ChromeDriver. Please install chromium-chromedriver: sudo apt install chromium-chromedriver")
 
 
 def web_search(query, num_results=2):
@@ -179,18 +232,8 @@ def get_apnews_articles(max_articles=10):
     
     driver = None
     try:
-        # Set up Chrome options for headless browsing
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--window-size=1920,1080')
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
-        
-        # Initialize the Chrome driver with webdriver-manager
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Initialize the Chrome driver with ARM support
+        driver = get_chrome_driver()
         
         # Get the AP News homepage and wait for content to load
         driver.get("https://apnews.com/")
@@ -294,17 +337,8 @@ def fetch_apnews_article_content_selenium(url):
     """Fetch the full text content from an AP News article page using Selenium"""
     driver = None
     try:
-        # Set up Chrome options for headless browsing
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--window-size=1920,1080')
-        
-        # Initialize the Chrome driver with webdriver-manager
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Initialize the Chrome driver with ARM support
+        driver = get_chrome_driver()
         driver.get(url)
         
         # Wait for article content to load
