@@ -316,6 +316,12 @@ class GmailClient:
             
             recent_ids = message_ids[-limit:] if len(message_ids) > limit else message_ids
             
+            # Mark all emails as read upfront if requested
+            if mark_as_read and unread_only:
+                for msg_id in recent_ids:
+                    mail.store(msg_id, '+FLAGS', '\\Seen')
+                print(f"✅ Marked {len(recent_ids)} emails as read")
+            
             for msg_id in recent_ids:
                 try:
                     status, msg_data = mail.fetch(msg_id, '(RFC822)')
@@ -376,10 +382,6 @@ class GmailClient:
                         'body': body or "Could not extract body",
                         'attachments': attachments
                     })
-                    
-                    # Mark as read if requested
-                    if mark_as_read and unread_only:
-                        mail.store(msg_id, '+FLAGS', '\\Seen')
                         
                 except Exception as e:
                     print(f"❌ Error processing email: {e}")
