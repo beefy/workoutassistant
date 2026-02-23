@@ -17,7 +17,7 @@ from clients.gmail import GmailClient, get_system_info
 from clients.generate_image import HuggingFaceImageGenerator
 from clients.image_captioning import LocalImageCaptioner
 from utils.tracking_api import status_update, system_info_update, response_time_update, login
-from llm.prompts import build_initial_prompt, build_intermediate_prompt, build_final_prompt
+from llm.prompts import build_initial_prompt, build_intermediate_prompt, build_final_prompt, build_crypto_prompt
 
 
 class LocalLLM:
@@ -64,6 +64,12 @@ class LocalLLM:
         """Enable or disable tool functionality"""
         self.tools_enabled = enabled
         print(f"🔧 Tools {'enabled' if enabled else 'disabled'}")
+    
+    def reset_session(self):
+        """Reset generated images and tool call memo for a new session"""
+        self.generated_images = []
+        self.tool_call_memo = set()
+        print("🔄 Session reset: cleared generated images and tool call memo")
     
     def _temporarily_unload_llm(self):
         """Temporarily unload LLM to free RAM for image processing"""
@@ -224,26 +230,38 @@ class LocalLLM:
             print(f"❌ Error during tool execution: {e}")
             return "Sorry, I encountered an error while executing a tool."
 
-    def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=3):
+    def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=3, final_query=True, use_crypto_prompt=False):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             print("❌ Model not loaded. Call load_model() first.")
             return None
         
+        # Reset session at the beginning of each prompt
+        self.reset_session()
+        
         # LLM Call
         print(f"🤔 Generating response for: \"{prompt[:50]}...\"")
-        response = self.execute_prompt(build_initial_prompt(self.attachments, prompt), max_tokens, temperature, stop)
+        if not use_crypto_prompt:
+            response = self.execute_prompt(build_initial_prompt(self.attachments, prompt), max_tokens, temperature, stop)
+        else:
+            response = self.execute_prompt(build_crypto_prompt(), max_tokens, temperature, stop)
         print(f"Initial response generated. Checking for tool calls...")
 
         if not self.tools_enabled:
             print("⚠️  Tools are disabled, returning response without tool execution")
-            return self.clean_response(response)
+            return {
+                'response': self.clean_response(response),
+                'generated_images': self.generated_images.copy()
+            }
 
         tool_calls = self.parse_tool_calls(response)
 
         if not tool_calls:
             print("✅ No tool calls found, returning response")
-            return self.clean_response(response)
+            return {
+                'response': self.clean_response(response),
+                'generated_images': self.generated_images.copy()
+            }
         
         iteration_count = 0
         history = ""
@@ -260,13 +278,26 @@ class LocalLLM:
             print(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
-            response = self.execute_prompt(build_intermediate_prompt(self.attachments, prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
+            if not use_crypto_prompt:
+                response = self.execute_prompt(build_intermediate_prompt(self.attachments, prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
+            else:
+                response = self.execute_prompt(build_crypto_prompt(), max_tokens, temperature, stop)
+
             tool_calls = self.parse_tool_calls(response)
 
         # Final LLM call
-        response = self.execute_prompt(build_final_prompt(self.attachments, prompt, tool_results, history), max_tokens, temperature, stop)
-        cleaned_response = self.clean_response(response)
-        return cleaned_response    
+        if final_query:
+            response = self.execute_prompt(build_final_prompt(self.attachments, prompt, tool_results, history), max_tokens, temperature, stop)
+            cleaned_response = self.clean_response(response)
+            return {
+                'response': cleaned_response,
+                'generated_images': self.generated_images.copy()
+            }
+        else:
+            return {
+                'response': self.clean_response(response),
+                'generated_images': self.generated_images.copy()
+            }
     
     def estimate_tokens(self, text):
         """Rough estimate of token count (approximately 3 characters per token)"""

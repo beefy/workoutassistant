@@ -88,22 +88,28 @@ def process_email():
         # Generate response using LLM Priority Queue (priority 1 for emails = high priority)
         prompt = f"{subject}\n{body}"
         
-        response = submit_llm_request(
+        llm_result = submit_llm_request(
             prompt=prompt,
             attachments=attachments,
             priority=1  # High priority for emails
         )
+        
+        # Extract response and generated images
+        response = llm_result.get('response', '')
+        generated_images = llm_result.get('generated_images', [])
+        
         print(f"Email response generated: {response}")
+        if generated_images:
+            print(f"Generated {len(generated_images)} images: {generated_images}")
         
-        print(f"Generated response: {response}")
-        
-        # Note: generated_images functionality would need to be handled differently
-        # since we don't have direct access to the LLM instance anymore
-        # For now, assuming no image generation in emails
-        
-        # Send response email
+        # Send response email with attachments if images were generated
         print(f"📧 Sending email to {senders_email}")
-        gmail.send_email(senders_email, f"Re: {subject}", response, cc=cc)
+        if generated_images:
+            # Send email with image attachments
+            gmail.send_email_with_attachments(senders_email, f"Re: {subject}", response, generated_images, cc=cc)
+        else:
+            # Send email without attachments
+            gmail.send_email(senders_email, f"Re: {subject}", response, cc=cc)
 
         print(f"📧 Completed processing email from {sender}: {subject}")
 

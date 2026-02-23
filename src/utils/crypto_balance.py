@@ -4,16 +4,23 @@ from solders.pubkey import Pubkey
 from solana.rpc.types import TokenAccountOpts
 import os
 
+
+def get_sol_balance():
+    wallet_address = os.getenv("SOLANA_ADDRESS")
+    client = Client("https://api.mainnet-beta.solana.com")
+    response = client.get_balance(Pubkey.from_string(wallet_address))
+    lamports = response.value
+    sol_balance = lamports / 1_000_000_000
+    return sol_balance
+
+
 def get_crypto_balances():
     wallet_address = os.getenv("SOLANA_ADDRESS")
     ret = {}
 
     client = Client("https://api.mainnet-beta.solana.com")
 
-    response = client.get_balance(Pubkey.from_string(wallet_address))
-    lamports = response.value
-    sol_balance = lamports / 1_000_000_000
-    ret["So11111111111111111111111111111111111111112"] = sol_balance
+    ret["So11111111111111111111111111111111111111112"] = get_sol_balance()
 
     response = client.get_token_accounts_by_owner_json_parsed(
         Pubkey.from_string(wallet_address),

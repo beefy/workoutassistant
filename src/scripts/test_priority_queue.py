@@ -14,12 +14,13 @@ def simulate_email_processing(email_id):
     print(f"📧 Email {email_id}: Starting email processing...")
     
     # Email requests get priority 1 (high)
-    response = submit_llm_request(
+    llm_result = submit_llm_request(
         prompt=f"Generate a brief response to email {email_id}: 'Hello, how are you today?'",
         priority=1,  # High priority for emails
         max_tokens=50,
         temperature=0.7
     )
+    response = llm_result.get('response', '')
     
     print(f"📧 Email {email_id}: Got response - {response[:100]}...")
     return response
@@ -30,12 +31,13 @@ def simulate_moltbook_browsing(task_id):
     print(f"🔍 Moltbook {task_id}: Starting browsing...")
     
     # Moltbook requests get priority 2 (low)
-    response = submit_llm_request(
+    llm_result = submit_llm_request(
         prompt=f"Generate a short comment for moltbook post {task_id} about technology",
         priority=2,  # Lower priority for moltbook
         max_tokens=30,
         temperature=0.8
     )
+    response = llm_result.get('response', '')
     
     print(f"🔍 Moltbook {task_id}: Got response - {response[:100]}...")
     return response

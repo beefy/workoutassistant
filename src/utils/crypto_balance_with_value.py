@@ -43,4 +43,13 @@ def get_crypto_balances_with_value():
     # Filter out tokens not in the list
     ret_filtered = {sym: data for sym, data in ret_cleaned.items() if sym in TOKEN_ADDRESSES}
 
+    # Add 0 value tokens that aren't in the balances but are in the TOKEN_ADDRESSES
+    for sym in TOKEN_ADDRESSES.keys():
+        if sym not in ret_filtered:
+            ret_filtered[sym] = {
+                "balance": 0,
+                "usd_price": fetcher.get_current_price(TOKEN_ADDRESSES[sym]),
+                "usd_value": 0
+            }
+
     return ret_filtered, total_value

@@ -11,6 +11,7 @@ from solana.rpc.types import TxOpts
 from solana.rpc.commitment import Commitment
 import base64
 import json
+from utils.crypto_balance import get_sol_balance
 
 # Solana token addresses (mainnet)
 TOKEN_ADDRESSES = {
@@ -310,7 +311,15 @@ def execute_crypto_trade(
     if token_symbol.upper() not in TOKEN_ADDRESSES:
         raise ValueError(f"Unsupported token: {token_symbol}. Supported tokens: {list(TOKEN_ADDRESSES.keys())}")
     
+    sol_balance = get_sol_balance()
+
     trader = CryptoTrader(rpc_url)
+    print(f"Current SOL balance: {sol_balance:.6f} SOL")
+    minimum_sol_balance = Decimal('0.01')  # Keep at least 0.01 SOL for transaction fees
+    # Don't allow buying if it would exceed balance
+    if action.lower() == 'buy':
+        if Decimal(str(amount)) > Decimal(str(sol_balance - minimum_sol_balance)):
+            raise ValueError(f"Insufficient SOL balance to buy {amount} {token_symbol}. Current balance: {sol_balance:.6f} SOL")
     
     try:
         if action.lower() == 'buy':
