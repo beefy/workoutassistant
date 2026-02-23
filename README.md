@@ -133,6 +133,20 @@ Create account
 python src/scripts/register_tracking_api.py
 ```
 
+### Crypto Setup
+
+Create crypto wallets
+```
+python src/scripts/create_crypto_wallets.py
+```
+
+Acquire and set these environment variables
+```
+export SOLANA_ADDRESS=<wallet to trade from>
+export SOLANA_PRIVATE_KEY=<base 58 private key for wallet>
+export JUPITER_API_KEY=<api key for getting trade info>
+export BIRDEYE_API_KEY=<api key for getting price data>
+```
 
 ### Run the script
 

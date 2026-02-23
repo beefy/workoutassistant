@@ -207,13 +207,14 @@ class LocalLLM:
             print(f"❌ Error during generation: {e}")
             return "Sorry, I encountered an error while generating a response."
     
-    def process_tool_calls(self, tool_calls):
+    def process_tool_calls(self, tool_calls, use_crypto_prompt=False):
         try:
             tool_results = []
             for tool_call in tool_calls:
                 tool_result = self.execute_tool_call(
                     tool_call['tool'], 
-                    tool_call['parameters']
+                    tool_call['parameters'],
+                    use_crypto_prompt=use_crypto_prompt
                 )
                 tool_results.append(tool_result)
 
@@ -270,7 +271,7 @@ class LocalLLM:
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
             print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
-            tool_results = self.process_tool_calls(tool_calls)
+            tool_results = self.process_tool_calls(tool_calls, use_crypto_prompt)
 
             # LLM call to summarize convo history
             history = f"{history}\nIteration {iteration_count} Tool Calls:\n{json.dumps(tool_calls, indent=2)}\nIteration {iteration_count} Tool Results:\n{tool_results}"
@@ -328,7 +329,7 @@ class LocalLLM:
         
         return conversation
        
-    def execute_tool_call(self, tool_name, parameters):
+    def execute_tool_call(self, tool_name, parameters, use_crypto_prompt=False):
         """Execute a tool call and return the result"""
         print(f"🔧 Executing tool call: {tool_name} with parameters {parameters}")
         if tool_name == "web_search":
@@ -480,6 +481,9 @@ class LocalLLM:
                 return f"❌ Failed to analyze image: {e}"
         
         elif tool_name == "trade_crypto":
+            if not use_crypto_prompt:
+                return "❌ Error: Crypto trading is disabled. Use crypto prompt mode to enable trading."
+            
             symbol = parameters.get('token_symbol')
             action = parameters.get('action')
             amount = parameters.get('amount')
