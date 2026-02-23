@@ -66,7 +66,7 @@ def build_crypto_prompt(tool_results, history):
     balance, _ = get_crypto_balances_with_value()
     tool_call_1 = '{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}'
     tool_call_2 = ' - Buy or Sell a token: {"tool": "trade_crypto", "parameters": {"token_symbol": "JUP", "action": "buy", "amount": 10000}}'
-    return f"""
+    prompt = f"""
 <|system|>
 Recent tool results: "{tool_results}"
 Tool results history: "{history}"
@@ -105,3 +105,5 @@ Based on the current indicators and balances, determine if there are any good tr
 <|end|>
 <|assistant|>
     """
+    print(prompt)
+    return prompt
