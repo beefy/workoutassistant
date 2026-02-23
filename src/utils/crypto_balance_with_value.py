@@ -86,7 +86,7 @@ def get_crypto_balances_with_value():
     # Set max_buy and max_sell to 0 for SOL
     if "SOL" in ret_with_limits:
         ret_with_limits["SOL"]["max_buy"] = 0
-        ret_with_limits["SOL"]["max_sell"] = sol_balance
+        ret_with_limits["SOL"]["max_sell"] = 0
 
     print("Balances with limits:", ret_with_limits)
     return ret_with_limits, total_value
