@@ -11,3 +11,9 @@ tenacity>=8.0.0
 selenium>=4.0.0
 webdriver-manager>=4.0.0
 pytz>=2023.3
+
+# Crypto wallet dependencies
+eth-account>=0.9.0
+solders>=0.18.0
+mnemonic>=0.20
+cryptography>=41.0.0
