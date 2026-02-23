@@ -12,6 +12,7 @@ from solana.rpc.commitment import Commitment
 import base64
 import json
 from utils.crypto_balance import get_sol_balance
+from utils.crypto_balance_with_value import get_crypto_balances_with_value
 
 # Solana token addresses (mainnet)
 TOKEN_ADDRESSES = {
@@ -268,9 +269,9 @@ def execute_crypto_trade(
     Args:
         token_symbol: Symbol of the token to trade (e.g., 'JUP', 'BONK', 'PYTH')
         action: 'buy' to purchase token with SOL, 'sell' to sell token for SOL
-        amount: Amount to trade
-                - For 'buy': amount of SOL to spend (in SOL, e.g., 1.5 for 1.5 SOL)
-                - For 'sell': amount of tokens to sell (in token units)
+        amount: Amount to trade in token units
+                - For 'buy': amount of tokens to purchase (e.g., 100 for 100 JUP tokens)
+                - For 'sell': amount of tokens to sell (e.g., 100 for 100 JUP tokens)
         rpc_url: Solana RPC endpoint URL
     
     Environment Variables Required:
@@ -284,11 +285,11 @@ def execute_crypto_trade(
         # Set environment variable first:
         # export SOLANA_PRIVATE_KEY="your_private_key"
         
-        # Buy 1.5 SOL worth of JUP tokens
+        # Buy 100 JUP tokens (will automatically calculate required SOL amount)
         result = execute_crypto_trade(
             token_symbol="JUP", 
             action="buy",
-            amount=1.5
+            amount=100
         )
         
         # Sell 100 JUP tokens for SOL
@@ -312,11 +313,51 @@ def execute_crypto_trade(
     trader = CryptoTrader(rpc_url)
     print(f"Current SOL balance: {sol_balance:.6f} SOL")
     minimum_sol_balance = 0.01  # Keep at least 0.01 SOL for transaction fees
-    # Don't allow buying if it would exceed balance
-    if action.lower() == 'buy':
-        if Decimal(str(amount)) > sol_balance - minimum_sol_balance:
-            raise ValueError(f"Insufficient SOL balance to buy {amount} {token_symbol}. Current balance: {sol_balance:.6f} SOL")
     
+    token_values, total_value = get_crypto_balances_with_value()
+    
+    # Convert buy amount from token amount to SOL amount for trading
+    if action.lower() == 'buy':
+        print(f"Attempting to buy {amount} {token_symbol}...")
+        
+        # Find the token price in the token_values data
+        token_price_sol = None
+        token_data = token_values.get(token_symbol.upper())
+        if token_data:
+            # Get SOL price for conversion
+            sol_data = token_values.get('SOL')
+            if token_data.get('usd_price') and sol_data and sol_data.get('usd_price'):
+                # Calculate SOL price: token_usd_price / sol_usd_price
+                token_price_sol = token_data['usd_price'] / sol_data['usd_price']
+        
+        if token_price_sol is None:
+            raise ValueError(f"Could not find price data for {token_symbol}. Unable to calculate SOL amount needed.")
+        
+        # Calculate SOL amount needed to buy the desired token amount
+        sol_amount_needed = float(amount) * token_price_sol
+        print(f"Price: 1 {token_symbol} = {token_price_sol:.8f} SOL")
+        print(f"Total SOL needed to buy {amount} {token_symbol}: {sol_amount_needed:.6f} SOL")
+        
+        # Update amount to be in SOL for the rest of the function
+        amount = sol_amount_needed
+        
+        # Check if we have enough SOL balance
+        if sol_amount_needed > sol_balance - minimum_sol_balance:
+            raise ValueError(f"Insufficient SOL balance to buy {amount} {token_symbol}. Need {sol_amount_needed:.6f} SOL but only have {sol_balance:.6f} SOL (keeping {minimum_sol_balance} SOL for fees)")
+
+    # Check if we have enough balance to sell
+    if action.lower() == 'sell':
+        print(f"Attempting to sell {amount} {token_symbol}...")
+        
+        # Find the token balance
+        token_data = token_values.get(token_symbol.upper())
+        if token_data is None:
+            raise ValueError(f"Could not find balance data for {token_symbol}")
+        
+        token_balance = token_data.get('balance', 0)
+        if float(amount) > token_balance:
+            raise ValueError(f"Insufficient {token_symbol} balance to sell {amount}. Current balance: {token_balance}")
+
     try:
         if action.lower() == 'buy':
             # Buy token with SOL
