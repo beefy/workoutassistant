@@ -48,6 +48,11 @@ JUPITER_QUOTE_ENDPOINT = f"{JUPITER_API_BASE}/swap/v1/quote"
 JUPITER_SWAP_ENDPOINT = f"{JUPITER_API_BASE}/swap/v1/swap"
 JUPITER_PRICE_ENDPOINT = f"{JUPITER_API_BASE}/price/v3"
 
+# def get_token_decimals(client, mint_address: str) -> int:
+#     mint_pubkey = Pubkey.from_string(mint_address)
+#     resp = client.get_token_supply(mint_pubkey)
+#     return resp.value.decimals
+
 def get_api_headers():
     """Get headers with API key for Jupiter API"""
     api_key = os.getenv('JUPITER_API_KEY')
