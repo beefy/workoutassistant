@@ -1,3 +1,7 @@
+from utils.crypto_indicators import get_all_token_indicators
+from utils.crypto_balance_with_value import get_crypto_balances_with_value
+
+
 def get_tool_instructions():
     return """
 YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
@@ -53,6 +57,36 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
 <|end|>
 <|user|>
 "{original_prompt}"
+<|end|>
+<|assistant|>
+    """
+
+def build_crypto_prompt():
+    indicators = get_all_token_indicators()
+    balance, _ = get_crypto_balances_with_value()
+    tool_call_1 = '{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}'
+    tool_call_2 = ' - Buy or Sell a token: {"tool": "trade", "parameters": {"token_symbol": "JUP", "action": "buy", "amount": 100}}'
+    return f"""
+<|system|>
+Use these indicators to determine what to buy or sell:
+{indicators}
+Current crypto balances with USD value:
+{balance}
+
+To call a tool, output a JSON object with the format:
+{tool_call_1}
+
+Available tools:
+{tool_call_2}
+
+Amount is in units of the token (not USD). For example, if you want to buy $10 worth of JUP and the price of JUP is $0.00001, you would set amount to 1000000.
+Tool calls should be valid json.
+You must maintain at least $0.10 of SOL in the wallet to cover transaction fees.
+
+IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
+<|end|>
+<|user|>
+Based on the current indicators and balances, determine if there are any good trading opportunities, and make a trade with a tool call if you think it's warranted. If you don't see any good opportunities, explain why and say "No trade executed at this time."
 <|end|>
 <|assistant|>
     """
