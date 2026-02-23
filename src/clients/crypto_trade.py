@@ -6,9 +6,11 @@ from decimal import Decimal
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.api import Client
-from solders.transaction import Transaction
-from solders.transaction import VersionedTransaction  # For 2026 transaction format
+from solders.transaction import VersionedTransaction
+from solana.rpc.types import TxOpts
+from solana.rpc.commitment import Commitment
 import base64
+import json
 
 # Solana token addresses (mainnet)
 TOKEN_ADDRESSES = {
@@ -55,9 +57,16 @@ class CryptoTrader:
         if not private_key:
             raise ValueError("SOLANA_PRIVATE_KEY environment variable is required")
         
-        self.keypair = Keypair.from_base58_string(private_key)
-        self.client = Client(rpc_url)
+        try:
+            self.keypair = Keypair.from_base58_string(private_key)
+        except Exception as e:
+            raise ValueError(f"Invalid SOLANA_PRIVATE_KEY format: {e}")
+        
+        # Initialize client with proper commitment level
+        self.client = Client(rpc_url, commitment=Commitment("confirmed"), timeout=30)
         self.wallet_address = str(self.keypair.pubkey())
+        
+        print(f"🎯 Wallet address: {self.wallet_address}")
     
     def get_quote(self, input_token: str, output_token: str, amount: Union[int, float, Decimal]) -> Dict:
         """
@@ -147,47 +156,78 @@ class CryptoTrader:
             
             print(f"📦 Transaction data length: {len(transaction_data)} characters")
             
+            # Decode base64 transaction data
             transaction_bytes = base64.b64decode(transaction_data)
             print(f"🔍 Decoded transaction length: {len(transaction_bytes)} bytes")
             
-            # Try VersionedTransaction first (2026 default), fallback to legacy Transaction
-            try:
-                transaction = VersionedTransaction.from_bytes(transaction_bytes)
-                print("✅ VersionedTransaction deserialized successfully")
-            except Exception as version_error:
-                print(f"⚠️  VersionedTransaction failed: {version_error}")
-                print("🔄 Trying legacy Transaction format...")
-                transaction = Transaction.from_bytes(transaction_bytes)
-                print("✅ Legacy Transaction deserialized successfully")
+            # Deserialize as VersionedTransaction (Jupiter uses this format)
+            transaction = VersionedTransaction.from_bytes(transaction_bytes)
+            print("✅ VersionedTransaction deserialized successfully")
                 
         except Exception as deserialize_error:
             raise Exception(f"Failed to deserialize transaction: {deserialize_error}. Transaction data length: {len(transaction_data) if 'transaction_data' in locals() else 'unknown'}")
         
-        # Sign and send the transaction using the 2026 Solana client API
+        # Sign and send the transaction
         try:
             print("🚀 Sending transaction to Solana network...")
             
-            # For 2026 API, we need to properly sign all transaction types
-            if isinstance(transaction, VersionedTransaction):
-                print("📝 Signing VersionedTransaction...")
-                # For VersionedTransaction, we need to sign it properly
-                # The transaction from Jupiter is unsigned and needs our signature
-                transaction.sign([self.keypair])
-                signed_transaction = transaction
-            else:
-                print("📝 Signing legacy Transaction...")
-                transaction.sign([self.keypair])
-                signed_transaction = transaction
+            # Sign the VersionedTransaction
+            print("📝 Signing VersionedTransaction...")
             
-            # Send the signed transaction
-            result = self.client.send_transaction(signed_transaction)
-            print("✅ Transaction sent successfully")
+            # For VersionedTransaction, use proper signing approach
+            # First, get the message to sign
+            message_bytes = bytes(transaction.message)
+            signature = self.keypair.sign_message(message_bytes)
+            
+            # Add the signature to the transaction
+            transaction.signatures = [signature]  # signature is already a Signature object
+            signed_transaction = transaction
+            
+            # Send the transaction with proper options
+            tx_opts = TxOpts(
+                skip_preflight=False,  # Set to True if having preflight issues
+                preflight_commitment=Commitment("confirmed"),
+                max_retries=3
+            )
+            
+            result = self.client.send_transaction(
+                signed_transaction, 
+                opts=tx_opts
+            )
+            
+            # Check if transaction was successful
+            if hasattr(result, 'value') and result.value:
+                print("✅ Transaction sent successfully")
+                signature = str(result.value)
+            else:
+                raise Exception(f"Transaction failed: {result}")
                 
         except Exception as send_error:
-            raise Exception(f"Failed to send transaction: {send_error}")
+            # If preflight failed, try with skip_preflight=True
+            if "preflight" in str(send_error).lower():
+                try:
+                    print("⚠️  Preflight failed, retrying with skip_preflight=True...")
+                    tx_opts_skip = TxOpts(
+                        skip_preflight=True,
+                        preflight_commitment=Commitment("confirmed"),
+                        max_retries=3
+                    )
+                    result = self.client.send_transaction(
+                        signed_transaction,
+                        opts=tx_opts_skip
+                    )
+                    if hasattr(result, 'value') and result.value:
+                        print("✅ Transaction sent successfully (with skip_preflight)")
+                        signature = str(result.value)
+                    else:
+                        raise Exception(f"Transaction failed even with skip_preflight: {result}")
+                except Exception as retry_error:
+                    raise Exception(f"Failed to send transaction even with skip_preflight: {retry_error}")
+            else:
+                raise Exception(f"Failed to send transaction: {send_error}")
         
         return {
-            "signature": str(result.value),
+            "signature": signature,
             "quote": quote,
             "transaction": transaction_data,
             "lastValidBlockHeight": swap_response.get("lastValidBlockHeight"),
