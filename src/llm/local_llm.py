@@ -8,6 +8,7 @@ import time
 import os
 import json
 import re
+from clients.crypto_trade import execute_crypto_trade
 import torch
 from llama_cpp import Llama
 from utils.web_search import web_search
@@ -318,200 +319,6 @@ class LocalLLM:
             else:
                 return "Error: No search query provided"
         
-        # Moltbook tool calls
-        elif self.moltbook_client is None:
-            return "Error: MoltbookClient not available (missing API key)"
-        
-        elif tool_name == "create_post":
-            submolt = parameters.get('submolt')
-            title = parameters.get('title')
-            content = parameters.get('content')
-            try:
-                result = self.moltbook_client.create_post(submolt, title, content)
-                return f"✅ Post created successfully in /{submolt}: '{title}'"
-            except Exception as e:
-                return f"❌ Failed to create post: {e}"
-        
-        elif tool_name == "create_link_post":
-            submolt = parameters.get('submolt')
-            title = parameters.get('title')
-            url = parameters.get('url')
-            try:
-                result = self.moltbook_client.create_link_post(submolt, title, url)
-                return f"✅ Link post created successfully in /{submolt}: '{title}' -> {url}"
-            except Exception as e:
-                return f"❌ Failed to create link post: {e}"
-        
-        elif tool_name == "get_feed":
-            try:
-                result = self.moltbook_client.get_feed()
-                return f"Recent posts from hot feed:\n\n{result}\n\n"
-            except Exception as e:
-                return f"❌ Failed to get feed: {e}"
-        
-        elif tool_name == "get_personalized_feed":
-            try:
-                result = self.moltbook_client.get_personalized_feed()
-                return f"Your personalized feed:\n\n{result}\n\n"
-            except Exception as e:
-                return f"❌ Failed to get personalized feed: {e}"
-        
-        elif tool_name == "get_posts_from_submolt":
-            submolt = parameters.get('submolt')
-            try:
-                result = self.moltbook_client.get_posts_from_submolt(submolt)
-                return f"Recent posts from /{submolt}:\n\n{result}\n\n"
-            except Exception as e:
-                return f"❌ Failed to get posts from /{submolt}: {e}"
-        
-        elif tool_name == "get_single_post":
-            post_id = parameters.get('post_id')
-            try:
-                result = self.moltbook_client.get_single_post(post_id)
-                return f"{result}"
-            except Exception as e:
-                return f"❌ Failed to get post {post_id}: {e}"
-        
-        elif tool_name == "add_comment":
-            post_id = parameters.get('post_id')
-            content = parameters.get('content')
-            try:
-                result = self.moltbook_client.add_comment(post_id, content)
-                return f"✅ Comment added to post {post_id}"
-            except Exception as e:
-                return f"❌ Failed to add comment: {e}"
-        
-        elif tool_name == "reply_to_comment":
-            post_id = parameters.get('post_id')
-            parent_comment_id = parameters.get('parent_comment_id')
-            content = parameters.get('content')
-            try:
-                result = self.moltbook_client.reply_to_comment(post_id, parent_comment_id, content)
-                return f"✅ Reply added to comment {parent_comment_id}"
-            except Exception as e:
-                return f"❌ Failed to add reply: {e}"
-        
-        elif tool_name == "get_comments":
-            post_id = parameters.get('post_id')
-            try:
-                result = self.moltbook_client.get_comments(post_id)
-                return f"Comments on post {post_id}:\n\n{result}\n\n"
-            except Exception as e:
-                return f"❌ Failed to get comments: {e}"
-        
-        elif tool_name == "upvote_post":
-            post_id = parameters.get('post_id')
-            try:
-                result = self.moltbook_client.upvote_post(post_id)
-                return f"✅ Upvoted post {post_id}"
-            except Exception as e:
-                return f"❌ Failed to upvote post: {e}"
-        
-        elif tool_name == "downvote_post":
-            post_id = parameters.get('post_id')
-            try:
-                result = self.moltbook_client.downvote_post(post_id)
-                return f"✅ Downvoted post {post_id}"
-            except Exception as e:
-                return f"❌ Failed to downvote post: {e}"
-        
-        elif tool_name == "upvote_comment":
-            comment_id = parameters.get('comment_id')
-            try:
-                result = self.moltbook_client.upvote_comment(comment_id)
-                return f"✅ Upvoted comment {comment_id}"
-            except Exception as e:
-                return f"❌ Failed to upvote comment: {e}"
-        
-        elif tool_name == "list_submolts":
-            try:
-                result = self.moltbook_client.list_submolts()
-                return f"Available submolts: {result}"
-            except Exception as e:
-                return f"❌ Failed to list submolts: {e}"
-        
-        elif tool_name == "subscribe_to_submolt":
-            submolt = parameters.get('submolt')
-            try:
-                result = self.moltbook_client.subscribe_to_submolt(submolt)
-                return f"✅ Subscribed to /{submolt}"
-            except Exception as e:
-                return f"❌ Failed to subscribe to /{submolt}: {e}"
-        
-        elif tool_name == "unsubscribe_from_submolt":
-            submolt = parameters.get('submolt')
-            try:
-                result = self.moltbook_client.unsubscribe_from_submolt(submolt)
-                return f"✅ Unsubscribed from /{submolt}"
-            except Exception as e:
-                return f"❌ Failed to unsubscribe from /{submolt}: {e}"
-        
-        elif tool_name == "follow_user":
-            username = parameters.get('username')
-            try:
-                result = self.moltbook_client.follow_user(username)
-                return f"✅ Now following @{username}"
-            except Exception as e:
-                return f"❌ Failed to follow @{username}: {e}"
-        
-        elif tool_name == "unfollow_user":
-            username = parameters.get('username')
-            try:
-                result = self.moltbook_client.unfollow_user(username)
-                return f"✅ Unfollowed @{username}"
-            except Exception as e:
-                return f"❌ Failed to unfollow @{username}: {e}"
-        
-        elif tool_name == "search_posts_and_comments":
-            query = parameters.get('query')
-            try:
-                result = self.moltbook_client.search_posts_and_comments(query)
-                return f"Search results for '{query}':\n\n{result}\n\n"
-            except Exception as e:
-                return f"❌ Failed to search: {e}"
-            
-            # elif tool_name == "send_email":
-            #     if self.gmail_client is None:
-            #         return "❌ GmailClient not available (missing credentials)"
-            #     recipient = parameters.get('recipient')
-            #     subject = parameters.get('subject')
-            #     body = parameters.get('body')
-            #     try:
-            #         success = self.gmail_client.send_email(recipient, subject, body)
-            #         if success:
-            #             return f"✅ Email sent successfully to {recipient}"
-            #         else:
-            #             return f"❌ Failed to send email to {recipient}"
-            #     except Exception as e:
-            #         return f"❌ Failed to send email: {e}"
-            
-            # elif tool_name == "schedule_email":
-            #     if self.gmail_client is None:
-            #         return "❌ GmailClient not available (missing credentials)"
-            #     recipient = parameters.get('recipient')
-            #     subject = parameters.get('subject')
-            #     body = parameters.get('body')
-            #     send_time = parameters.get('send_time')
-                
-            #     # Validate that send_time is in the future
-            #     try:
-            #         from datetime import datetime
-            #         send_datetime = datetime.strptime(send_time, "%Y-%m-%d %H:%M")
-            #         current_datetime = datetime.now()
-                    
-            #         if send_datetime <= current_datetime:
-            #             return f"❌ Cannot schedule email for {send_time} - time must be in the future. Current time is {current_datetime.strftime('%Y-%m-%d %H:%M')}"
-                    
-            #         success = self.gmail_client.schedule_email(recipient, subject, body, send_time)
-            #         if success:
-            #             return f"✅ Email scheduled successfully for {recipient} at {send_time}"
-            #         else:
-            #             return f"❌ Failed to schedule email for {recipient}"
-            #     except ValueError as e:
-            #         return f"❌ Invalid date format for send_time. Use YYYY-MM-DD HH:MM format: {e}"
-            #     except Exception as e:
-            #         return f"❌ Failed to schedule email: {e}"
-        
         elif tool_name == "get_system_info":
             try:
                 system_info = get_system_info()
@@ -641,6 +448,17 @@ class LocalLLM:
             except Exception as e:
                 return f"❌ Failed to analyze image: {e}"
         
+        elif tool_name == "trade_crypto":
+            symbol = parameters.get('token_symbol')
+            action = parameters.get('action')
+            amount = parameters.get('amount')
+            result = execute_crypto_trade(
+                token_symbol=symbol,
+                action=action,
+                amount=amount
+            )
+            return f"✅ Trade executed: {action} {amount} of {symbol}\nResult: {result}"
+
         else:
             return f"Error: Unknown tool '{tool_name}'"
     

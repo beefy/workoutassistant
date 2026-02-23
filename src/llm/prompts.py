@@ -65,7 +65,7 @@ def build_crypto_prompt():
     indicators = get_all_token_indicators()
     balance, _ = get_crypto_balances_with_value()
     tool_call_1 = '{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}'
-    tool_call_2 = ' - Buy or Sell a token: {"tool": "trade", "parameters": {"token_symbol": "JUP", "action": "buy", "amount": 100}}'
+    tool_call_2 = ' - Buy or Sell a token: {"tool": "trade_crypto", "parameters": {"token_symbol": "JUP", "action": "buy", "amount": 100}}'
     return f"""
 <|system|>
 Use these indicators to determine what to buy or sell:
