@@ -311,10 +311,10 @@ def execute_crypto_trade(
 
     trader = CryptoTrader(rpc_url)
     print(f"Current SOL balance: {sol_balance:.6f} SOL")
-    minimum_sol_balance = Decimal('0.01')  # Keep at least 0.01 SOL for transaction fees
+    minimum_sol_balance = 0.01  # Keep at least 0.01 SOL for transaction fees
     # Don't allow buying if it would exceed balance
     if action.lower() == 'buy':
-        if Decimal(str(amount)) > Decimal(str(sol_balance - minimum_sol_balance)):
+        if Decimal(str(amount)) > sol_balance - minimum_sol_balance:
             raise ValueError(f"Insufficient SOL balance to buy {amount} {token_symbol}. Current balance: {sol_balance:.6f} SOL")
     
     try:
