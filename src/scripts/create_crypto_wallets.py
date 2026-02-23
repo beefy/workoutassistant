@@ -81,7 +81,7 @@ class WalletGenerator:
             # Get the public key (address)
             public_key = keypair.pubkey()
             
-            # Convert private key to list format (Solana standard)
+            # Convert private key to different formats
             private_key_bytes = bytes(keypair)
             
             return {
@@ -89,6 +89,7 @@ class WalletGenerator:
                 "address": str(public_key),
                 "private_key": list(private_key_bytes),
                 "private_key_hex": private_key_bytes.hex(),
+                "private_key_base58": str(keypair),  # Base58 format for crypto_trade.py
                 "public_key": str(public_key),
                 "created_at": datetime.utcnow().isoformat()
             }
@@ -218,8 +219,9 @@ def print_wallet_info(wallets: Dict):
         
         for i, sol_wallet in enumerate(wallets["solana"]):
             print(f"\n🌟 SOLANA WALLET #{i+1}")
-            print(f"Address:     {sol_wallet['address']}")
-            print(f"Private Key: {sol_wallet['private_key_hex'][:10]}...{sol_wallet['private_key_hex'][-8:]}")
+            print(f"Address:        {sol_wallet['address']}")
+            print(f"Private Key:    {sol_wallet['private_key_hex'][:10]}...{sol_wallet['private_key_hex'][-8:]} (hex)")
+            print(f"Base58 Key:     {sol_wallet['private_key_base58'][:10]}...{sol_wallet['private_key_base58'][-8:]} (for SOLANA_PRIVATE_KEY)")
     else:
         # Single wallet format
         if wallets.get("chain") == "ethereum":
@@ -230,8 +232,9 @@ def print_wallet_info(wallets: Dict):
                 print(f"Mnemonic:    {wallets['mnemonic']}")
         elif wallets.get("chain") == "solana":
             print(f"\n🌟 SOLANA WALLET")
-            print(f"Address:     {wallets['address']}")
-            print(f"Private Key: {wallets['private_key_hex'][:10]}...{wallets['private_key_hex'][-8:]}")
+            print(f"Address:        {wallets['address']}")
+            print(f"Private Key:    {wallets['private_key_hex'][:10]}...{wallets['private_key_hex'][-8:]} (hex)")
+            print(f"Base58 Key:     {wallets['private_key_base58'][:10]}...{wallets['private_key_base58'][-8:]} (for SOLANA_PRIVATE_KEY)")
     
     print("\n" + "="*80)
 
