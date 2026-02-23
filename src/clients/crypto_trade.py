@@ -27,6 +27,21 @@ TOKEN_ADDRESSES = {
     "POPCAT": "7GCihgDB8fe6CRTnW6sKY6j6L3yqLpEvZ1mW6dGcmK2L"
 }
 
+# Token decimals for proper amount calculation
+TOKEN_DECIMALS = {
+    "SOL": 9,
+    "WSOL": 9,
+    "USDC": 6,
+    "JUP": 6,
+    "PYTH": 6,
+    "RAY": 6,
+    "JTO": 9,
+    "HNT": 8,
+    "BONK": 5,
+    "WIF": 6,
+    "POPCAT": 9
+}
+
 # Jupiter API endpoints - Updated for 2026
 JUPITER_API_BASE = "https://api.jup.ag"
 JUPITER_QUOTE_ENDPOINT = f"{JUPITER_API_BASE}/swap/v1/quote"
@@ -297,16 +312,17 @@ def execute_crypto_trade(
             # Buy token with SOL
             input_token = "SOL"
             output_token = token_symbol.upper()
-            # Convert SOL amount to lamports (1 SOL = 1,000,000,000 lamports)
-            amount_lamports = int(Decimal(str(amount)) * Decimal("1000000000"))
+            # Convert SOL amount to lamports using correct decimals
+            sol_decimals = TOKEN_DECIMALS["SOL"]
+            amount_lamports = int(Decimal(str(amount)) * Decimal(10 ** sol_decimals))
             
         else:  # sell
             # Sell token for SOL
             input_token = token_symbol.upper()
             output_token = "SOL"
-            # For most tokens, use the amount directly
-            # Note: You may need to adjust decimal places based on token specifics
-            amount_lamports = int(Decimal(str(amount)) * Decimal("1000000"))  # Assuming 6 decimals for most tokens
+            # Use the correct decimals for the input token
+            token_decimals = TOKEN_DECIMALS.get(input_token, 6)  # Fallback to 6 if not found
+            amount_lamports = int(Decimal(str(amount)) * Decimal(10 ** token_decimals))
         
         print(f"Getting quote for {action} {amount} {input_token} -> {output_token}")
         
@@ -316,9 +332,12 @@ def execute_crypto_trade(
         if not quote:
             raise Exception("Failed to get quote from Jupiter API")
         
-        # Display quote information
-        input_amount = int(quote["inAmount"]) / (10**9 if quote["inputMint"] == TOKEN_ADDRESSES["SOL"] else 10**6)
-        output_amount = int(quote["outAmount"]) / (10**9 if quote["outputMint"] == TOKEN_ADDRESSES["SOL"] else 10**6)
+        # Display quote information with correct decimal handling
+        input_decimals = TOKEN_DECIMALS.get(input_token, 6)
+        output_decimals = TOKEN_DECIMALS.get(output_token, 6)
+        
+        input_amount = int(quote["inAmount"]) / (10 ** input_decimals)
+        output_amount = int(quote["outAmount"]) / (10 ** output_decimals)
         
         print(f"Quote: {input_amount:.6f} {input_token} -> {output_amount:.6f} {output_token}")
         print(f"Price impact: {quote.get('priceImpactPct', 'N/A')}%")
