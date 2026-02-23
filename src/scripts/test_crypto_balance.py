@@ -1,33 +1,19 @@
+from utils.crypto_balance import get_crypto_balances
+from clients.crypto_data import BirdeyeDataFetcher
 
-from solana.rpc.api import Client
-from solders.pubkey import Pubkey
-from solana.rpc.types import TokenAccountOpts
-import os
 
-wallet_address = os.getenv("SOLANA_ADDRESS")
+fetcher = BirdeyeDataFetcher()
+balances = get_crypto_balances()
+ret = {}
 
-client = Client("https://api.mainnet-beta.solana.com")
+for mint, balance in balances.items():
+    usd = fetcher.get_current_price(mint)
+    ret[mint] = {
+        "balance": balance,
+        "usd_price": usd,
+        "usd_value": balance * usd if usd is not None else None
+    }
 
-response = client.get_balance(Pubkey.from_string(wallet_address))
-lamports = response.value
-sol_balance = lamports / 1_000_000_000
-print("SOL balance:", sol_balance)
+print(ret)
 
-response = client.get_token_accounts_by_owner_json_parsed(
-    Pubkey.from_string(wallet_address),
-    TokenAccountOpts(program_id=Pubkey.from_string(
-        "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"  # SPL Token Program
-    ))
-)
-
-for account in response.value:
-    data = account.account.data.parsed["info"]
-    mint = data["mint"]
-    amount = int(data["tokenAmount"]["amount"])
-    decimals = int(data["tokenAmount"]["decimals"])
-
-    ui_amount = amount / (10 ** decimals)
-
-    print(f"Token mint: {mint}")
-    print(f"Balance: {ui_amount}")
-    print("------")
+print("Total value USD:", sum(item["usd_value"] for item in ret.values() if item["usd_value"] is not None))

@@ -51,6 +51,31 @@ class BirdeyeDataFetcher:
         
         return self.process_candles(data['data']['items'])
     
+    def get_current_price(self, token_address):
+        """
+        Get current price in USD for a token
+        """
+        url = f"{self.base_url}/defi/price"
+        
+        params = {
+            "address": token_address
+        }
+        
+        response = requests.get(url, headers=self.headers, params=params)
+        
+        if response.status_code != 200:
+            raise Exception(f"API request failed with status {response.status_code}: {response.text}")
+            
+        data = response.json()
+        
+        # Wait 2 seconds before next API call to avoid rate limiting
+        time.sleep(2)
+        
+        if 'data' in data and 'value' in data['data']:
+            return float(data['data']['value'])
+        else:
+            raise ValueError(f"Unable to fetch price data for token {token_address}")
+    
     def process_candles(self, candles):
         """Convert to DataFrame for easy indicator calculation"""
         if not candles:
