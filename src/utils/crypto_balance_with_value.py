@@ -8,10 +8,8 @@ TOKEN_ADDRESSES = {
     "PYTH": "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
     "RAY": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
     "JTO": "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
-    "HNT": "hntV2VhymNHF6M73ooYqF4BojGPDcSvHjjr13DMMG1F",
     "BONK": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-    "WIF": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
-    "POPCAT": "7GCihgDB8fe6CRTnW6sKY6j6L3yqLpEvZ1mW6dGcmK2L"
+    "WIF": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"
 }
 
 # Reverse mapping for easy lookup

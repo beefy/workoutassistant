@@ -22,10 +22,8 @@ TOKEN_ADDRESSES = {
     "PYTH": "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
     "RAY": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
     "JTO": "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
-    "HNT": "hntV2VhymNHF6M73ooYqF4BojGPDcSvHjjr13DMMG1F",
     "BONK": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-    "WIF": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
-    "POPCAT": "7GCihgDB8fe6CRTnW6sKY6j6L3yqLpEvZ1mW6dGcmK2L"
+    "WIF": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"
 }
 
 # Token decimals for proper amount calculation
@@ -37,10 +35,8 @@ TOKEN_DECIMALS = {
     "PYTH": 6,
     "RAY": 6,
     "JTO": 9,
-    "HNT": 8,
     "BONK": 5,
-    "WIF": 6,
-    "POPCAT": 9
+    "WIF": 6
 }
 
 # Jupiter API endpoints - Updated for 2026
