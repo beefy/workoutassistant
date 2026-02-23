@@ -21,7 +21,6 @@ def login(username, password):
     if response.status_code == 200:
         print("Login successful!")
         token = response.json().get("access_token")
-        print(f"Received token: {token}")
         return token
     else:
         print(f"Failed to login. Status code: {response.status_code}, Response: {response.text}")
