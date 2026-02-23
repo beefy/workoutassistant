@@ -2,6 +2,116 @@ from utils.crypto_indicators import get_all_token_indicators
 from utils.crypto_balance_with_value import get_crypto_balances_with_value
 
 
+def format_indicators_for_llm(indicators):
+    """Format crypto indicators into LLM-friendly text"""
+    formatted = "TECHNICAL INDICATORS ANALYSIS\n"
+    formatted += "=" * 35 + "\n\n"
+    
+    # Separate tokens by signal strength
+    bullish_signals = []
+    bearish_signals = []
+    neutral_signals = []
+    
+    for token, data in indicators.items():
+        rsi = float(data['rsi'])
+        ma_cross = data['ma_cross']
+        macd = data['macd']
+        volume_ratio = float(data['volume_ratio'])
+        adx = data['adx']
+        price = float(data['current_price'])
+        
+        # Create signal summary
+        signals = []
+        if ma_cross == 'bull' or macd == 'bull':
+            signals.append('bullish')
+        if ma_cross == 'bear' or macd == 'bear':
+            signals.append('bearish')
+            
+        # Categorize by overall sentiment
+        bull_count = (ma_cross == 'bull') + (macd == 'bull') + (rsi > 70)
+        bear_count = (ma_cross == 'bear') + (macd == 'bear') + (rsi < 30)
+        
+        signal_text = f"  RSI: {rsi:.1f} | MA: {ma_cross} | MACD: {macd} | Volume: {volume_ratio:.1f}x | ADX: {adx:.1f} | Price: ${price:.6f}"
+        
+        if bull_count > bear_count:
+            bullish_signals.append(f"• {token}: {signal_text}")
+        elif bear_count > bull_count:
+            bearish_signals.append(f"• {token}: {signal_text}")
+        else:
+            neutral_signals.append(f"• {token}: {signal_text}")
+    
+    if bullish_signals:
+        formatted += "BULLISH SIGNALS:\n"
+        formatted += "\n".join(bullish_signals[:5]) + "\n\n"
+    
+    if bearish_signals:
+        formatted += "BEARISH SIGNALS:\n" 
+        formatted += "\n".join(bearish_signals[:5]) + "\n\n"
+        
+    if neutral_signals:
+        formatted += "NEUTRAL/MIXED SIGNALS:\n"
+        formatted += "\n".join(neutral_signals[:5]) + "\n\n"
+    
+    formatted += "KEY:\n"
+    formatted += "RSI >70 = overbought, <30 = oversold | MA = moving average crossover\n"
+    formatted += "MACD = trend momentum | Volume = relative volume vs average | ADX = trend strength\n"
+    
+    return formatted
+
+
+def format_balance_for_llm(balance):
+    """Format crypto balance into LLM-friendly text"""
+    formatted = "WALLET STATUS\n"
+    formatted += "=" * 15 + "\n\n"
+    
+    # Calculate total value
+    total_value = sum(token_data['usd_value'] for token_data in balance.values())
+    formatted += f"Total Portfolio Value: ${total_value:.2f}\n\n"
+    
+    # Current holdings (non-zero balances)
+    holdings = [(symbol, data) for symbol, data in balance.items() if data['balance'] > 0]
+    if holdings:
+        formatted += "CURRENT HOLDINGS:\n"
+        for symbol, data in holdings:
+            balance_amount = data['balance']
+            usd_value = data['usd_value']
+            price = data['usd_price']
+            max_sell = data['max_sell']
+            max_buy = data['max_buy']
+            
+            formatted += f"• {symbol}: {balance_amount:.6f} tokens (${usd_value:.2f}) at ${price:.6f}\n"
+            formatted += f"  └─ Can sell: {max_sell:.6f} | Can buy: {max_buy:.6f} more\n"
+        formatted += "\n"
+    
+    # Available for purchase (zero balances, sorted by max buyable amount in USD)
+    available = [(symbol, data) for symbol, data in balance.items() if data['balance'] == 0]
+    if available:
+        # Sort by potential USD investment amount
+        available.sort(key=lambda x: x[1]['max_buy'] * x[1]['usd_price'], reverse=True)
+        
+        formatted += "AVAILABLE FOR PURCHASE (Top opportunities by investment size):\n"
+        for symbol, data in available:
+            price = data['usd_price']
+            max_buy = data['max_buy']
+            max_investment = max_buy * price
+            
+            if price < 0.0001:
+                formatted += f"• {symbol}: ${price:.8f} each → Can buy {max_buy:,.0f} tokens (${max_investment:.2f})\n"
+            else:
+                formatted += f"• {symbol}: ${price:.4f} each → Can buy {max_buy:.2f} tokens (${max_investment:.2f})\n"
+        
+        formatted += "\n"
+    
+    # Important constraints
+    formatted += "TRADING CONSTRAINTS:\n"
+    formatted += "• Must maintain 0.01 SOL for transaction fees\n"
+    formatted += "• Transaction fee: 0.000005 SOL per trade\n"
+    formatted += "• Can only sell tokens you currently hold\n"
+    formatted += "• Max buy amounts are calculated from available SOL\n"
+    
+    return formatted
+
+
 def get_tool_instructions():
     return """
 YOU HAVE ACCESS to these available tools. Use them when needed to get information or perform actions that will help you answer the user's question or complete the task.
@@ -64,6 +174,11 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
 def build_crypto_prompt(tool_results, history):
     indicators = get_all_token_indicators()
     balance, _ = get_crypto_balances_with_value()
+    
+    # Format the data for better LLM comprehension
+    formatted_indicators = format_indicators_for_llm(indicators)
+    formatted_balance = format_balance_for_llm(balance)
+    
     tool_call_1 = '{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}'
     tool_call_2 = ' - Buy or Sell a token: {"tool": "trade_crypto", "parameters": {"token_symbol": "JUP", "action": "buy", "amount": 10000}}'
     prompt = f"""
@@ -71,10 +186,9 @@ def build_crypto_prompt(tool_results, history):
 Recent tool results: "{tool_results}"
 Tool results history: "{history}"
 
-Use these indicators to determine what to buy or sell.
-{indicators}
-Current crypto balances with USD value. Note the max_buy and max_sell for each token, which indicate how much you can buy or sell based on your current balances and the 0.01 SOL reserve for fees.
-{balance}
+{formatted_indicators}
+
+{formatted_balance}
 
 To call a tool, output a JSON object with the format:
 {tool_call_1}
