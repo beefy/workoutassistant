@@ -60,6 +60,7 @@ def get_crypto_balances_with_value():
             }
 
     # Add max_buy and max_sell for each token
+    ret_with_limits = {}
     for sym, data in ret_filtered.items():
         # max_sell is just the current balance
         data["max_sell"] = data["balance"]
@@ -72,4 +73,6 @@ def get_crypto_balances_with_value():
         else:
             data["max_buy"] = 0
 
-    return ret_filtered, total_value
+        ret_with_limits[sym] = data
+
+    return ret_with_limits, total_value
