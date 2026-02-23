@@ -86,10 +86,12 @@ amount: Amount of the token to trade
 Tool calls should be valid json.
 You must maintain at least 0.01 SOL in the wallet to cover transaction fees. If your SOL balance is below this, you MUST sell some of your other tokens to get at least 0.01 SOL before you can make any other trades.
 
+The user will not make any trades themselves, you must use the trade_crypto tool to execute any trades. Do not suggest any trades that you are not willing to execute.
+
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 <|end|>
 <|user|>
-Based on the current indicators and balances, determine if there are any good trading opportunities, and make a trade with a tool call if you think it's warranted. If you don't see any good opportunities, explain why and say "No trade executed at this time."
+Based on the current indicators and balances, determine if there are any good trading opportunities, and make a trade with a tool call for any recommendations. If you don't see any good opportunities, explain why and say "No trade executed at this time."
 <|end|>
 <|assistant|>
     """
