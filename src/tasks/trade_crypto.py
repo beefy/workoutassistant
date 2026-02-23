@@ -1,7 +1,4 @@
-from utils.tracking_api import login, status_update
-import os
 import time
-from clients.gmail import GmailClient
 from llm.priority_queue import submit_llm_request
 
 
