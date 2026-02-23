@@ -75,4 +75,5 @@ def get_crypto_balances_with_value():
 
         ret_with_limits[sym] = data
 
+    print("Balances with limits:", ret_with_limits)
     return ret_with_limits, total_value
