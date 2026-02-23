@@ -102,6 +102,17 @@ def format_balance_for_llm(balance):
         
         formatted += "\n"
     
+    # Transaction fee information
+    sol_balance = balance.get('SOL', {}).get('balance', 0)
+    transaction_fee = 0.000005  # SOL per transaction
+    available_for_fees = sol_balance
+    max_transactions = int(available_for_fees / transaction_fee) if transaction_fee > 0 else 0
+    
+    formatted += "TRANSACTION FEE INFORMATION:\n"
+    formatted += f"• ESTIMATED TRANSACTION FEE: {transaction_fee} SOL (${transaction_fee * balance.get('SOL', {}).get('usd_price', 0):.6f})\n"
+    formatted += f"• AVAILABLE TO SPEND ON TRANSACTION FEES: {available_for_fees:.6f} SOL\n"
+    formatted += f"• NUMBER OF POSSIBLE TRANSACTIONS GIVEN CURRENT SOL BALANCE: {max_transactions}\n\n"
+    
     # Important constraints
     formatted += "TRADING CONSTRAINTS:\n"
     formatted += "• Must maintain 0.01 SOL for transaction fees\n"
@@ -199,6 +210,8 @@ Available tools:
 token_symbol: Symbol of the token to trade (e.g., 'JUP', 'BONK', 'PYTH')
 action: 'buy' to purchase token with SOL, 'sell' to sell token for SOL
 amount: Amount of the token to trade
+
+USDC is the USD stable coin. If SOL is bearish, buying USDC can be a good way to preserve value. If SOL is bullish, selling USDC can be a good strategy.
 
 Tool calls should be valid json.
 You must maintain at least 0.01 SOL in the wallet to cover transaction fees. If your SOL balance is below this, you MUST sell some of your other tokens to get at least 0.01 SOL before you can make any other trades.
