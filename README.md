@@ -148,6 +148,11 @@ export JUPITER_API_KEY=<api key for getting trade info>
 export BIRDEYE_API_KEY=<api key for getting price data>
 ```
 
+Check crypto balance
+```
+python src/scripts/get_crypto_balance.py
+```
+
 ### Run the script
 
 Start it in the background
