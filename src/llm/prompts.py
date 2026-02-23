@@ -71,9 +71,9 @@ def build_crypto_prompt(tool_results, history):
 Recent tool results: "{tool_results}"
 Tool results history: "{history}"
 
-Use these indicators to determine what to buy or sell:
+Use these indicators to determine what to buy or sell.
 {indicators}
-Current crypto balances with USD value:
+Current crypto balances with USD value. Note the max_buy and max_sell for each token, which indicate how much you can buy or sell based on your current balances and the 0.01 SOL reserve for fees.
 {balance}
 
 To call a tool, output a JSON object with the format:

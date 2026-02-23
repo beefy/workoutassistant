@@ -32,6 +32,15 @@ def get_crypto_balances_with_value():
     total_value = sum(item["usd_value"] for item in ret.values() if item["usd_value"] is not None)
     print("Total value USD:", total_value)
 
+    # Get SOL price and balance for max_buy calculations
+    sol_mint = TOKEN_ADDRESSES["SOL"]
+    sol_price_usd = fetcher.get_current_price(sol_mint)
+    sol_balance = balances.get(sol_mint, 0)
+    
+    # Available SOL for buying (reserve 0.01 SOL for transaction fees)
+    available_sol_balance = max(0, sol_balance - 0.01)
+    available_sol_value_usd = available_sol_balance * sol_price_usd if sol_price_usd is not None else 0
+
     # Replace mint addresses with token symbols for cleaner output
     ret_cleaned = {}
     for mint, data in ret.items():
@@ -49,5 +58,18 @@ def get_crypto_balances_with_value():
                 "usd_price": fetcher.get_current_price(TOKEN_ADDRESSES[sym]),
                 "usd_value": 0
             }
+
+    # Add max_buy and max_sell for each token
+    for sym, data in ret_filtered.items():
+        # max_sell is just the current balance
+        data["max_sell"] = data["balance"]
+        
+        # max_buy is calculated based on available SOL balance
+        if data["usd_price"] is not None and data["usd_price"] > 0 and sol_price_usd is not None and sol_price_usd > 0:
+            # Calculate token price in SOL terms
+            token_price_in_sol = data["usd_price"] / sol_price_usd
+            data["max_buy"] = available_sol_balance / token_price_in_sol
+        else:
+            data["max_buy"] = 0
 
     return ret_filtered, total_value
