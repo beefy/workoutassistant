@@ -174,14 +174,16 @@ class CryptoTrader:
             # Sign the VersionedTransaction
             print("📝 Signing VersionedTransaction...")
             
-            # For VersionedTransaction, use proper signing approach
-            # First, get the message to sign
-            message_bytes = bytes(transaction.message)
-            signature = self.keypair.sign_message(message_bytes)
-            
-            # Add the signature to the transaction
-            transaction.signatures = [signature]  # signature is already a Signature object
-            signed_transaction = transaction
+            # Deserialize
+            transaction = VersionedTransaction.from_bytes(transaction_bytes)
+
+            # Create a NEW signed transaction
+            signed_transaction = VersionedTransaction(
+                transaction.message,
+                [self.keypair]
+            )
+
+            # signed_transaction = transaction
             
             # Send the transaction with proper options
             tx_opts = TxOpts(
