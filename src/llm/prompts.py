@@ -61,13 +61,16 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
 <|assistant|>
     """
 
-def build_crypto_prompt():
+def build_crypto_prompt(tool_results, history):
     indicators = get_all_token_indicators()
     balance, _ = get_crypto_balances_with_value()
     tool_call_1 = '{"tool": "tool_name", "parameters": {"param1": "value1", "param2": "value2"}}'
-    tool_call_2 = ' - Buy or Sell a token: {"tool": "trade_crypto", "parameters": {"token_symbol": "JUP", "action": "buy", "amount": 100}}'
+    tool_call_2 = ' - Buy or Sell a token: {"tool": "trade_crypto", "parameters": {"token_symbol": "JUP", "action": "buy", "amount": 10000}}'
     return f"""
 <|system|>
+Recent tool results: "{tool_results}"
+Tool results history: "{history}"
+
 Use these indicators to determine what to buy or sell:
 {indicators}
 Current crypto balances with USD value:
@@ -85,10 +88,14 @@ amount: Amount of the token to trade
 
 Tool calls should be valid json.
 You must maintain at least 0.01 SOL in the wallet to cover transaction fees. If your SOL balance is below this, you MUST sell some of your other tokens to get at least 0.01 SOL before you can make any other trades.
+You can only sell tokens that you currently have a balance of.
+You can only buy when you have enough SOL to cover the purchase.
 
 The user will not make any trades themselves, you must use the trade_crypto tool to execute any trades. Do not suggest any trades that you are not willing to execute.
 
 Your trading strategy is high risk, high reward. Look for opportunities to make significant gains, even if they come with higher risk. Prioritize trades that have the potential for large percentage gains, but be mindful of the possibility of losses as well.
+
+INSTEAD OF MAKING RECOMMENDATIONS, USE THE TRADE_CRYPTO TOOL TO EXECUTE ANY TRADES YOU WANT TO MAKE BASED ON THE INDICATORS AND BALANCES. If you don't see any good opportunities, explain why and say "No trade executed at this time."
 
 IMPORTANT: start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
 <|end|>

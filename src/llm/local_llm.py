@@ -245,7 +245,7 @@ class LocalLLM:
         if not use_crypto_prompt:
             response = self.execute_prompt(build_initial_prompt(self.attachments, prompt), max_tokens, temperature, stop)
         else:
-            response = self.execute_prompt(build_crypto_prompt(), max_tokens, temperature, stop)
+            response = self.execute_prompt(build_crypto_prompt("None", "None"), max_tokens, temperature, stop)
         print(f"Initial response generated. Checking for tool calls...")
 
         if not self.tools_enabled:
@@ -282,7 +282,7 @@ class LocalLLM:
             if not use_crypto_prompt:
                 response = self.execute_prompt(build_intermediate_prompt(self.attachments, prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
             else:
-                response = self.execute_prompt(build_crypto_prompt(), max_tokens, temperature, stop)
+                response = self.execute_prompt(build_crypto_prompt(tool_results, history), max_tokens, temperature, stop)
 
             tool_calls = self.parse_tool_calls(response)
 
@@ -484,16 +484,18 @@ class LocalLLM:
             if not use_crypto_prompt:
                 return "❌ Error: Crypto trading is disabled. Use crypto prompt mode to enable trading."
             
-            symbol = parameters.get('token_symbol')
-            action = parameters.get('action')
-            amount = parameters.get('amount')
-            result = execute_crypto_trade(
-                token_symbol=symbol,
-                action=action,
-                amount=amount
-            )
-            return f"✅ Trade executed: {action} {amount} of {symbol}\nResult: {result}"
-
+            try:
+                symbol = parameters.get('token_symbol')
+                action = parameters.get('action')
+                amount = parameters.get('amount')
+                result = execute_crypto_trade(
+                    token_symbol=symbol,
+                    action=action,
+                    amount=amount
+                )
+                return f"✅ Trade executed: {action} {amount} of {symbol}\nResult: {result}"
+            except Exception as e:
+                return f"❌ Failed to execute crypto trade: {e}"
         else:
             return f"Error: Unknown tool '{tool_name}'"
     
