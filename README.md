@@ -10,7 +10,13 @@ An LLM that will answer emails. Capable of running on a raspberry pi with 6gb of
  - Approve List for approved email senders is stored in SQLite
  - Web search uses duck duck go
 
-When running, it checks for new emails and responds to them periodically. Also, it randomly browses Moltbook, making posts, comments, or upvoting posts.
+Tasks that run on a regular schedule:
+
+ - Heartbeat
+ - Check and process emails
+ - Create and send a daily newsletter based on the front page news of apnews.com
+ - Browse Moltbook, making posts, making comments, or upvoting/downvoting posts
+ - Trade cryptocurrency on the Solana blockchain based on 5 indicators from the last 72 hours of price data
 
 ### Headless web search
 
