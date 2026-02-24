@@ -70,7 +70,7 @@ def format_balance_for_llm(balance):
     # Current holdings (non-zero balances)
     holdings = [(symbol, data) for symbol, data in balance.items() if data['balance'] > 0]
     if holdings:
-        formatted += "CURRENT HOLDINGS:\n"
+        formatted += "CURRENT HOLDINGS (AVAILABLE TO SELL):\n"
         for symbol, data in holdings:
             balance_amount = data['balance']
             usd_value = data['usd_value']
@@ -93,7 +93,7 @@ def format_balance_for_llm(balance):
         
         formatted += "AVAILABLE FOR PURCHASE:\n"
         if not can_actually_buy:
-            formatted += "Not enough SOL to buy anything. Sell something from your current holdings first before buying if one of the listed indicators is more bullish than your current holdings.\n\n"
+            formatted += "• None\n\nNot enough SOL to buy anything. Sell something from your current holdings first before buying if one of the listed indicators is more bullish than your current holdings.\n\n"
         else:
             for symbol, data in available:
                 price = data['usd_price']
