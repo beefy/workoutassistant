@@ -124,6 +124,7 @@ def format_balance_for_llm(balance):
     formatted += "• Transaction fee: 0.000005 SOL per trade\n"
     formatted += "• Can only sell tokens you currently hold\n"
     formatted += "• Max buy amounts are calculated from available SOL\n"
+    formatted += "• You cannot buy or sell SOL. To sell SOL, buy USDC. To buy SOL, sell another one of your holdings.\n"
     
     return formatted
 
