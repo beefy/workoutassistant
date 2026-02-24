@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  workoutassistant:
+    # Use the image from DockerHub (will be built by GitHub Actions)
+    # Replace YOUR_DOCKERHUB_USERNAME with your actual DockerHub username
+    image: ${DOCKER_IMAGE:-YOUR_DOCKERHUB_USERNAME/workoutassistant:latest}
+    container_name: workoutassistant
+    restart: unless-stopped
+    
+    volumes:
+      # Mount secrets from host system (don't include in image)
+      - ~/.variables:/app/.secrets/.variables:ro
+      
+      # Mount data directory for persistence
+      - ./data:/app/data
+      
+      # Mount models directory for persistence (optional, models can be downloaded on container start)
+      - ./models:/app/models
+      
+      # Mount logs directory
+      - ./logs:/app/logs
+    
+    environment:
+      # Environment variables that are safe to include
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - LOG_LEVEL=INFO
+      
+    # Resource limits (adjust based on your Raspberry Pi specs)
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+          cpus: '3.5'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import psutil; import os; exit(0 if any('main.py' in cmd for cmd in [' '.join(p.cmdline()) for p in psutil.process_iter()]) else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 2m
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Optional: Add a watchtower container for automatic updates
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      - WATCHTOWER_POLL_INTERVAL=300  # Check for updates every 5 minutes
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr://smtp://workoutassistant:${GMAIL_APP_PASSWORD}@smtp.gmail.com:587/?from=${GMAIL_ADDRESS}&to=${ADMIN_EMAIL}&subject=Watchtower%20Update
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.variables:/root/.variables:ro  # For email notifications
+    command: workoutassistant
+
+volumes:
+  workout_data:
+    driver: local
+  workout_models:
+    driver: local
+  workout_logs:
+    driver: local

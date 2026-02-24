@@ -1,0 +1,91 @@
+# Git and version control
+.git
+.gitignore
+.github
+
+# Documentation (except README.md which is copied separately)
+docs/
+*.md
+!README.md
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Local configuration and secrets
+.env
+.env.*
+.variables
+*.key
+*.pem
+*.p12
+config.local.*
+secrets/
+.secrets/
+
+# Logs
+*.log
+logs/
+output.log
+
+# Data directories
+data/
+models/
+temp/
+tmp/
+
+# Docker files (prevent recursive copying)
+Dockerfile*
+docker-compose*
+
+# CI/CD files
+.github/
+
+# Test files
+test_*
+*_test.py
+tests/
+
+# Backup files
+*.backup
+*.bak

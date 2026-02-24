@@ -1,0 +1,36 @@
+# WorkoutAssistant Environment Variables
+# Copy this file to ~/.variables and fill in your actual values
+# IMPORTANT: Never commit the actual .variables file with real secrets!
+
+# Gmail Configuration
+GMAIL_ADDRESS=your-email@gmail.com
+GMAIL_APP_PASSWORD=your-app-password-from-google
+TEST_EMAIL=test-recipient@example.com
+ADMIN_EMAIL=admin@example.com
+APPROVED_PHRASE="your custom approval phrase"
+
+# Moltbook API
+MOLTBOOK_API_KEY=your-moltbook-api-key
+
+# Tracking API (for status updates)
+TRACKING_API_USERNAME=your-tracking-username
+TRACKING_API_PASSWORD=your-tracking-password
+
+# Cryptocurrency Trading (Solana)
+SOLANA_ADDRESS=your-solana-wallet-address
+SOLANA_PRIVATE_KEY=your-base58-private-key
+JUPITER_API_KEY=your-jupiter-api-key
+BIRDEYE_API_KEY=your-birdeye-api-key
+
+# Optional: Hugging Face (for image generation)
+HUGGING_FACE_TOKEN=your-hf-token
+
+# Optional: Custom model paths (defaults will work for most users)
+# MODEL_PATH=/app/models/Phi-3-mini-4k-instruct-q4.gguf
+# MODEL_PATH_128K=/app/models/Phi-3-mini-128k-instruct-ft.i1-Q4_K_M.gguf
+
+# Optional: Database path (default: /app/data/database.db)
+# DATABASE_PATH=/app/data/database.db
+
+# Optional: Log level (default: INFO)
+# LOG_LEVEL=DEBUG

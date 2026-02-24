@@ -18,11 +18,213 @@ Tasks that run on a regular schedule:
  - Browse Moltbook, making posts, making comments, or upvoting/downvoting posts
  - Trade cryptocurrency on the Solana blockchain based on 5 indicators from the last 72 hours of price data
 
-### Headless web search
+## 🐳 Docker Deployment (Recommended)
 
-Install this
+The easiest way to deploy WorkoutAssistant is using Docker. This provides:
+- ✅ Automatic updates when new versions are released
+- ✅ Automatic restart on failures
+- ✅ Auto-startup when Raspberry Pi restarts using a Docker container with watchtower for automatic updates when a new image is pushed to DockerHub
+- ✅ Proper secret management
+- ✅ Consistent environment across different systems
+
+### Quick Start
+
+1. **Create your secrets file** (📋 **CRITICAL STEP**)
+   ```bash
+   # Create the secrets file that will be mounted into the container
+   nano ~/.variables
+   ```
+   
+   Add your environment variables (replace with your actual values):
+   ```bash
+   GMAIL_ADDRESS=your-email@gmail.com
+   GMAIL_APP_PASSWORD=your-app-password
+   TEST_EMAIL=test@example.com
+   ADMIN_EMAIL=admin@example.com
+   APPROVED_PHRASE="your approval phrase"
+   MOLTBOOK_API_KEY=your-api-key
+   TRACKING_API_USERNAME=your-username
+   TRACKING_API_PASSWORD=your-password
+   SOLANA_ADDRESS=your-wallet-address
+   SOLANA_PRIVATE_KEY=your-private-key
+   JUPITER_API_KEY=your-jupiter-key
+   BIRDEYE_API_KEY=your-birdeye-key
+   ```
+
+2. **Run the automated deployment script**
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/workoutassistant/main/deploy.sh | bash
+   ```
+
+   Or manually:
+   ```bash
+   wget https://raw.githubusercontent.com/YOUR_USERNAME/workoutassistant/main/deploy.sh
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+3. **That's it!** 🎉 The container will:
+   - Download and start automatically
+   - Download required AI models (this may take a while on first start)
+   - Set up auto-restart on failures
+   - Set up auto-startup on system boot
+   - Check for updates every 5 minutes and auto-update
+
+### Manual Docker Setup
+
+If you prefer manual setup:
+
+```bash
+# Create directories
+mkdir -p ~/workoutassistant/{data,models,logs}
+cd ~/workoutassistant
+
+# Download docker-compose.yml
+curl -O https://raw.githubusercontent.com/YOUR_USERNAME/workoutassistant/main/docker-compose.yml
+
+# Make sure your ~/.variables file exists with secrets
+# Then start the containers
+docker compose up -d
 ```
+
+### Docker Commands
+
+```bash
+# View logs
+docker compose logs -f workoutassistant
+
+# Check status
+docker compose ps
+
+# Update to latest version
+docker compose pull && docker compose up -d
+
+# Stop containers
+docker compose down
+
+# Restart
+docker compose restart
+```
+
+### 🔄 Automatic Updates
+
+The deployment includes [Watchtower](https://github.com/containrrr/watchtower) which:
+- Polls DockerHub every 5 minutes for new images
+- Automatically pulls and deploys updates
+- Sends email notifications when updates occur
+- Cleans up old images to save space
+
+Updates are triggered automatically when code is pushed to the main branch via GitHub Actions.
+
+### � Setting Up CI/CD (For Developers)
+
+To set up automatic Docker image building and publishing:
+
+1. **Fork this repository** to your GitHub account
+
+2. **Set up DockerHub account** and create a repository named `workoutassistant`
+
+3. **Run the configuration script** to update usernames automatically:
+   ```bash
+   ./setup-config.sh
+   ```
+   This will prompt you for your GitHub and DockerHub usernames and update all configuration files automatically.
+
+4. **Configure GitHub Secrets** in your repository settings:
+   - Go to Settings → Secrets and variables → Actions
+   - Add these repository secrets:
+     - `DOCKERHUB_USERNAME`: Your DockerHub username
+     - `DOCKERHUB_TOKEN`: Your DockerHub access token ([create one here](https://hub.docker.com/settings/security))
+
+5. **Commit and push** to main branch:
+   ```bash
+   git add .
+   git commit -m "Configure usernames for deployment"
+   git push origin main
+   ```
+   
+   GitHub Actions will automatically build and push the Docker image!
+
+### 🔒 Security & Secret Management
+
+- **Secrets are NEVER included in the Docker image**
+- All sensitive data is loaded from `~/.variables` file on your Pi
+- The image is safe to be public on DockerHub
+- Environment variables are only mounted at runtime
+- The `.dockerignore` file ensures no local secrets are accidentally included
+
+### 🏥 Health Monitoring
+
+The container includes health checks that monitor if the main process is running. Container will restart automatically if health checks fail.
+
+### 📊 System Status
+
+Use the included status script to check if everything is working properly:
+
+```bash
+# Download and run the status checker
+curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/workoutassistant/main/status.sh | bash
+
+# Or if you have the repo cloned
+./status.sh
+```
+
+### 🔧 Troubleshooting
+
+**Container won't start:**
+- Check if `~/.variables` file exists and has the required variables
+- Verify Docker is running: `sudo systemctl status docker`
+- Check logs: `docker compose logs workoutassistant`
+
+**Auto-updates not working:**
+- Ensure Watchtower container is running: `docker compose ps`
+- Check Watchtower logs: `docker compose logs watchtower`
+
+**Email notifications not working:**
+- Verify Gmail credentials in `~/.variables`
+- Check if 2FA is enabled and App Password is generated
+- Test manually: `docker compose exec workoutassistant python src/scripts/test_email.py`
+
+### 📜 Included Scripts
+
+The repository includes several helpful scripts:
+
+- **`setup-config.sh`** - Automatically configure GitHub/DockerHub usernames in all files
+- **`deploy.sh`** - One-click deployment script for Raspberry Pi
+- **`status.sh`** - System status checker and diagnostics
+- **`.variables.example`** - Template for environment variables
+
+## 💻 Manual Installation (Alternative)
+
+If you prefer not to use Docker, you can install manually:
+
+## 💻 Manual Installation (Alternative)
+
+If you prefer not to use Docker, you can install manually:
+
+### Prerequisites
+
+Install system dependencies:
+```bash
+# Headless web search
 sudo apt install -y chromium chromium-driver
+
+# Python and pip (usually pre-installed)
+sudo apt install -y python3 python3-pip
+
+# SQLite (usually pre-installed)
+sudo apt install -y sqlite3
+```
+
+### Install Python Dependencies
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/workoutassistant.git
+cd workoutassistant
+
+# Install Python packages
+pip install -r requirements.txt
 ```
 
 ### Setup Local LLM
