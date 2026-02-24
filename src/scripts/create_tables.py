@@ -20,5 +20,15 @@ def approve_list():
         db.insert("approve_list", entry)
 
 
+def task_runs():
+    db = SQLiteClient()
+    db.create_table("task_runs", """
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_name TEXT NOT NULL UNIQUE,
+        last_run_time TIMESTAMP
+    """)
+
+
 if __name__ == "__main__":
     approve_list()
+    task_runs()
