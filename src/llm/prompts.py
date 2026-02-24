@@ -41,15 +41,15 @@ def format_indicators_for_llm(indicators):
     
     if bullish_signals:
         formatted += "BULLISH SIGNALS:\n"
-        formatted += "\n".join(bullish_signals[:5]) + "\n\n"
+        formatted += "\n".join(bullish_signals) + "\n\n"
     
     if bearish_signals:
         formatted += "BEARISH SIGNALS:\n" 
-        formatted += "\n".join(bearish_signals[:5]) + "\n\n"
+        formatted += "\n".join(bearish_signals) + "\n\n"
         
     if neutral_signals:
         formatted += "NEUTRAL/MIXED SIGNALS:\n"
-        formatted += "\n".join(neutral_signals[:5]) + "\n\n"
+        formatted += "\n".join(neutral_signals) + "\n\n"
     
     formatted += "KEY:\n"
     formatted += "RSI >70 = overbought, <30 = oversold | MA = moving average crossover\n"
