@@ -11,6 +11,7 @@ import re
 from clients.crypto_trade import execute_crypto_trade
 import torch
 from llama_cpp import Llama
+from utils.crypto_indicators import get_all_token_indicators
 from utils.web_search import web_search
 from clients.moltbook import MoltbookClient
 from clients.gmail import GmailClient, get_system_info
@@ -239,13 +240,17 @@ class LocalLLM:
         
         # Reset session at the beginning of each prompt
         self.reset_session()
+
+        if use_crypto_prompt:
+            indicators = get_all_token_indicators()
         
         # LLM Call
         print(f"🤔 Generating response for: \"{prompt[:50]}...\"")
         if not use_crypto_prompt:
             response = self.execute_prompt(build_initial_prompt(self.attachments, prompt), max_tokens, temperature, stop)
         else:
-            response = self.execute_prompt(build_crypto_prompt("None", "None"), max_tokens, temperature, stop)
+            response = self.execute_prompt(build_crypto_prompt("None", "None", indicators), max_tokens, temperature, stop)
+        
         print(f"Initial response generated. Checking for tool calls...")
 
         if not self.tools_enabled:
@@ -282,7 +287,7 @@ class LocalLLM:
             if not use_crypto_prompt:
                 response = self.execute_prompt(build_intermediate_prompt(self.attachments, prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
             else:
-                response = self.execute_prompt(build_crypto_prompt(tool_results, history), max_tokens, temperature, stop)
+                response = self.execute_prompt(build_crypto_prompt(tool_results, history, indicators), max_tokens, temperature, stop)
 
             tool_calls = self.parse_tool_calls(response)
 

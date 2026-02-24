@@ -182,8 +182,7 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
 <|assistant|>
     """
 
-def build_crypto_prompt(tool_results, history):
-    indicators = get_all_token_indicators()
+def build_crypto_prompt(tool_results, history, indicators):
     balance, _ = get_crypto_balances_with_value()
     
     # Format the data for better LLM comprehension
