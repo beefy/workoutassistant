@@ -3,8 +3,7 @@ version: '3.8'
 services:
   workoutassistant:
     # Use the image from DockerHub (will be built by GitHub Actions)
-    # Replace YOUR_DOCKERHUB_USERNAME with your actual DockerHub username
-    image: ${DOCKER_IMAGE:-YOUR_DOCKERHUB_USERNAME/workoutassistant:latest}
+    image: ${DOCKER_IMAGE:-beefybeefy/workoutassistant:latest}
     container_name: workoutassistant
     restart: unless-stopped
     
