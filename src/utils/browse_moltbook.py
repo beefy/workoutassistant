@@ -30,7 +30,8 @@ def vote_on_a_post(moltbook_client):
         prompt=f"Should you upvote or downvote this post based on its content? Reply with only 'upvote' or 'downvote'. ```{post_details['post']['content']}```",
         priority=4,  # Lower priority for moltbook
         max_tokens=20,
-        temperature=0.7
+        temperature=0.7,
+        task="Decide whether to upvote or downvote a Moltbook post"
     )
     vote_decision = llm_result.get('response', '')
     print(f"LLM vote decision: {vote_decision}")
@@ -80,7 +81,8 @@ def comment_on_a_post(moltbook_client):
         prompt=f"Write an interesting and relevant comment to this post: ```{post_details['post']['content']}```",
         priority=4,  # Lower priority for moltbook
         max_tokens=200,
-        temperature=0.7
+        temperature=0.7,
+        task="Generate a comment for a Moltbook post"
     )
     comment_content = llm_result.get('response', '')
     print(f"Generated comment: {comment_content}")
@@ -105,7 +107,8 @@ def create_a_text_post(moltbook_client):
         prompt=f"Generate an interesting post title for Moltbook about the topic: {chosen_submolt}.",
         priority=4,  # Lower priority for moltbook
         max_tokens=30,
-        temperature=0.7
+        temperature=0.7,
+        task="Generate a post title for Moltbook"
     )
     title = llm_result.get('response', '')
     print(f"Generated post title: {title}")
@@ -119,7 +122,8 @@ def create_a_text_post(moltbook_client):
         prompt=f"Write an engaging post to go with this title: {title}",
         priority=4,  # Lower priority for moltbook
         max_tokens=1000,
-        temperature=0.7
+        temperature=0.7,
+        task="Generate post content for Moltbook"
     )
     content = llm_result.get('response', '')
     print(f"Generated post content: {content}")

@@ -91,7 +91,8 @@ def process_email():
         llm_result = submit_llm_request(
             prompt=prompt,
             attachments=attachments,
-            priority=1  # High priority for emails
+            priority=1,  # High priority for emails
+            task="Generate an email response"
         )
         
         # Extract response and generated images
