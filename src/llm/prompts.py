@@ -17,20 +17,23 @@ def format_indicators_for_llm(indicators):
         macd = data['macd']
         volume_ratio = float(data['volume_ratio'])
         adx = data['adx']
+        stochastic_k = float(data['stochastic_k'])
+        stochastic_d = float(data['stochastic_d'])
+        stochastic_signal = data['stochastic_signal']
         price = float(data['current_price'])
         
         # Create signal summary
         signals = []
-        if ma_cross == 'bull' or macd == 'bull':
+        if ma_cross == 'bull' or macd == 'bull' or stochastic_signal == 'bull':
             signals.append('bullish')
-        if ma_cross == 'bear' or macd == 'bear':
+        if ma_cross == 'bear' or macd == 'bear' or stochastic_signal == 'bear':
             signals.append('bearish')
             
         # Categorize by overall sentiment
-        bull_count = (ma_cross == 'bull') + (macd == 'bull') + (rsi > 70)
-        bear_count = (ma_cross == 'bear') + (macd == 'bear') + (rsi < 30)
+        bull_count = (ma_cross == 'bull') + (macd == 'bull') + (stochastic_signal == 'bull') + (rsi > 70)
+        bear_count = (ma_cross == 'bear') + (macd == 'bear') + (stochastic_signal == 'bear') + (rsi < 30)
         
-        signal_text = f"  RSI: {rsi:.1f} | MA: {ma_cross} | MACD: {macd} | Volume: {volume_ratio:.1f}x | ADX: {adx:.1f} | Price: ${price:.6f}"
+        signal_text = f"  RSI: {rsi:.1f} | MA: {ma_cross} | MACD: {macd} | Stoch: {stochastic_signal} ({stochastic_k:.1f}%K, {stochastic_d:.1f}%D) | Volume: {volume_ratio:.1f}x | ADX: {adx:.1f} | Price: ${price:.6f}"
         
         if bull_count > bear_count:
             bullish_signals.append(f"• {token}: {signal_text}")
@@ -53,7 +56,8 @@ def format_indicators_for_llm(indicators):
     
     formatted += "KEY:\n"
     formatted += "RSI >70 = overbought, <30 = oversold | MA = moving average crossover\n"
-    formatted += "MACD = trend momentum | Volume = relative volume vs average | ADX = trend strength\n"
+    formatted += "MACD = trend momentum | Stoch = stochastic oscillator momentum (%K vs %D)\n"
+    formatted += "Volume = relative volume vs average | ADX = trend strength\n"
     
     return formatted
 
