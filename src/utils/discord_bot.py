@@ -265,7 +265,7 @@ def create_discord_bot():
             try:
                 future = await asyncio.wait_for(
                     loop.run_in_executor(None, submit_llm_request),
-                    timeout=300.0  # 5 minute timeout
+                    timeout=900.0  # 15 minute timeout
                 )
                 
                 # Get the response
@@ -288,7 +288,7 @@ def create_discord_bot():
                 else:
                     await ctx.send("🤔 LLM request failed")
             except asyncio.TimeoutError:
-                await ctx.send("⏱️ LLM request timed out after 300 seconds. The request may still be processing in the background.")
+                await ctx.send("⏱️ LLM request timed out after 900 seconds. The request may still be processing in the background.")
                 
         except Exception as e:
             await ctx.send(f"❌ Error with LLM request: {str(e)}")
