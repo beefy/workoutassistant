@@ -10,8 +10,14 @@ def format_indicators_for_llm(indicators):
     bullish_signals = []
     bearish_signals = []
     neutral_signals = []
-    
+
     for token, data in indicators.items():
+        # # Skip entries that don't have all required indicator fields
+        # required_fields = ['rsi', 'ma_cross', 'macd', 'volume_ratio', 'adx', 
+        #                   'stochastic_k', 'stochastic_d', 'stochastic_signal', 'current_price']
+        # if not isinstance(data, dict) or not all(field in data for field in required_fields):
+        #     continue
+        print(data)
         rsi = float(data['rsi'])
         ma_cross = data['ma_cross']
         macd = data['macd']
@@ -33,7 +39,9 @@ def format_indicators_for_llm(indicators):
         bull_count = (ma_cross == 'bull') + (macd == 'bull') + (stochastic_signal == 'bull') + (rsi > 70)
         bear_count = (ma_cross == 'bear') + (macd == 'bear') + (stochastic_signal == 'bear') + (rsi < 30)
         
-        signal_text = f"  RSI: {rsi:.1f} | MA: {ma_cross} | MACD: {macd} | Stoch: {stochastic_signal} ({stochastic_k:.1f}%K, {stochastic_d:.1f}%D) | Volume: {volume_ratio:.1f}x | ADX: {adx:.1f} | Price: ${price:.6f}"
+        # Handle ADX which might be None
+        adx_text = f"{adx:.1f}" if adx is not None else "N/A"
+        signal_text = f"  RSI: {rsi:.1f} | MA: {ma_cross} | MACD: {macd} | Stoch: {stochastic_signal} ({stochastic_k:.1f}%K, {stochastic_d:.1f}%D) | Volume: {volume_ratio:.1f}x | ADX: {adx_text} | Price: ${price:.6f}"
         
         if bull_count > bear_count:
             bullish_signals.append(f"• {token}: {signal_text}")
