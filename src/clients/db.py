@@ -5,7 +5,14 @@ from typing import List, Dict, Any
 
 
 class SQLiteClient:
-    def __init__(self, db_path="workout.db"):
+    def __init__(self, db_path=None):
+        if db_path is None:
+            # Use data directory in Docker, current dir otherwise
+            if os.path.exists('/app/data'):
+                db_path = "/app/data/workout.db"
+            else:
+                db_path = "workout.db"
+
         self.db_path = db_path
         self.ensure_db_exists()
         
