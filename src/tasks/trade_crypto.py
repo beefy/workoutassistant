@@ -27,7 +27,9 @@ def main():
             current_hour = now.hour
 
         # Submit LLM request at 3+ minutes past the hour, but only once per hour
-        if current_minute >= 3 and last_llm_request_hour != current_hour:
+        if last_llm_request_hour is None:
+            last_llm_request_hour = current_hour  # Initialize on first run and don't run until the next hour
+        elif current_minute >= 3 and last_llm_request_hour != current_hour:
             print(f"3+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
             llm_result = submit_llm_request("", priority=1, max_tokens=1000, temperature=0.7, final_query=False, use_crypto_prompt=True, task="Crypto trading decision")
             response = llm_result.get('response', '')
