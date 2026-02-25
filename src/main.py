@@ -1,6 +1,7 @@
 from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto, discord_bot
 import threading
 import time
+import traceback
 from utils.tracking_api import login, status_update
 import os
 from clients.gmail import GmailClient
@@ -13,10 +14,14 @@ def auto_restart_wrapper(target_func, name):
             print(f"🔄 Starting {name} thread...")
             target_func()
         except Exception as e:
-            print(f"❌ {name} thread crashed: {e}")
-            print(f"🔄 Restarting {name} thread in 5 seconds...")
+            error_msg = str(e) or repr(e) or "Unknown error"
+            exception_type = type(e).__name__
+            print(f"❌ {name} thread crashed: {exception_type}: {error_msg}")
+            print(f"📝 Full traceback:")
+            traceback.print_exc()
+            print(f"🔄 Restarting {name} thread in 5 minutes...")
 
-            print(f"⚠️ An error occurred: {e}")
+            print(f"⚠️ An error occurred in {name}: {exception_type}: {error_msg}")
             admin_email = os.getenv("ADMIN_EMAIL")
             client = GmailClient()
             client.send_email_with_attachment(admin_email, f"Bob encountered an Exception in {name} thread", "Please see the attached file.", file_path="/home/bob/Code/workoutassistant/output.log")
@@ -24,7 +29,7 @@ def auto_restart_wrapper(target_func, name):
             if tracking_token:
                 status_update(tracking_token, "Error!")
 
-            time.sleep(5)
+            time.sleep(300)  # Wait for 5 minutes before restarting
 
 
 if __name__ == "__main__":
