@@ -13,6 +13,7 @@ from discord.ext import commands
 from pathlib import Path
 import tempfile
 import shutil
+import edge_tts
 
 # Import other utilities
 from scripts.youtube_audio import search_and_download_music_video
@@ -113,6 +114,89 @@ class MusicBot:
             await channel.send(f"❌ Error generating image: {str(e)}")
             print(f"Error in generate_and_send_image: {e}")
 
+    async def generate_tts_and_play(self, channel, text, voice_channel, voice="en-US-AriaNeural"):
+        """Generate TTS audio and play it in the voice channel."""
+        try:
+            # Send status message
+            status_msg = await channel.send(f"🔊 Generating TTS: {text[:50]}{'...' if len(text) > 50 else ''}")
+            
+            # Create a temporary directory for this TTS
+            download_path = os.path.join(self.temp_dir, f"tts_{channel.guild.id}")
+            Path(download_path).mkdir(exist_ok=True)
+            
+            # Generate TTS audio file
+            tts_file = os.path.join(download_path, f"tts_{channel.guild.id}.mp3")
+            
+            # Run TTS generation in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def generate_tts():
+                """Generate TTS in separate thread"""
+                try:
+                    # Create TTS communication
+                    communicate = edge_tts.Communicate(text, voice)
+                    
+                    # Use asyncio.run in thread since communicate.save is async
+                    async def save_tts():
+                        await communicate.save(tts_file)
+                    
+                    # Create new event loop for this thread
+                    thread_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(thread_loop)
+                    thread_loop.run_until_complete(save_tts())
+                    thread_loop.close()
+                    
+                    return tts_file if os.path.exists(tts_file) else None
+                except Exception as e:
+                    print(f"Error generating TTS: {e}")
+                    return None
+            
+            # Generate TTS with timeout
+            audio_file = await asyncio.wait_for(
+                loop.run_in_executor(None, generate_tts),
+                timeout=30.0  # 30 second timeout
+            )
+            
+            if not audio_file or not os.path.exists(audio_file):
+                await status_msg.edit(content="❌ Could not generate TTS audio.")
+                return
+            
+            await status_msg.edit(content=f"🔊 Generated! Joining voice channel...")
+            
+            # Join voice channel
+            voice_client = await self.join_voice_channel(voice_channel)
+            
+            # Stop any currently playing audio
+            if voice_client.is_playing():
+                voice_client.stop()
+            
+            await status_msg.edit(content=f"🗣️ Speaking: {text[:30]}{'...' if len(text) > 30 else ''}")
+            
+            # Play the TTS audio
+            audio_source = discord.FFmpegPCMAudio(audio_file)
+            voice_client.play(audio_source)
+            
+            # Wait for playback to finish, then clean up
+            while voice_client.is_playing():
+                await asyncio.sleep(1)
+                
+            # Clean up the TTS file
+            try:
+                os.remove(audio_file)
+                # Remove download directory if empty
+                if os.path.exists(download_path) and not os.listdir(download_path):
+                    os.rmdir(download_path)
+            except Exception as e:
+                print(f"Error cleaning up TTS file {audio_file}: {e}")
+            
+            await status_msg.edit(content="✅ Finished speaking.")
+                
+        except asyncio.TimeoutError:
+            await channel.send("⏱️ TTS generation timed out.")
+        except Exception as e:
+            await channel.send(f"❌ TTS Error: {str(e)}")
+            print(f"Error in generate_tts_and_play: {e}")
+
 def create_discord_bot():
     """Create and configure the Discord bot."""
     # Bot setup
@@ -160,7 +244,7 @@ def create_discord_bot():
         # Download and play the audio
         await music_bot.download_and_play(ctx.channel, query, voice_channel)
     
-    @bot.command(name='llm')
+    @bot.command(name='bob')
     async def llm_command(ctx, *, prompt):
         """Send a prompt to the LLM via priority queue."""
         try:
@@ -181,7 +265,7 @@ def create_discord_bot():
             try:
                 future = await asyncio.wait_for(
                     loop.run_in_executor(None, submit_llm_request),
-                    timeout=180.0  # 180 second timeout
+                    timeout=300.0  # 5 minute timeout
                 )
                 
                 # Get the response
@@ -191,10 +275,10 @@ def create_discord_bot():
                         # Split long responses into chunks
                         max_length = 1900
                         if len(response) <= max_length:
-                            await ctx.send(f"💭 {response}")
+                            await ctx.send(f"💭 {response['response']}")
                         else:
                             # Send in chunks
-                            chunks = [response[i:i+max_length] for i in range(0, len(response), max_length)]
+                            chunks = [response['response'][i:i+max_length] for i in range(0, len(response['response']), max_length)]
                             for i, chunk in enumerate(chunks[:3]):  # Limit to 3 chunks
                                 await ctx.send(f"💭 ({i+1}/{len(chunks)}) {chunk}")
                             if len(chunks) > 3:
@@ -204,7 +288,7 @@ def create_discord_bot():
                 else:
                     await ctx.send("🤔 LLM request failed")
             except asyncio.TimeoutError:
-                await ctx.send("⏱️ LLM request timed out after 180 seconds. The request may still be processing in the background.")
+                await ctx.send("⏱️ LLM request timed out after 300 seconds. The request may still be processing in the background.")
                 
         except Exception as e:
             await ctx.send(f"❌ Error with LLM request: {str(e)}")
@@ -214,6 +298,24 @@ def create_discord_bot():
     async def image_command(ctx, *, prompt):
         """Generate an AI image based on the prompt."""
         await music_bot.generate_and_send_image(ctx.channel, prompt)
+    
+    @bot.command(name='say')
+    async def say_command(ctx, *, text):
+        """Use text-to-speech to speak in the voice channel."""
+        # Check if user is in a voice channel
+        if ctx.author.voice is None:
+            await ctx.send("❌ You need to be in a voice channel to use this command!")
+            return
+            
+        voice_channel = ctx.author.voice.channel
+        
+        # Limit text length to prevent abuse
+        if len(text) > 500:
+            await ctx.send("❌ Text too long! Please limit to 500 characters.")
+            return
+        
+        # Generate TTS and play
+        await music_bot.generate_tts_and_play(ctx.channel, text, voice_channel)
     
     @bot.command(name='stop')
     async def stop_music(ctx):
@@ -249,11 +351,12 @@ def create_discord_bot():
 
 **Music & Audio:**
 • `!groovy <song name>` - Search and play audio from YouTube
+• `!say <text>` - Speak text using text-to-speech
 • `!stop` - Stop the currently playing music
 • `!leave` - Make the bot leave the voice channel
 
 **AI Features:**
-• `!llm <prompt>` - Send a prompt to the LLM
+• `!bob <prompt>` - Send a prompt to the LLM
 • `!image <description>` - Generate an AI image
 
 **Utility:**
@@ -262,7 +365,8 @@ def create_discord_bot():
 
 **Examples:**
 • `!groovy Bohemian Rhapsody`
-• `!llm What is the meaning of life?`
+• `!say Hello everyone, how are you doing today?`
+• `!bob What is the meaning of life?`
 • `!image a cute cat wearing sunglasses`
         """
         await ctx.send(help_text)

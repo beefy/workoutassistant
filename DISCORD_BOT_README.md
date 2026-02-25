@@ -69,9 +69,10 @@ This runs only the Discord bot.
 - `!groovy Bohemian Rhapsody` - Downloads and plays the song
 - `!groovy Never Gonna Give You Up` - Rick roll anyone?
 - `!groovy <any song name>` - Plays the specified song
+- `!say Hello everyone!` - Speaks text using text-to-speech
 
 ### AI Commands  
-- `!llm What is the meaning of life?` - Send prompt to LLM
+- `!bob What is the meaning of life?` - Send prompt to LLM
 - `!image a cute cat wearing sunglasses` - Generate AI image
 - `!image futuristic cityscape at sunset` - Create custom artwork
 
@@ -84,15 +85,22 @@ This runs only the Discord bot.
 ## How It Works
 
 ### Music Functionality
-1. User types `!groovy <song name>` in Discord
+1. **Music Playback**: User types `!groovy <song name>` in Discord
 2. Bot searches YouTube using the existing YouTube downloader
 3. Downloads the audio file
 4. Joins the user's voice channel
 5. Plays the audio
 6. Automatically cleans up temporary files
 
+### Text-to-Speech
+1. **TTS**: User types `!say <text>` in Discord
+2. Bot generates speech using Microsoft Edge TTS
+3. Joins the user's voice channel
+4. Plays the generated speech audio
+5. Automatically cleans up temporary files
+
 ### AI Features
-1. **LLM Integration**: `!llm <prompt>` adds requests to the priority queue system
+1. **LLM Integration**: `!bob <prompt>` adds requests to the priority queue system
 2. **Image Generation**: `!image <description>` uses HuggingFace to generate and send images
 
 ### Integration
@@ -125,7 +133,8 @@ This runs only the Discord bot.
 4. **Test Basic Functionality**
    - Try `!test` command first
    - Try `!groovy bohemian rhapsody` for music
-   - Try `!llm hello` for LLM integration
+   - Try `!say hello world` for text-to-speech
+   - Try `!bob hello` for LLM integration
    - Try `!image cute cat` for image generation
    - If these don't work, it's a permissions issue
 
