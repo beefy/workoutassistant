@@ -78,6 +78,7 @@ This runs only the Discord bot.
 
 ### Bot Commands
 - `!test` - Test if bot is responding
+- `!status` - Show system status and LLM queue information
 - `!stop` - Stops currently playing music
 - `!leave` - Makes bot leave the voice channel
 - `!help_bob` - Shows help message
@@ -131,8 +132,7 @@ This runs only the Discord bot.
    - Restart the bot after enabling
 
 4. **Test Basic Functionality**
-   - Try `!test` command first
-   - Try `!groovy bohemian rhapsody` for music
+   - Try `!test` command first   - Try `!status` to check system status   - Try `!groovy bohemian rhapsody` for music
    - Try `!say hello world` for text-to-speech
    - Try `!bob hello` for LLM integration
    - Try `!image cute cat` for image generation

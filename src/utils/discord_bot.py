@@ -256,7 +256,7 @@ def create_discord_bot():
             def submit_llm_request():
                 """Submit request in separate thread"""
                 try:
-                    return music_bot.llm_queue.submit_request(prompt, priority=1)
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
                 except Exception as e:
                     print(f"Error submitting LLM request: {e}")
                     return None
@@ -302,6 +302,62 @@ def create_discord_bot():
             await ctx.send(f"❌ Error with LLM request: {str(e)}")
             print(f"Error in llm_command: {e}")
     
+    @bot.command(name='status')
+    async def status_command(ctx):
+        """Get the current status of the system and LLM queue."""
+        try:
+            # Get queue status
+            queue_manager = music_bot.llm_queue
+            queue_status = queue_manager.get_status()
+            
+            # Get basic system info
+            import psutil
+            import platform
+            
+            # CPU and Memory info
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            # Format current request info
+            current_info = "None"
+            if queue_status['current_request']:
+                req = queue_status['current_request']
+                current_info = f"{req['task']} (priority {req['priority']})"
+            
+            # Build status message
+            status_text = f"""
+🤖 **System Status:**
+
+**Hardware:**
+• Platform: {platform.system()} {platform.release()}
+• CPU Usage: {cpu_percent}%
+• Memory: {memory.percent}% ({memory.used // 1024 // 1024}MB / {memory.total // 1024 // 1024}MB)
+• Disk: {disk.percent}% ({disk.used // 1024 // 1024 // 1024}GB / {disk.total // 1024 // 1024 // 1024}GB)
+
+**LLM Queue:**
+• Queue Size: {queue_status['queue_size']} requests waiting
+• Current Processing: {current_info}
+• LLM Ready: {'Yes' if queue_status['llm_ready'] else 'No'}
+• Queue Running: {'Yes' if queue_status['running'] else 'No'}
+
+**Discord Bot:**
+• Connected Servers: {len(ctx.bot.guilds)}
+• Voice Channels: {len(music_bot.voice_clients)} active
+            """
+            
+            # Split into chunks if too long
+            if len(status_text) > 2000:
+                chunks = [status_text[i:i+1900] for i in range(0, len(status_text), 1900)]
+                for chunk in chunks:
+                    await ctx.send(chunk)
+            else:
+                await ctx.send(status_text)
+            
+        except Exception as e:
+            await ctx.send(f"❌ Error getting status: {str(e)}")
+            print(f"Error in status_command: {e}")
+
     @bot.command(name='image')
     async def image_command(ctx, *, prompt):
         """Generate an AI image based on the prompt."""
@@ -367,7 +423,8 @@ def create_discord_bot():
 • `!bob <prompt>` - Send a prompt to the LLM
 • `!image <description>` - Generate an AI image
 
-**Utility:**
+**System:**
+• `!status` - Show system status and LLM queue info
 • `!test` - Test if bot is responding
 • `!help_bob` - Show this help message
 
@@ -376,6 +433,7 @@ def create_discord_bot():
 • `!say Hello everyone, how are you doing today?`
 • `!bob What is the meaning of life?`
 • `!image a cute cat wearing sunglasses`
+• `!status` - Check what's currently processing
         """
         await ctx.send(help_text)
     
