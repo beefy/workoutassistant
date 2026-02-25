@@ -17,7 +17,7 @@ def summarize_news():
         llm_result = submit_llm_request(
             prompt=prompt,
             max_tokens=500,
-            priority=2,  # Low priority for news summarization
+            priority=3,  # Low priority for news summarization
         )
         response = llm_result.get('response', '')
 
@@ -29,7 +29,7 @@ def summarize_news():
     response = submit_llm_request(
         prompt=prompt,
         max_tokens=1250,
-        priority=2,  # Low priority for news summarization
+        priority=3,  # Low priority for news summarization
     )
 
     print(f"News summary:\n{response}")

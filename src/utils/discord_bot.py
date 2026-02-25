@@ -256,7 +256,7 @@ def create_discord_bot():
             def submit_llm_request():
                 """Submit request in separate thread"""
                 try:
-                    return music_bot.llm_queue.submit_request(prompt, priority=3)
+                    return music_bot.llm_queue.submit_request(prompt, priority=1)
                 except Exception as e:
                     print(f"Error submitting LLM request: {e}")
                     return None
@@ -265,20 +265,28 @@ def create_discord_bot():
             try:
                 future = await asyncio.wait_for(
                     loop.run_in_executor(None, submit_llm_request),
-                    timeout=900.0  # 15 minute timeout
+                    timeout=2340.0  # 39 minute timeout
                 )
                 
                 # Get the response
                 if future:
                     response = future.result() if hasattr(future, 'result') else str(future)
                     if response:
+                        # Handle both string and dict responses
+                        if isinstance(response, dict) and 'response' in response:
+                            response_text = response['response']
+                        elif isinstance(response, str):
+                            response_text = response
+                        else:
+                            response_text = str(response)
+                        
                         # Split long responses into chunks
                         max_length = 1900
-                        if len(response) <= max_length:
-                            await ctx.send(f"💭 {response['response']}")
+                        if len(response_text) <= max_length:
+                            await ctx.send(f"💭 {response_text}")
                         else:
                             # Send in chunks
-                            chunks = [response['response'][i:i+max_length] for i in range(0, len(response['response']), max_length)]
+                            chunks = [response_text[i:i+max_length] for i in range(0, len(response_text), max_length)]
                             for i, chunk in enumerate(chunks[:3]):  # Limit to 3 chunks
                                 await ctx.send(f"💭 ({i+1}/{len(chunks)}) {chunk}")
                             if len(chunks) > 3:
@@ -288,7 +296,7 @@ def create_discord_bot():
                 else:
                     await ctx.send("🤔 LLM request failed")
             except asyncio.TimeoutError:
-                await ctx.send("⏱️ LLM request timed out after 900 seconds. The request may still be processing in the background.")
+                await ctx.send("⏱️ LLM request timed out after 2340 seconds. The request may still be processing in the background.")
                 
         except Exception as e:
             await ctx.send(f"❌ Error with LLM request: {str(e)}")
