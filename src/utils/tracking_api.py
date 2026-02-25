@@ -168,6 +168,52 @@ def unsubscribe_user(email):
         print(f"Failed to unsubscribe {email}. Status code: {response.status_code}, Response: {response.text}")
 
 
+def refresh_indicators(token):
+    # POST /api/v1/indicators/indicators/refresh
+    url = "https://api.bobtheraspberrypi.com/api/v1/indicators/indicators/refresh"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}"
+    }
+    response = requests.post(url, headers=headers)
+    if response.status_code == 200 or response.status_code == 201:
+        print("Indicator refresh triggered successfully!")
+    else:
+        print(f"Failed to trigger indicator refresh. Status code: {response.status_code}, Response: {response.text}")
+
+
+def get_indicators(token):
+    # GET /api/v1/indicators/indicators/
+    url = "https://api.bobtheraspberrypi.com/api/v1/indicators/indicators/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        print("Indicators fetched successfully!")
+        return response.json()
+    else:
+        print(f"Failed to fetch indicators. Status code: {response.status_code}, Response: {response.text}")
+        return None
+
+
+def get_indicator_cache_stats(token):
+    # GET /api/v1/indicators/indicators/cache-stats/
+    url = "https://api.bobtheraspberrypi.com/api/v1/indicators/indicators/cache-stats/"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        print("Cache stats fetched successfully!")
+        return response.json()
+    else:
+        print(f"Failed to fetch cache stats. Status code: {response.status_code}, Response: {response.text}")
+        return None
+
+
 if __name__ == "__main__":
     username = os.getenv("TRACKING_API_USERNAME")
     password = os.getenv("TRACKING_API_PASSWORD")
