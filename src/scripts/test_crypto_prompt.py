@@ -29,5 +29,5 @@ print("Cache stats after refresh:", cache_stats_after)
 indicators = get_indicators(token)
 print("Fetched indicators:", indicators)
 
-prompt = build_crypto_prompt("None", "None", indicators)
+prompt = build_crypto_prompt("None", "None", indicators['indicators'])
 print(prompt)
