@@ -49,17 +49,31 @@ DISCORD_BOT_TOKEN=your_bot_token_here
 
 ## Running the Bot
 
+### Option 1: With Main Application (Recommended)
+```bash
+cd /Users/nate/Code/workoutassistant
+PYTHONPATH=src python src/main.py
+```
+This runs the Discord bot alongside all other application threads.
+
+### Option 2: Standalone Bot Only
 ```bash
 cd /Users/nate/Code/workoutassistant
 PYTHONPATH=src python src/scripts/discord_bot.py
 ```
+This runs only the Discord bot.
 
 ## Usage
 
-### Natural Language Commands
-- `get audio Bohemian Rhapsody` - Downloads and plays the song
-- `get audio Never Gonna Give You Up` - Rick roll anyone?
-- `get audio Imagine Dragons Thunder` - Plays the specified song
+### Music Commands
+- `!groovy Bohemian Rhapsody` - Downloads and plays the song
+- `!groovy Never Gonna Give You Up` - Rick roll anyone?
+- `!groovy <any song name>` - Plays the specified song
+
+### AI Commands  
+- `!llm What is the meaning of life?` - Send prompt to LLM
+- `!image a cute cat wearing sunglasses` - Generate AI image
+- `!image futuristic cityscape at sunset` - Create custom artwork
 
 ### Bot Commands
 - `!test` - Test if bot is responding
@@ -69,11 +83,23 @@ PYTHONPATH=src python src/scripts/discord_bot.py
 
 ## How It Works
 
-1. Bot listens for messages containing "get audio <text>"
-2. Uses the existing YouTube downloader to search and download audio
-3. Joins the user's voice channel
-4. Plays the downloaded audio
-5. Cleans up temporary files after playback
+### Music Functionality
+1. User types `!groovy <song name>` in Discord
+2. Bot searches YouTube using the existing YouTube downloader
+3. Downloads the audio file
+4. Joins the user's voice channel
+5. Plays the audio
+6. Automatically cleans up temporary files
+
+### AI Features
+1. **LLM Integration**: `!llm <prompt>` adds requests to the priority queue system
+2. **Image Generation**: `!image <description>` uses HuggingFace to generate and send images
+
+### Integration
+- Can run standalone or as part of the main application
+- Integrates with existing LLM priority queue
+- Uses existing image generation clients
+- Auto-restart functionality when run with main.py
 
 ## Troubleshooting
 
@@ -98,7 +124,10 @@ PYTHONPATH=src python src/scripts/discord_bot.py
 
 4. **Test Basic Functionality**
    - Try `!test` command first
-   - If this doesn't work, it's a permissions issue
+   - Try `!groovy bohemian rhapsody` for music
+   - Try `!llm hello` for LLM integration
+   - Try `!image cute cat` for image generation
+   - If these don't work, it's a permissions issue
 
 5. **Bot Role Position**
    - In Discord server → Server Settings → Roles

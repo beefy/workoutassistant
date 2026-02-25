@@ -1,4 +1,4 @@
-from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto
+from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto, discord_bot
 import threading
 import time
 from utils.tracking_api import login, status_update
@@ -34,6 +34,7 @@ if __name__ == "__main__":
     threading.Thread(target=auto_restart_wrapper, args=(respond_to_email.main, "email"), daemon=True).start()
     threading.Thread(target=auto_restart_wrapper, args=(newsletter.main, "newsletter"), daemon=True).start()
     threading.Thread(target=auto_restart_wrapper, args=(trade_crypto.main, "crypto"), daemon=True).start()
+    threading.Thread(target=auto_restart_wrapper, args=(discord_bot.main, "discord_bot"), daemon=True).start()
     
     # keep main thread alive - wait for keyboard interrupt
     try:
