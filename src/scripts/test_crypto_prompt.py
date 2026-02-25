@@ -17,7 +17,7 @@ newest_entry = cache_stats_before['newest_entry']
 print("Newest cache entry timestamp:", newest_entry)
 
 # refresh if cache is older than 1 hour
-if (datetime.datetime.now(datetime.UTC) - datetime.datetime.fromisoformat(newest_entry)).total_seconds() > 3600:
+if (datetime.datetime.now(datetime.UTC) - datetime.datetime.fromisoformat(newest_entry).replace(tzinfo=datetime.UTC)).total_seconds() > 3600:
     print("Cache is older than 1 hour, refreshing indicators...")
     refresh_indicators(token)
 else:
