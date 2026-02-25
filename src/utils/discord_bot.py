@@ -164,29 +164,47 @@ def create_discord_bot():
     async def llm_command(ctx, *, prompt):
         """Send a prompt to the LLM via priority queue."""
         try:
-            # Add to priority queue
-            future = music_bot.llm_queue.submit_request(prompt, priority=3)  # Lower priority for Discord
-            await ctx.send(f"🧠 Added to LLM queue: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
+            await ctx.send(f"🧠 Adding to LLM queue: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
             
-            # Try to get response (with timeout)
+            # Run the blocking LLM request in a separate thread to avoid blocking the Discord event loop
+            loop = asyncio.get_event_loop()
+            
+            def submit_llm_request():
+                """Submit request in separate thread"""
+                try:
+                    return music_bot.llm_queue.submit_request(prompt, priority=3)
+                except Exception as e:
+                    print(f"Error submitting LLM request: {e}")
+                    return None
+            
+            # Run in executor with timeout to avoid blocking the event loop
             try:
-                response = future.result(timeout=30)  # 30 second timeout
-                if response:
-                    # Split long responses into chunks
-                    max_length = 1900
-                    if len(response) <= max_length:
-                        await ctx.send(f"💭 {response}")
+                future = await asyncio.wait_for(
+                    loop.run_in_executor(None, submit_llm_request),
+                    timeout=180.0  # 180 second timeout
+                )
+                
+                # Get the response
+                if future:
+                    response = future.result() if hasattr(future, 'result') else str(future)
+                    if response:
+                        # Split long responses into chunks
+                        max_length = 1900
+                        if len(response) <= max_length:
+                            await ctx.send(f"💭 {response}")
+                        else:
+                            # Send in chunks
+                            chunks = [response[i:i+max_length] for i in range(0, len(response), max_length)]
+                            for i, chunk in enumerate(chunks[:3]):  # Limit to 3 chunks
+                                await ctx.send(f"💭 ({i+1}/{len(chunks)}) {chunk}")
+                            if len(chunks) > 3:
+                                await ctx.send("💭 Response truncated (too long)")
                     else:
-                        # Send in chunks
-                        chunks = [response[i:i+max_length] for i in range(0, len(response), max_length)]
-                        for i, chunk in enumerate(chunks[:3]):  # Limit to 3 chunks
-                            await ctx.send(f"💭 ({i+1}/{len(chunks)}) {chunk}")
-                        if len(chunks) > 3:
-                            await ctx.send("💭 Response truncated (too long)")
+                        await ctx.send("🤔 LLM returned empty response")
                 else:
-                    await ctx.send("🤔 LLM returned empty response")
-            except Exception as e:
-                await ctx.send(f"⚠️ LLM request timed out or failed: {str(e)}")
+                    await ctx.send("🤔 LLM request failed")
+            except asyncio.TimeoutError:
+                await ctx.send("⏱️ LLM request timed out after 180 seconds. The request may still be processing in the background.")
                 
         except Exception as e:
             await ctx.send(f"❌ Error with LLM request: {str(e)}")
