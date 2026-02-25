@@ -241,8 +241,8 @@ def create_discord_bot():
         else:
             await ctx.send("Bot is not connected to a voice channel.")
     
-    @bot.command(name='help')
-    async def help_music(ctx):
+    @bot.command(name='help_bob')
+    async def help_bob(ctx):
         """Show help for music commands."""
         help_text = """
 🤖 **Bot Commands:**
@@ -258,7 +258,7 @@ def create_discord_bot():
 
 **Utility:**
 • `!test` - Test if bot is responding
-• `!help` - Show this help message
+• `!help_bob` - Show this help message
 
 **Examples:**
 • `!groovy Bohemian Rhapsody`
