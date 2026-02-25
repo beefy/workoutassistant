@@ -79,7 +79,7 @@ This runs only the Discord bot.
 - `!test` - Test if bot is responding
 - `!stop` - Stops currently playing music
 - `!leave` - Makes bot leave the voice channel
-- `!help_music` - Shows help message
+- `!help` - Shows help message
 
 ## How It Works
 
