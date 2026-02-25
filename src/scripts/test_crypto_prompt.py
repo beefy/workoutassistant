@@ -9,6 +9,7 @@ if not token:
     print("Failed to log in to tracking API. Please check your credentials.")
     exit(1)
 
+print(token)
 cache_stats_before = get_indicator_cache_stats(token)
 print("Cache stats before refresh:", cache_stats_before)
 
