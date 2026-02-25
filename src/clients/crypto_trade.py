@@ -335,6 +335,10 @@ def execute_crypto_trade(
     
     token_values, total_value = get_crypto_balances_with_value(indicators)
     
+    # Check that the token is in the approved list of tokens to trade
+    if token_symbol.upper() not in TOKEN_ADDRESSES:
+        raise ValueError(f"Token {token_symbol} is not in the approved list of tokens to trade.")
+
     # Convert buy amount from token amount to SOL amount for trading
     if action.lower() == 'buy':
         print(f"Attempting to buy {amount} {token_symbol}...")
