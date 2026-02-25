@@ -270,7 +270,7 @@ def create_discord_bot():
                 
                 # Get the response
                 if future:
-                    response = future.result() if hasattr(future, 'result') else str(future)
+                    response = future.result() if hasattr(future, 'result') else future
                     if response:
                         # Handle both string and dict responses
                         if isinstance(response, dict) and 'response' in response:
