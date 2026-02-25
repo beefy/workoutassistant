@@ -70,23 +70,6 @@ The easiest way to deploy WorkoutAssistant is using Docker. This provides:
    - Set up auto-startup on system boot
    - Check for updates every 5 minutes and auto-update
 
-### Manual Docker Setup
-
-If you prefer manual setup:
-
-```bash
-# Create directories
-mkdir -p ~/workoutassistant/{data,models,logs}
-cd ~/workoutassistant
-
-# Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/YOUR_USERNAME/workoutassistant/main/docker-compose.yml
-
-# Make sure your ~/.variables file exists with secrets
-# Then start the containers
-docker compose up -d
-```
-
 ### Docker Commands
 
 ```bash
@@ -116,58 +99,21 @@ The deployment includes [Watchtower](https://github.com/containrrr/watchtower) w
 
 Updates are triggered automatically when code is pushed to the main branch via GitHub Actions.
 
-### � Setting Up CI/CD (For Developers)
+### Setting Up CI/CD
 
 To set up automatic Docker image building and publishing:
 
-1. **Fork this repository** to your GitHub account
+**Set up DockerHub account** and create a repository named `workoutassistant`
 
-2. **Set up DockerHub account** and create a repository named `workoutassistant`
-
-3. **Run the configuration script** to update usernames automatically:
-   ```bash
-   ./setup-config.sh
-   ```
-   This will prompt you for your GitHub and DockerHub usernames and update all configuration files automatically.
-
-4. **Configure GitHub Secrets** in your repository settings:
+**Configure GitHub Secrets** in your repository settings:
    - Go to Settings → Secrets and variables → Actions
    - Add these repository secrets:
      - `DOCKERHUB_USERNAME`: Your DockerHub username
      - `DOCKERHUB_TOKEN`: Your DockerHub access token ([create one here](https://hub.docker.com/settings/security))
 
-5. **Commit and push** to main branch:
-   ```bash
-   git add .
-   git commit -m "Configure usernames for deployment"
-   git push origin main
-   ```
-   
-   GitHub Actions will automatically build and push the Docker image!
-
-### 🔒 Security & Secret Management
-
-- **Secrets are NEVER included in the Docker image**
-- All sensitive data is loaded from `~/.variables` file on your Pi
-- The image is safe to be public on DockerHub
-- Environment variables are only mounted at runtime
-- The `.dockerignore` file ensures no local secrets are accidentally included
-
 ### 🏥 Health Monitoring
 
 The container includes health checks that monitor if the main process is running. Container will restart automatically if health checks fail.
-
-### 📊 System Status
-
-Use the included status script to check if everything is working properly:
-
-```bash
-# Download and run the status checker
-curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/workoutassistant/main/status.sh | bash
-
-# Or if you have the repo cloned
-./status.sh
-```
 
 ### 🔧 Troubleshooting
 
@@ -184,23 +130,6 @@ curl -sSL https://raw.githubusercontent.com/YOUR_USERNAME/workoutassistant/main/
 - Verify Gmail credentials in `~/.variables`
 - Check if 2FA is enabled and App Password is generated
 - Test manually: `docker compose exec workoutassistant python src/scripts/test_email.py`
-
-### 📜 Included Scripts
-
-The repository includes several helpful scripts:
-
-- **`setup-config.sh`** - Automatically configure GitHub/DockerHub usernames in all files
-- **`deploy.sh`** - One-click deployment script for Raspberry Pi
-- **`status.sh`** - System status checker and diagnostics
-- **`.variables.example`** - Template for environment variables
-
-## 💻 Manual Installation (Alternative)
-
-If you prefer not to use Docker, you can install manually:
-
-## 💻 Manual Installation (Alternative)
-
-If you prefer not to use Docker, you can install manually:
 
 ### Prerequisites
 
