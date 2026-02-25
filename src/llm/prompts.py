@@ -70,7 +70,7 @@ def format_balance_for_llm(balance):
     # Current holdings (non-zero balances)
     holdings = [(symbol, data) for symbol, data in balance.items() if data['balance'] > 0]
     if holdings:
-        formatted += "CURRENT HOLDINGS:\n"
+        formatted += "CURRENT HOLDINGS (AVAILABLE TO SELL):\n"
         for symbol, data in holdings:
             balance_amount = data['balance']
             usd_value = data['usd_value']
@@ -88,18 +88,24 @@ def format_balance_for_llm(balance):
         # Sort by potential USD investment amount
         available.sort(key=lambda x: x[1]['max_buy'] * x[1]['usd_price'], reverse=True)
         
-        formatted += "AVAILABLE FOR PURCHASE (Top opportunities by investment size):\n"
-        for symbol, data in available:
-            price = data['usd_price']
-            max_buy = data['max_buy']
-            max_investment = max_buy * price
-            
-            if price < 0.0001:
-                formatted += f"• {symbol}: ${price:.8f} each → Can buy {max_buy:,.0f} tokens (${max_investment:.2f})\n"
-            else:
-                formatted += f"• {symbol}: ${price:.4f} each → Can buy {max_buy:.2f} tokens (${max_investment:.2f})\n"
+        # Check if actually no tokens can be purchased (all max_buy are 0 or negligible)
+        can_actually_buy = any(data['max_buy'] > 0.01 for symbol, data in available)
         
-        formatted += "\n"
+        formatted += "AVAILABLE FOR PURCHASE:\n"
+        if not can_actually_buy:
+            formatted += "• None\n\nNot enough SOL to buy anything. Sell something from your current holdings first before buying if one of the listed indicators is more bullish than your current holdings.\n\n"
+        else:
+            for symbol, data in available:
+                price = data['usd_price']
+                max_buy = data['max_buy']
+                max_investment = max_buy * price
+                
+                if price < 0.0001:
+                    formatted += f"• {symbol}: ${price:.8f} each → Can buy {max_buy:,.0f} tokens (${max_investment:.2f})\n"
+                else:
+                    formatted += f"• {symbol}: ${price:.4f} each → Can buy {max_buy:.2f} tokens (${max_investment:.2f})\n"
+            
+            formatted += "\n"
     
     # Transaction fee information
     sol_balance = balance.get('SOL', {}).get('balance', 0)
@@ -118,6 +124,7 @@ def format_balance_for_llm(balance):
     formatted += "• Transaction fee: 0.000005 SOL per trade\n"
     formatted += "• Can only sell tokens you currently hold\n"
     formatted += "• Max buy amounts are calculated from available SOL\n"
+    formatted += "• You cannot buy or sell SOL. To sell SOL, buy USDC. To buy SOL, sell another one of your holdings.\n"
     
     return formatted
 
