@@ -6,7 +6,7 @@ This script searches for a video title + "Music Video" and downloads the audio.
 
 import os
 import sys
-from pytube import Search, YouTube
+import yt_dlp
 from pathlib import Path
 
 def search_and_download_music_video(title: str, download_path: str = "downloads") -> str:
@@ -24,44 +24,74 @@ def search_and_download_music_video(title: str, download_path: str = "downloads"
         # Create download directory if it doesn't exist
         Path(download_path).mkdir(exist_ok=True)
         
-        # Search for the video
+        # Search for the video using YouTube search
         search_query = f"{title} Music Video"
         print(f"Searching for: {search_query}")
         
-        search = Search(search_query)
+        # Configure yt-dlp options for searching and downloading audio
+        ydl_search_opts = {
+            'quiet': True,
+            'no_warnings': True
+        }
         
-        if not search.results:
+        # Create a search URL (YouTube search results)
+        search_url = f"ytsearch1:{search_query}"
+        
+        # First, extract video info to get the actual video URL and title
+        with yt_dlp.YoutubeDL(ydl_search_opts) as ydl:
+            search_results = ydl.extract_info(search_url, download=False)
+            
+        if not search_results or 'entries' not in search_results or not search_results['entries']:
             raise Exception(f"No results found for '{search_query}'")
         
-        # Get the first result
-        first_video = search.results[0]
-        print(f"Found video: {first_video.title}")
-        print(f"Video URL: {first_video.watch_url}")
+        video_info = search_results['entries'][0]
+        video_url = video_info['webpage_url']
+        video_title = video_info['title']
         
-        # Create YouTube object
-        yt = YouTube(first_video.watch_url)
+        print(f"Found video: {video_title}")
+        print(f"Video URL: {video_url}")
         
-        # Get the audio stream (highest quality available)
-        audio_stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+        # Configure yt-dlp options for downloading audio
+        ydl_download_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'quiet': False
+        }
         
-        if not audio_stream:
-            raise Exception("No audio stream found")
-        
-        print(f"Downloading audio: {yt.title}")
-        print(f"Audio quality: {audio_stream.abr}")
+        print(f"Downloading audio: {video_title}")
         
         # Download the audio
-        output_file = audio_stream.download(output_path=download_path)
+        with yt_dlp.YoutubeDL(ydl_download_opts) as ydl:
+            ydl.download([video_url])
         
-        # Rename to .mp3 if needed
-        if not output_file.endswith('.mp3'):
-            base_name = os.path.splitext(output_file)[0]
-            mp3_file = f"{base_name}.mp3"
-            os.rename(output_file, mp3_file)
-            output_file = mp3_file
+        # Find the downloaded file (it will have .mp3 extension after processing)
+        # Clean the title for filename matching
+        safe_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
         
-        print(f"Downloaded successfully: {output_file}")
-        return output_file
+        # Look for the downloaded file
+        download_dir = Path(download_path)
+        mp3_files = list(download_dir.glob("*.mp3"))
+        
+        if mp3_files:
+            # Get the most recently created mp3 file
+            output_file = max(mp3_files, key=os.path.getctime)
+            print(f"Downloaded successfully: {output_file}")
+            return str(output_file)
+        else:
+            # Fallback: look for any audio file
+            audio_files = list(download_dir.glob("*"))
+            audio_files = [f for f in audio_files if f.is_file() and not f.name.startswith('.')]
+            if audio_files:
+                output_file = max(audio_files, key=os.path.getctime)
+                print(f"Downloaded successfully: {output_file}")
+                return str(output_file)
+            else:
+                raise Exception("Downloaded file not found")
         
     except Exception as e:
         print(f"Error: {e}")
