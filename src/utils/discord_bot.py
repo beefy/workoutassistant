@@ -302,6 +302,68 @@ def create_discord_bot():
             await ctx.send(f"❌ Error with LLM request: {str(e)}")
             print(f"Error in llm_command: {e}")
     
+    @bot.command(name='bob_talk')
+    async def bob_talk_command(ctx, *, prompt):
+        """Send a prompt to the LLM and speak the response in voice chat."""
+        try:
+            # Check if user is in a voice channel
+            if ctx.author.voice is None:
+                await ctx.send("❌ You need to be in a voice channel to use this command!")
+                return
+                
+            voice_channel = ctx.author.voice.channel
+            
+            await ctx.send(f"🧠🔊 Adding to LLM queue and will speak response: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
+            
+            # Run the blocking LLM request in a separate thread to avoid blocking the Discord event loop
+            loop = asyncio.get_event_loop()
+            
+            def submit_llm_request():
+                """Submit request in separate thread"""
+                try:
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                except Exception as e:
+                    print(f"Error submitting LLM request: {e}")
+                    return None
+            
+            # Run in executor with timeout to avoid blocking the event loop
+            try:
+                future = await asyncio.wait_for(
+                    loop.run_in_executor(None, submit_llm_request),
+                    timeout=2340.0  # 39 minute timeout
+                )
+                
+                # Get the response
+                if future:
+                    response = future.result() if hasattr(future, 'result') else future
+                    if response:
+                        # Handle both string and dict responses
+                        if isinstance(response, dict) and 'response' in response:
+                            response_text = response['response']
+                        elif isinstance(response, str):
+                            response_text = response
+                        else:
+                            response_text = str(response)
+                        
+                        # Limit text length for TTS to prevent abuse
+                        if len(response_text) > 1000:
+                            response_text = response_text[:1000]
+                            await ctx.send("⚠️ Response truncated to 1000 characters for TTS.")
+                        
+                        # Generate TTS and play the response
+                        await music_bot.generate_tts_and_play(ctx.channel, response_text, voice_channel)
+                        
+                    else:
+                        await ctx.send("🤔 LLM returned empty response")
+                else:
+                    await ctx.send("🤔 LLM request failed")
+            except asyncio.TimeoutError:
+                await ctx.send("⏱️ LLM request timed out after 2340 seconds.")
+                
+        except Exception as e:
+            await ctx.send(f"❌ Error with LLM talk request: {str(e)}")
+            print(f"Error in bob_talk_command: {e}")
+    
     @bot.command(name='status')
     async def status_command(ctx):
         """Get the current status of the system and LLM queue."""
@@ -421,6 +483,7 @@ def create_discord_bot():
 
 **AI Features:**
 • `!bob <prompt>` - Send a prompt to the LLM
+• `!bob_talk <prompt>` - Send a prompt to the LLM and speak the response
 • `!image <description>` - Generate an AI image
 
 **System:**
@@ -432,6 +495,7 @@ def create_discord_bot():
 • `!groovy Bohemian Rhapsody`
 • `!say Hello everyone, how are you doing today?`
 • `!bob What is the meaning of life?`
+• `!bob_talk Tell me a joke`
 • `!image a cute cat wearing sunglasses`
 • `!status` - Check what's currently processing
         """
