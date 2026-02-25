@@ -34,7 +34,7 @@ def get_all_token_indicators():
     
     return results
 
-if __name__ == "__main__":
-    # Run the function
-    results = get_all_token_indicators()
-    print(results)
+# if __name__ == "__main__":
+#     # Run the function
+#     results = get_all_token_indicators()
+#     print(results)

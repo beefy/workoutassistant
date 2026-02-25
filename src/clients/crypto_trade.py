@@ -277,7 +277,8 @@ def execute_crypto_trade(
     token_symbol: str,
     action: str,
     amount: Union[int, float, Decimal],
-    rpc_url: str = "https://api.mainnet-beta.solana.com"
+    indicators,
+    rpc_url: str = "https://api.mainnet-beta.solana.com",
 ) -> Dict:
     """
     Execute a crypto trade on Solana using Jupiter DEX aggregator.
@@ -305,14 +306,16 @@ def execute_crypto_trade(
         result = execute_crypto_trade(
             token_symbol="JUP", 
             action="buy",
-            amount=100
+            amount=100,
+            indicators=indicators_data  # Pass in the indicators data for price reference
         )
         
         # Sell 100 JUP tokens for SOL
         result = execute_crypto_trade(
             token_symbol="JUP",
             action="sell", 
-            amount=100
+            amount=100,
+            indicators=indicators_data  # Pass in the indicators data for price reference
         )
     """
     if action.lower() not in ['buy', 'sell']:
@@ -330,7 +333,7 @@ def execute_crypto_trade(
     print(f"Current SOL balance: {sol_balance:.6f} SOL")
     minimum_sol_balance = 0.01  # Keep at least 0.01 SOL for transaction fees
     
-    token_values, total_value = get_crypto_balances_with_value()
+    token_values, total_value = get_crypto_balances_with_value(indicators)
     
     # Convert buy amount from token amount to SOL amount for trading
     if action.lower() == 'buy':

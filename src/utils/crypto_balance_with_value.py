@@ -1,5 +1,4 @@
 from utils.crypto_balance import get_crypto_balances
-from clients.crypto_data import BirdeyeDataFetcher
 
 TOKEN_ADDRESSES = {
     "SOL": "So11111111111111111111111111111111111111112",  # Wrapped SOL
@@ -23,13 +22,17 @@ TOKEN_ADDRESSES = {
 # Reverse mapping for easy lookup
 ADDRESS_TO_SYMBOL = {addr: sym for sym, addr in TOKEN_ADDRESSES.items()}
 
-def get_crypto_balances_with_value():
-    fetcher = BirdeyeDataFetcher()
+def get_crypto_balances_with_value(indicators):
     balances = get_crypto_balances()
     ret = {}
 
     for mint, balance in balances.items():
-        usd = fetcher.get_current_price(mint)
+        # Get token symbol from mint address
+        symbol = ADDRESS_TO_SYMBOL.get(mint, mint)
+        
+        # Get price from indicator data if available
+        usd = indicators[symbol].get('current_price')
+        
         ret[mint] = {
             "balance": balance,
             "usd_price": usd,
@@ -42,7 +45,7 @@ def get_crypto_balances_with_value():
 
     # Get SOL price and balance for max_buy calculations
     sol_mint = TOKEN_ADDRESSES["SOL"]
-    sol_price_usd = fetcher.get_current_price(sol_mint)
+    sol_price_usd = indicators['SOL'].get('current_price')
     sol_balance = balances.get(sol_mint, 0)
     
     # Available SOL for buying (reserve 0.01 SOL for transaction fees)
@@ -61,9 +64,11 @@ def get_crypto_balances_with_value():
     # Add 0 value tokens that aren't in the balances but are in the TOKEN_ADDRESSES
     for sym in TOKEN_ADDRESSES.keys():
         if sym not in ret_filtered:
+            usd_price = None
+            usd_price = indicators[sym].get('current_price')
             ret_filtered[sym] = {
                 "balance": 0,
-                "usd_price": fetcher.get_current_price(TOKEN_ADDRESSES[sym]),
+                "usd_price": usd_price,
                 "usd_value": 0
             }
 

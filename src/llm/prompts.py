@@ -12,12 +12,6 @@ def format_indicators_for_llm(indicators):
     neutral_signals = []
 
     for token, data in indicators.items():
-        # # Skip entries that don't have all required indicator fields
-        # required_fields = ['rsi', 'ma_cross', 'macd', 'volume_ratio', 'adx', 
-        #                   'stochastic_k', 'stochastic_d', 'stochastic_signal', 'current_price']
-        # if not isinstance(data, dict) or not all(field in data for field in required_fields):
-        #     continue
-        print(data)
         rsi = float(data['rsi'])
         ma_cross = data['ma_cross']
         macd = data['macd']
@@ -201,7 +195,7 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
     """
 
 def build_crypto_prompt(tool_results, history, indicators):
-    balance, _ = get_crypto_balances_with_value()
+    balance, _ = get_crypto_balances_with_value(indicators)
     
     # Format the data for better LLM comprehension
     formatted_indicators = format_indicators_for_llm(indicators)

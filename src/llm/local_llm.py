@@ -11,13 +11,12 @@ import re
 from clients.crypto_trade import execute_crypto_trade
 import torch
 from llama_cpp import Llama
-from utils.crypto_indicators import get_all_token_indicators
 from utils.web_search import web_search
 from clients.moltbook import MoltbookClient
 from clients.gmail import GmailClient, get_system_info
 from clients.generate_image import HuggingFaceImageGenerator
 from clients.image_captioning import LocalImageCaptioner
-from utils.tracking_api import status_update, system_info_update, response_time_update, login
+from utils.tracking_api import status_update, login, get_indicators
 from llm.prompts import build_initial_prompt, build_intermediate_prompt, build_final_prompt, build_crypto_prompt
 
 
@@ -242,7 +241,10 @@ class LocalLLM:
         self.reset_session()
 
         if use_crypto_prompt:
-            indicators = get_all_token_indicators()
+            token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+            indicators = get_indicators(token)
+            indicators = indicators['indicators']
+            self.indicators = indicators  # Store indicators for tool calls to access
         
         # LLM Call
         print(f"🤔 Generating response for: \"{prompt[:50]}...\"")
@@ -496,7 +498,8 @@ class LocalLLM:
                 result = execute_crypto_trade(
                     token_symbol=symbol,
                     action=action,
-                    amount=amount
+                    amount=amount,
+                    indicators=self.indicators
                 )
                 return f"✅ Trade executed: {action} {amount} of {symbol}\nResult: {result}"
             except Exception as e:
