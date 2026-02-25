@@ -6,11 +6,11 @@ services:
     image: ${DOCKER_IMAGE:-beefybeefy/workoutassistant:latest}
     container_name: workoutassistant
     restart: unless-stopped
+
+    env_file:
+      - ~/.variables
     
     volumes:
-      # Mount secrets from host system (don't include in image)
-      - ~/.variables:/app/.secrets/.variables:ro
-      
       # Mount data directory for persistence
       - ./data:/app/data
       
@@ -57,6 +57,8 @@ services:
     image: containrrr/watchtower:latest
     container_name: watchtower
     restart: unless-stopped
+    env_file:
+      - ~/.variables-watchtower  # Only Gmail credentials, not crypto keys
     environment:
       - WATCHTOWER_POLL_INTERVAL=300  # Check for updates every 5 minutes
       - WATCHTOWER_CLEANUP=true
@@ -64,7 +66,6 @@ services:
       - WATCHTOWER_NOTIFICATIONS=shoutrrr://smtp://workoutassistant:${GMAIL_APP_PASSWORD}@smtp.gmail.com:587/?from=${GMAIL_ADDRESS}&to=${ADMIN_EMAIL}&subject=Watchtower%20Update
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ~/.variables:/root/.variables:ro  # For email notifications
     command: workoutassistant
 
 volumes:

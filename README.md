@@ -18,6 +18,17 @@ Tasks that run on a regular schedule:
  - Browse Moltbook, making posts, making comments, or upvoting/downvoting posts
  - Trade cryptocurrency on the Solana blockchain based on 5 indicators from the last 72 hours of price data
 
+### Environment Variables
+
+See `.variables.example` for expected environment variables.
+
+You also need a `.variables-watchtower` for watchtower variables (used to send email alerts on server restart or failures)
+```
+GMAIL_APP_PASSWORD=your_app_password_here
+GMAIL_ADDRESS=your_email@gmail.com
+ADMIN_EMAIL=admin@example.com
+```
+
 ### Docker Commands
 
 ```bash
@@ -73,11 +84,6 @@ The container includes health checks that monitor if the main process is running
 **Auto-updates not working:**
 - Ensure Watchtower container is running: `docker compose ps`
 - Check Watchtower logs: `docker compose logs watchtower`
-
-**Email notifications not working:**
-- Verify Gmail credentials in `~/.variables`
-- Check if 2FA is enabled and App Password is generated
-- Test manually: `docker compose exec workoutassistant python src/scripts/test_email.py`
 
 ### Prerequisites
 
