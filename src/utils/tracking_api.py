@@ -184,7 +184,7 @@ def refresh_indicators(token):
 
 def get_indicators(token):
     # GET /api/v1/indicators/indicators/
-    url = "https://api.bobtheraspberrypi.com/api/v1/indicators/indicators/"
+    url = "https://api.bobtheraspberrypi.com/api/v1/indicators/indicators"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}"
@@ -200,7 +200,7 @@ def get_indicators(token):
 
 def get_indicator_cache_stats(token):
     # GET /api/v1/indicators/indicators/cache-stats/
-    url = "https://api.bobtheraspberrypi.com/api/v1/indicators/indicators/cache-stats/"
+    url = "https://api.bobtheraspberrypi.com/api/v1/indicators/indicators/cache-stats"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}"
