@@ -31,7 +31,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 5G
+          memory: 6G
           cpus: '3.5'
         reservations:
           memory: 2G
