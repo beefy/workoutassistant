@@ -1,4 +1,10 @@
 import os
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 from utils.tracking_api import login, status_update
 from utils.browse_moltbook import browse_moltbook
@@ -15,7 +21,7 @@ def main():
             if tracking_token:
                 status_update(tracking_token, "Browsing Moltbook")
 
-            print("🔍 Randomly browsing Moltbook...")
+            logger.info("🔍 Randomly browsing Moltbook...")
             browse_moltbook()
 
         time.sleep(900)  # Sleep for 15 minutes

@@ -13,6 +13,12 @@ import base64
 import json
 from utils.crypto_balance import get_sol_balance
 from utils.crypto_balance_with_value import get_crypto_balances_with_value
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Solana token addresses (mainnet)
 TOKEN_ADDRESSES = {
@@ -71,7 +77,7 @@ def get_api_headers():
     """Get headers with API key for Jupiter API"""
     api_key = os.getenv('JUPITER_API_KEY')
     if not api_key:
-        print("⚠️  Warning: JUPITER_API_KEY not set. API may be rate limited.")
+        logger.warning("⚠️ Warning: JUPITER_API_KEY not set. API may be rate limited.")
         return {}
     return {'x-api-key': api_key}
 
@@ -100,7 +106,7 @@ class CryptoTrader:
         self.client = Client(rpc_url, commitment=Commitment("confirmed"), timeout=30)
         self.wallet_address = str(self.keypair.pubkey())
         
-        print(f"🎯 Wallet address: {self.wallet_address}")
+        logger.info(f"🎯 Wallet address: {self.wallet_address}")
     
     def get_quote(self, input_token: str, output_token: str, amount: Union[int, float, Decimal]) -> Dict:
         """
@@ -188,25 +194,25 @@ class CryptoTrader:
             if not transaction_data or len(transaction_data) == 0:
                 raise Exception("Empty transaction data received from Jupiter API")
             
-            print(f"📦 Transaction data length: {len(transaction_data)} characters")
+            logger.info(f"📦 Transaction data length: {len(transaction_data)} characters")
             
             # Decode base64 transaction data
             transaction_bytes = base64.b64decode(transaction_data)
-            print(f"🔍 Decoded transaction length: {len(transaction_bytes)} bytes")
+            logger.info(f"🔍 Decoded transaction length: {len(transaction_bytes)} bytes")
             
             # Deserialize as VersionedTransaction (Jupiter uses this format)
             transaction = VersionedTransaction.from_bytes(transaction_bytes)
-            print("✅ VersionedTransaction deserialized successfully")
+            logger.info("✅ VersionedTransaction deserialized successfully")
                 
         except Exception as deserialize_error:
             raise Exception(f"Failed to deserialize transaction: {deserialize_error}. Transaction data length: {len(transaction_data) if 'transaction_data' in locals() else 'unknown'}")
         
         # Sign and send the transaction
         try:
-            print("🚀 Sending transaction to Solana network...")
+            logger.info("🚀 Sending transaction to Solana network...")
             
             # Sign the VersionedTransaction
-            print("📝 Signing VersionedTransaction...")
+            logger.info("📝 Signing VersionedTransaction...")
             
             # Deserialize
             transaction = VersionedTransaction.from_bytes(transaction_bytes)
@@ -233,7 +239,7 @@ class CryptoTrader:
             
             # Check if transaction was successful
             if hasattr(result, 'value') and result.value:
-                print("✅ Transaction sent successfully")
+                logger.info("✅ Transaction sent successfully")
                 signature = str(result.value)
             else:
                 raise Exception(f"Transaction failed: {result}")
@@ -242,7 +248,7 @@ class CryptoTrader:
             # If preflight failed, try with skip_preflight=True
             if "preflight" in str(send_error).lower():
                 try:
-                    print("⚠️  Preflight failed, retrying with skip_preflight=True...")
+                    logger.warning("⚠️ Preflight failed, retrying with skip_preflight=True...")
                     tx_opts_skip = TxOpts(
                         skip_preflight=True,
                         preflight_commitment=Commitment("confirmed"),
@@ -253,7 +259,7 @@ class CryptoTrader:
                         opts=tx_opts_skip
                     )
                     if hasattr(result, 'value') and result.value:
-                        print("✅ Transaction sent successfully (with skip_preflight)")
+                        logger.info("✅ Transaction sent successfully (with skip_preflight)")
                         signature = str(result.value)
                     else:
                         raise Exception(f"Transaction failed even with skip_preflight: {result}")
@@ -330,7 +336,7 @@ def execute_crypto_trade(
     sol_balance = get_sol_balance()
 
     trader = CryptoTrader(rpc_url)
-    print(f"Current SOL balance: {sol_balance:.6f} SOL")
+    logger.info(f"Current SOL balance: {sol_balance:.6f} SOL")
     minimum_sol_balance = 0.01  # Keep at least 0.01 SOL for transaction fees
     
     token_values, total_value = get_crypto_balances_with_value(indicators)
@@ -341,7 +347,7 @@ def execute_crypto_trade(
 
     # Convert buy amount from token amount to SOL amount for trading
     if action.lower() == 'buy':
-        print(f"Attempting to buy {amount} {token_symbol}...")
+        logger.info(f"Attempting to buy {amount} {token_symbol}...")
         
         # Find the token price in the token_values data
         token_price_sol = None
@@ -358,8 +364,8 @@ def execute_crypto_trade(
         
         # Calculate SOL amount needed to buy the desired token amount
         sol_amount_needed = float(amount) * token_price_sol
-        print(f"Price: 1 {token_symbol} = {token_price_sol:.8f} SOL")
-        print(f"Total SOL needed to buy {amount} {token_symbol}: {sol_amount_needed:.6f} SOL")
+        logger.info(f"Price: 1 {token_symbol} = {token_price_sol:.8f} SOL")
+        logger.info(f"Total SOL needed to buy {amount} {token_symbol}: {sol_amount_needed:.6f} SOL")
         
         # Update amount to be in SOL for the rest of the function
         amount = sol_amount_needed
@@ -370,7 +376,7 @@ def execute_crypto_trade(
 
     # Check if we have enough balance to sell
     if action.lower() == 'sell':
-        print(f"Attempting to sell {amount} {token_symbol}...")
+        logger.info(f"Attempting to sell {amount} {token_symbol}...")
         
         # Find the token balance
         token_data = token_values.get(token_symbol.upper())
@@ -398,7 +404,7 @@ def execute_crypto_trade(
             token_decimals = TOKEN_DECIMALS.get(input_token, 6)  # Fallback to 6 if not found
             amount_lamports = int(Decimal(str(amount)) * Decimal(10 ** token_decimals))
         
-        print(f"Getting quote for {action} {amount} {input_token} -> {output_token}")
+        logger.info(f"Getting quote for {action} {amount} {input_token} -> {output_token}")
         
         # Get quote
         quote = trader.get_quote(input_token, output_token, amount_lamports)
@@ -413,15 +419,15 @@ def execute_crypto_trade(
         input_amount = int(quote["inAmount"]) / (10 ** input_decimals)
         output_amount = int(quote["outAmount"]) / (10 ** output_decimals)
         
-        print(f"Quote: {input_amount:.6f} {input_token} -> {output_amount:.6f} {output_token}")
-        print(f"Price impact: {quote.get('priceImpactPct', 'N/A')}%")
+        logger.info(f"Quote: {input_amount:.6f} {input_token} -> {output_amount:.6f} {output_token}")
+        logger.info(f"Price impact: {quote.get('priceImpactPct', 'N/A')}%")
         
         # Execute the swap
-        print("Executing trade...")
+        logger.info("Executing trade...")
         result = trader.execute_swap(quote)
         
-        print(f"Trade executed successfully!")
-        print(f"Transaction signature: {result['signature']}")
+        logger.info(f"Trade executed successfully!")
+        logger.info(f"Transaction signature: {result['signature']}")
         
         return {
             "success": True,
@@ -436,7 +442,7 @@ def execute_crypto_trade(
         
     except Exception as e:
         error_msg = f"Trade execution failed: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         return {
             "success": False,
             "error": error_msg,

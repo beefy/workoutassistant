@@ -14,6 +14,12 @@ from pathlib import Path
 import tempfile
 import shutil
 import edge_tts
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Import other utilities
 from scripts.youtube_audio import search_and_download_music_video
@@ -79,11 +85,11 @@ class MusicBot:
                 if os.path.exists(download_path) and not os.listdir(download_path):
                     os.rmdir(download_path)
             except Exception as e:
-                print(f"Error cleaning up file {audio_file}: {e}")
+                logger.error(f"Error cleaning up file {audio_file}: {e}")
                 
         except Exception as e:
             await channel.send(f"❌ Error: {str(e)}")
-            print(f"Error in download_and_play: {e}")
+            logger.error(f"Error in download_and_play: {e}")
 
     async def generate_and_send_image(self, channel, prompt):
         """Generate an image using AI and send it to the channel."""
@@ -106,13 +112,13 @@ class MusicBot:
                 try:
                     os.remove(result)
                 except Exception as e:
-                    print(f"Error cleaning up image file {result}: {e}")
+                    logger.error(f"Error cleaning up image file {result}: {e}")
             else:
                 await status_msg.edit(content="❌ Failed to generate image.")
                 
         except Exception as e:
             await channel.send(f"❌ Error generating image: {str(e)}")
-            print(f"Error in generate_and_send_image: {e}")
+            logger.error(f"Error in generate_and_send_image: {e}")
 
     async def generate_tts_and_play(self, channel, text, voice_channel, voice="en-US-AriaNeural"):
         """Generate TTS audio and play it in the voice channel."""
@@ -148,7 +154,7 @@ class MusicBot:
                     
                     return tts_file if os.path.exists(tts_file) else None
                 except Exception as e:
-                    print(f"Error generating TTS: {e}")
+                    logger.error(f"Error generating TTS: {e}")
                     return None
             
             # Generate TTS with timeout
@@ -187,15 +193,14 @@ class MusicBot:
                 if os.path.exists(download_path) and not os.listdir(download_path):
                     os.rmdir(download_path)
             except Exception as e:
-                print(f"Error cleaning up TTS file {audio_file}: {e}")
-            
+                    logger.error(f"Error cleaning up TTS file {audio_file}: {e}")
             await status_msg.edit(content="✅ Finished speaking.")
                 
         except asyncio.TimeoutError:
             await channel.send("⏱️ TTS generation timed out.")
         except Exception as e:
             await channel.send(f"❌ TTS Error: {str(e)}")
-            print(f"Error in generate_tts_and_play: {e}")
+            logger.error(f"Error in generate_tts_and_play: {e}")
 
 def create_discord_bot():
     """Create and configure the Discord bot."""
@@ -209,10 +214,10 @@ def create_discord_bot():
     
     @bot.event
     async def on_ready():
-        print(f'{bot.user} has connected to Discord!')
-        print(f'Bot is ready to receive commands.')
-        print(f'Bot ID: {bot.user.id}')
-        print(f'Guilds: {[guild.name for guild in bot.guilds]}')
+        logger.info(f'{bot.user} has connected to Discord!')
+        logger.info(f'Bot is ready to receive commands.')
+        logger.info(f'Bot ID: {bot.user.id}')
+        logger.info(f'Guilds: {[guild.name for guild in bot.guilds]}')
     
     @bot.event
     async def on_message(message):
@@ -221,7 +226,7 @@ def create_discord_bot():
             return
         
         # Debug: Print all messages to console
-        print(f"Message received: '{message.content}' from {message.author} in #{message.channel}")
+        logger.info(f"Message received: '{message.content}' from {message.author} in #{message.channel}")
         
         # Process other commands
         await bot.process_commands(message)
@@ -300,7 +305,7 @@ def create_discord_bot():
                 
         except Exception as e:
             await ctx.send(f"❌ Error with LLM request: {str(e)}")
-            print(f"Error in llm_command: {e}")
+            logger.error(f"Error in llm_command: {e}")
     
     @bot.command(name='bob_talk')
     async def bob_talk_command(ctx, *, prompt):
@@ -362,7 +367,7 @@ def create_discord_bot():
                 
         except Exception as e:
             await ctx.send(f"❌ Error with LLM talk request: {str(e)}")
-            print(f"Error in bob_talk_command: {e}")
+            logger.error(f"Error in bob_talk_command: {e}")
     
     @bot.command(name='status')
     async def status_command(ctx):
@@ -418,7 +423,7 @@ def create_discord_bot():
             
         except Exception as e:
             await ctx.send(f"❌ Error getting status: {str(e)}")
-            print(f"Error in status_command: {e}")
+            logger.error(f"Error in status_command: {e}")
 
     @bot.command(name='image')
     async def image_command(ctx, *, prompt):
@@ -509,16 +514,16 @@ def run_discord_bot():
     token = os.getenv('DISCORD_BOT_TOKEN')
     
     if not token:
-        print("Error: DISCORD_BOT_TOKEN environment variable not set.")
-        print("Please set your Discord bot token:")
-        print("export DISCORD_BOT_TOKEN='your_bot_token_here'")
+        logger.error("Error: DISCORD_BOT_TOKEN environment variable not set.")
+        logger.error("Please set your Discord bot token:")
+        logger.error("export DISCORD_BOT_TOKEN='your_bot_token_here'")
         return None
     
     # Check for FFmpeg
     if shutil.which('ffmpeg') is None:
-        print("Warning: FFmpeg not found. Please install FFmpeg for audio processing:")
-        print("brew install ffmpeg  # macOS")
-        print("sudo apt install ffmpeg  # Ubuntu/Debian")
+        logger.warning("Warning: FFmpeg not found. Please install FFmpeg for audio processing:")
+        logger.warning("brew install ffmpeg  # macOS")
+        logger.warning("sudo apt install ffmpeg  # Ubuntu/Debian")
     
     bot, music_bot = create_discord_bot()
     

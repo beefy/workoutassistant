@@ -18,6 +18,12 @@ from clients.generate_image import HuggingFaceImageGenerator
 from clients.image_captioning import LocalImageCaptioner
 from utils.tracking_api import status_update, login, get_indicators
 from llm.prompts import build_initial_prompt, build_intermediate_prompt, build_final_prompt, build_crypto_prompt
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class LocalLLM:
@@ -35,46 +41,46 @@ class LocalLLM:
         try:
             self.moltbook_client = MoltbookClient()
         except ValueError as e:
-            print(f"⚠️  MoltbookClient not available: {e}")
+            logger.warning(f"⚠️ MoltbookClient not available: {e}")
             self.moltbook_client = None
         
         # Initialize GmailClient
         try:
             self.gmail_client = GmailClient()
         except ValueError as e:
-            print(f"⚠️  GmailClient not available: {e}")
+            logger.warning(f"⚠️ GmailClient not available: {e}")
             self.gmail_client = None
         
         # Initialize LocalImageCaptioner
         try:
             self.image_captioner = LocalImageCaptioner()
-        except Exception as e:
-            print(f"⚠️  LocalImageCaptioner not available: {e}")
+        except ValueError as e:
+            logger.warning(f"⚠️ LocalImageCaptioner not available: {e}")
             self.image_captioner = None
         
-        print(f"Local LLM Configuration:")
-        print(f"  Model Path: {self.model_path}")
-        print(f"  Context Length: {self.n_ctx}")
-        print(f"  CPU Threads: {self.n_threads}")
-        print(f"  Tools Enabled: {self.tools_enabled}")
+        logger.info(f"Local LLM Configuration:")
+        logger.info(f"  Model Path: {self.model_path}")
+        logger.info(f"  Context Length: {self.n_ctx}")
+        logger.info(f"  CPU Threads: {self.n_threads}")
+        logger.info(f"  Tools Enabled: {self.tools_enabled}")
 
         self.load_model()
     
     def set_tools_enabled(self, enabled):
         """Enable or disable tool functionality"""
         self.tools_enabled = enabled
-        print(f"🔧 Tools {'enabled' if enabled else 'disabled'}")
+        logger.info(f"🔧 Tools {'enabled' if enabled else 'disabled'}")
     
     def reset_session(self):
         """Reset generated images and tool call memo for a new session"""
         self.generated_images = []
         self.tool_call_memo = set()
-        print("🔄 Session reset: cleared generated images and tool call memo")
+        logger.info("🔄 Session reset: cleared generated images and tool call memo")
     
     def _temporarily_unload_llm(self):
         """Temporarily unload LLM to free RAM for image processing"""
         if self.model is not None:
-            print("📋 Temporarily unloading LLM to free RAM for image processing...")
+            logger.info("📋 Temporarily unloading LLM to free RAM for image processing...")
             # Store model path for reloading
             self._stored_model_path = self.model_path
             del self.model
@@ -87,23 +93,23 @@ class LocalLLM:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             
-            print("✅ LLM temporarily unloaded")
+            logger.info("✅ LLM temporarily unloaded")
             return True
         return False
     
     def _reload_llm(self):
         """Reload LLM after image processing"""
         if self.model is None and hasattr(self, '_stored_model_path'):
-            print("🔄 Reloading LLM...")
+            logger.info("🔄 Reloading LLM...")
             self.model_path = self._stored_model_path
             success = self.load_model()
             if success:
-                print("✅ LLM reloaded successfully")
+                logger.info("✅ LLM reloaded successfully")
             return success
         return True  # Already loaded
 
     def find_model_file(self):
-        print("\n🔍 Searching for model files...")
+        logger.info("🔍 Searching for model files...")
         expanded_path = os.path.expanduser("~/models/")
         
         # Try 128k model first, fall back to 4k
@@ -116,25 +122,25 @@ class LocalLLM:
         for model_name in models_to_try:
             full_path = os.path.join(expanded_path, model_name)
             if os.path.exists(full_path):
-                print(f"✅ Found model: {full_path}")
+                logger.info(f"✅ Found model: {full_path}")
                 return full_path
 
-        print("❌ No model files found in common locations")
-        print("\nTo download a model:")
-        print("  mkdir -p ~/models")
-        print("  cd ~/models")
-        print("  # Download a small model (TinyLlama ~600MB):")
-        print("  wget https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.q4_0.gguf")
-        print("  # Or download Phi-3-mini (~2.4GB):")
-        print("  wget https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf")
-        print("  # Or download Phi-3-mini 128k context (~2.4GB):")
-        print("  wget https://huggingface.co/microsoft/Phi-3-mini-128k-instruct-gguf/resolve/main/Phi-3-mini-128k-instruct-q4.gguf")
+        logger.error("❌ No model files found in common locations")
+        logger.info("To download a model:")
+        logger.info("  mkdir -p ~/models")
+        logger.info("  cd ~/models")
+        logger.info("  # Download a small model (TinyLlama ~600MB):")
+        logger.info("  wget https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.q4_0.gguf")
+        logger.info("  # Or download Phi-3-mini (~2.4GB):")
+        logger.info("  wget https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf")
+        logger.info("  # Or download Phi-3-mini 128k context (~2.4GB):")
+        logger.info("  wget https://huggingface.co/microsoft/Phi-3-mini-128k-instruct-gguf/resolve/main/Phi-3-mini-128k-instruct-q4.gguf")
         
         return None
     
     def load_model(self):
         """Load the GGUF model"""
-        print("🔄 Loading model... (this may take a few minutes)")
+        logger.info("🔄 Loading model... (this may take a few minutes)")
         start_time = time.time()
         
         # Find model if not specified
@@ -155,19 +161,19 @@ class LocalLLM:
             )
             
             load_time = time.time() - start_time
-            print(f"✅ Model loaded successfully in {load_time:.1f} seconds")
+            logger.info(f"✅ Model loaded successfully in {load_time:.1f} seconds")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to load model with default settings: {e}")
-            print("🔄 Trying with progressively smaller contexts to find optimal size...")
+            logger.error(f"❌ Failed to load model with default settings: {e}")
+            logger.info("🔄 Trying with progressively smaller contexts to find optimal size...")
             
             # Try different context sizes to find what fits in available RAM
             context_sizes_to_try = [65536, 32768, 16384, 8192, 4096]  # 64k, 32k, 16k, 8k, 4k
             
             for ctx_size in context_sizes_to_try:
                 try:
-                    print(f"🔄 Trying {ctx_size//1024}k context...")
+                    logger.info(f"🔄 Trying {ctx_size//1024}k context...")
                     self.model = Llama(
                         model_path=self.model_path,
                         n_ctx=ctx_size,
@@ -180,12 +186,12 @@ class LocalLLM:
                     
                     self.n_ctx = ctx_size
                     load_time = time.time() - start_time
-                    print(f"✅ Model loaded successfully with {ctx_size//1024}k context in {load_time:.1f} seconds")
-                    print(f"🎯 Optimal context size for your 6GB RAM: {ctx_size//1024}k tokens")
+                    logger.info(f"✅ Model loaded successfully with {ctx_size//1024}k context in {load_time:.1f} seconds")
+                    logger.info(f"🎯 Optimal context size for your 6GB RAM: {ctx_size//1024}k tokens")
                     return True
                     
                 except Exception as ctx_e:
-                    print(f"❌ {ctx_size//1024}k context failed: insufficient memory")
+                    logger.error(f"❌ {ctx_size//1024}k context failed: insufficient memory")
                     continue
     
     def execute_prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None):
@@ -204,7 +210,7 @@ class LocalLLM:
             response = output['choices'][0]['text'].strip()
             return response
         except Exception as e:
-            print(f"❌ Error during generation: {e}")
+            logger.error(f"❌ Error during generation: {e}")
             return "Sorry, I encountered an error while generating a response."
     
     def process_tool_calls(self, tool_calls, use_crypto_prompt=False):
@@ -228,13 +234,13 @@ class LocalLLM:
             combined_results = "\n\n".join(tool_results)
             return combined_results
         except Exception as e:
-            print(f"❌ Error during tool execution: {e}")
+            logger.error(f"❌ Error during tool execution: {e}")
             return "Sorry, I encountered an error while executing a tool."
 
     def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=3, final_query=True, use_crypto_prompt=False):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
-            print("❌ Model not loaded. Call load_model() first.")
+            logger.error("❌ Model not loaded. Call load_model() first.")
             return None
         
         # Reset session at the beginning of each prompt
@@ -247,16 +253,16 @@ class LocalLLM:
             self.indicators = indicators  # Store indicators for tool calls to access
         
         # LLM Call
-        print(f"🤔 Generating response for: \"{prompt[:50]}...\"")
+        logger.info(f"🤔 Generating response for: \"{prompt[:50]}...\"")
         if not use_crypto_prompt:
             response = self.execute_prompt(build_initial_prompt(self.attachments, prompt), max_tokens, temperature, stop)
         else:
             response = self.execute_prompt(build_crypto_prompt("None", "None", indicators), max_tokens, temperature, stop)
         
-        print(f"Initial response generated. Checking for tool calls...")
+        logger.info(f"Initial response generated. Checking for tool calls...")
 
         if not self.tools_enabled:
-            print("⚠️  Tools are disabled, returning response without tool execution")
+            logger.warning("⚠️ Tools are disabled, returning response without tool execution")
             return {
                 'response': self.clean_response(response),
                 'generated_images': self.generated_images.copy()
@@ -265,7 +271,7 @@ class LocalLLM:
         tool_calls = self.parse_tool_calls(response)
 
         if not tool_calls:
-            print("✅ No tool calls found, returning response")
+            logger.info("✅ No tool calls found, returning response")
             return {
                 'response': self.clean_response(response),
                 'generated_images': self.generated_images.copy()
@@ -274,16 +280,16 @@ class LocalLLM:
         iteration_count = 0
         history = ""
         tool_results = ""
-        print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
+        logger.info(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
         while len(tool_calls) > 0 and iteration_count < max_tool_iterations:
             iteration_count += 1
-            print(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
+            logger.info(f"🔧 Iteration {iteration_count}: Found {len(tool_calls)} tool call(s)")
             tool_results = self.process_tool_calls(tool_calls, use_crypto_prompt)
 
             # LLM call to summarize convo history
             history = f"{history}\nIteration {iteration_count} Tool Calls:\n{json.dumps(tool_calls, indent=2)}\nIteration {iteration_count} Tool Results:\n{tool_results}"
-            # print(f"Summary thus far: {history}")
-            print(f"✅ Tool calls executed. Building final response with tool results...")
+            # logger.debug(f"Summary thus far: {history}")
+            logger.info(f"✅ Tool calls executed. Building final response with tool results...")
 
             # Intermediate LLM call (in loop)
             if not use_crypto_prompt:
@@ -319,7 +325,7 @@ class LocalLLM:
         if estimated_tokens <= max_context_tokens:
             return conversation
         
-        print(f"⚠️  Context too long ({estimated_tokens} tokens), truncating to fit...")
+        logger.warning(f"⚠️ Context too long ({estimated_tokens} tokens), truncating to fit...")
         
         # Calculate how many characters to keep (roughly)
         max_chars = max_context_tokens * 3
@@ -338,7 +344,7 @@ class LocalLLM:
        
     def execute_tool_call(self, tool_name, parameters, use_crypto_prompt=False):
         """Execute a tool call and return the result"""
-        print(f"🔧 Executing tool call: {tool_name} with parameters {parameters}")
+        logger.info(f"🔧 Executing tool call: {tool_name} with parameters {parameters}")
         if tool_name == "web_search":
             query = parameters.get('query', '')
             if query:
@@ -372,7 +378,7 @@ class LocalLLM:
                 if not prompt:
                     return "❌ Error: Image prompt is required"
                 
-                print(f"🎨 Generating image: {prompt[:50]}...")
+                logger.info(f"🎨 Generating image: {prompt[:50]}...")
                 
                 # Generate the image
                 image_client = HuggingFaceImageGenerator()
@@ -397,7 +403,7 @@ class LocalLLM:
                 if not image_path or not prompt:
                     return "❌ Error: Both image_path and prompt are required"
                 
-                print(f"✏️ Modifying image: {image_path} with prompt: {prompt[:50]}...")
+                logger.info(f"✏️ Modifying image: {image_path} with prompt: {prompt[:50]}...")
                 
                 # Modify the image
                 image_client = HuggingFaceImageGenerator()
@@ -422,7 +428,7 @@ class LocalLLM:
                 if self.image_captioner is None:
                     return "❌ Error: Local image captioning not available. Install required packages: pip install torch transformers pillow"
                 
-                print(f"📝 Generating caption for: {image_path}")
+                logger.info(f"📝 Generating caption for: {image_path}")
                 
                 # Temporarily unload LLM to free RAM
                 llm_was_loaded = self._temporarily_unload_llm()
@@ -460,7 +466,7 @@ class LocalLLM:
                 if self.image_captioner is None:
                     return "❌ Error: Local image captioning not available. Install required packages: pip install torch transformers pillow"
                 
-                print(f"🔍 Analyzing image: {image_path} with question: {question}")
+                logger.info(f"🔍 Analyzing image: {image_path} with question: {question}")
                 
                 # Temporarily unload LLM to free RAM
                 llm_was_loaded = self._temporarily_unload_llm()
@@ -543,7 +549,7 @@ class LocalLLM:
                                     # Add to memo immediately to prevent duplicates in same response
                                     self.tool_call_memo.add(tool_hash)
                                 else:
-                                    print(f"🔄 Skipping duplicate tool call: {tool_name} with same parameters")
+                                    logger.debug(f"🔄 Skipping duplicate tool call: {tool_name} with same parameters")
                         except json.JSONDecodeError as e:
                             # Invalid JSON, skip it
                             pass

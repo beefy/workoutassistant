@@ -1,4 +1,10 @@
 from utils.crypto_balance_with_value import get_crypto_balances_with_value
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 def format_indicators_for_llm(indicators):
@@ -243,5 +249,5 @@ Based on the current indicators and balances, determine if there are any good tr
 <|end|>
 <|assistant|>
     """
-    print(prompt)
+    logger.debug(f"Generated crypto prompt: {prompt}")
     return prompt

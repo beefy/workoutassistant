@@ -1,17 +1,23 @@
 from utils.web_search import get_apnews_articles
 from llm.priority_queue import submit_llm_request
 from clients.gmail import GmailClient
+from utils.logging_config import setup_logging
 import os
 import datetime
+import logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 def summarize_news():
     response = get_apnews_articles(max_articles=5)
-    print(f"found {len(response)} articles")
+    logger.info(f"found {len(response)} articles")
 
     summaries = []
     for article in response:
-        print(f"Summarizing: {article['title']}")
+        logger.info(f"Summarizing: {article['title']}")
         prompt = f"Summarize the following news article in a concise way:\n\n{article['content']}"
 
         llm_result = submit_llm_request(
@@ -22,7 +28,7 @@ def summarize_news():
         )
         response = llm_result.get('response', '')
 
-        print(f"Summary:\n{response}\n")
+        logger.info(f"Summary:\n{response}\n")
         summaries.append(response)
 
     prompt = "Summarize the following news summaries into a single summary of the current news:\n\n" + "\n\n".join(summaries)
@@ -34,7 +40,7 @@ def summarize_news():
         task="Summarize news"
     )
 
-    print(f"News summary:\n{response}")
+    logger.info(f"News summary:\n{response}")
     return response
 
 
