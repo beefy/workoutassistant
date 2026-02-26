@@ -31,6 +31,23 @@ ADMIN_EMAIL=admin@example.com
 
 ### Docker Commands
 
+Install
+```
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Docker Compose (if not included)
+sudo apt install docker-compose-plugin
+```
+
+Ensure it starts on boot
+```
+sudo systemctl enable docker
+```
+
+Commands
 ```bash
 # View logs
 docker compose logs -f workoutassistant
