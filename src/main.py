@@ -1,8 +1,9 @@
-from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto
+from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto, discord_bot
 import threading
 import time
 import signal
 import sys
+import traceback
 from utils.tracking_api import login, status_update
 import os
 from clients.gmail import GmailClient
@@ -10,10 +11,12 @@ from clients.gmail import GmailClient
 # Global shutdown event
 shutdown_event = threading.Event()
 
+
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
     print(f"🛑 Received signal {signum}. Initiating graceful shutdown...")
     shutdown_event.set()
+
 
 def auto_restart_wrapper(target_func, name):
     """Wrapper to automatically restart threads that encounter exceptions"""
@@ -25,9 +28,13 @@ def auto_restart_wrapper(target_func, name):
             if shutdown_event.is_set():
                 print(f"🛑 {name} thread stopped due to shutdown signal")
                 break
-                
-            print(f"❌ {name} thread crashed: {e}")
-            print(f"🔄 Restarting {name} thread in 5 seconds...")
+            
+            error_msg = str(e) or repr(e) or "Unknown error"
+            exception_type = type(e).__name__
+            print(f"❌ {name} thread crashed: {exception_type}: {error_msg}")
+            print(f"📝 Full traceback:")
+            traceback.print_exc()
+            print(f"🔄 Restarting {name} thread in 5 minutes...")
 
             print(f"⚠️ An error occurred: {e}")
             try:
@@ -43,11 +50,12 @@ def auto_restart_wrapper(target_func, name):
             except Exception as notify_error:
                 print(f"⚠️ Failed to send error notification: {notify_error}")
 
-            # Wait for 5 seconds or until shutdown is requested
-            for _ in range(50):  # 5 seconds in 0.1 second intervals
+            # Wait for 5 minutes or until shutdown is requested
+            for _ in range(300):  # 5 minutes in 1 second intervals
                 if shutdown_event.is_set():
                     break
-                time.sleep(0.1)
+                time.sleep(1)
+
 
 if __name__ == "__main__":
     # Setup signal handlers for graceful shutdown
@@ -63,7 +71,8 @@ if __name__ == "__main__":
         (use_moltbook.main, "moltbook"),
         (respond_to_email.main, "email"),
         (newsletter.main, "newsletter"),
-        (trade_crypto.main, "crypto")
+        (trade_crypto.main, "crypto"),
+        (discord_bot.main, "discord_bot")
     ]
     
     for func, name in thread_configs:

@@ -14,6 +14,7 @@ for article in response:
         prompt=prompt,
         max_tokens=500,
         priority=2,  # Low priority for news summarization
+        task="Summarize news article"
     )
     response = llm_result.get('response', '')
 
@@ -26,6 +27,7 @@ llm_result = submit_llm_request(
     prompt=prompt,
     max_tokens=1000,
     priority=2,  # Low priority for news summarization
+    task="Summarize news"
 )
 response = llm_result.get('response', '')
 

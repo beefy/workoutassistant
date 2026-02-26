@@ -131,7 +131,7 @@ class IndicatorCalculator:
         return indicators
     
     def calculate_all_indicators(self, df):
-        """Calculate all 5 indicators from hourly data"""
+        """Calculate all 6 indicators from hourly data"""
         
         # Get the most recent complete candle
         latest = df.iloc[-1]
@@ -155,12 +155,19 @@ class IndicatorCalculator:
         macd, signal, histogram = self.calculate_macd(df['close'])
         macd_signal = 'bull' if macd > signal else 'bear' if macd < signal else 'neutral'
         
+        # 6. Stochastic Oscillator (14-period)
+        stoch_k, stoch_d = self.calculate_stochastic(df['high'], df['low'], df['close'], period=14)
+        stoch_signal = 'bull' if stoch_k > stoch_d and stoch_k < 80 else 'bear' if stoch_k < stoch_d and stoch_k > 20 else 'neutral'
+        
         return {
             'rsi': round(rsi, 1),
             'ma_cross': ma_cross,
             'volume_ratio': round(volume_ratio, 1),
             'adx': round(adx, 1),
             'macd': macd_signal,
+            'stochastic_k': round(stoch_k, 1),
+            'stochastic_d': round(stoch_d, 1),
+            'stochastic_signal': stoch_signal,
             'current_price': latest['close'],
             'timestamp': df.index[-1]
         }
@@ -187,3 +194,28 @@ class IndicatorCalculator:
         signal_line = macd.ewm(span=signal, adjust=False).mean()
         histogram = macd - signal_line
         return macd.iloc[-1], signal_line.iloc[-1], histogram.iloc[-1]
+    
+    def calculate_stochastic(self, high, low, close, period=14, smooth_k=3):
+        """Calculate Stochastic Oscillator using stochastic analysis
+        
+        The Stochastic Oscillator is based on stochastic calculus principles,
+        measuring the momentum of price changes by comparing closing prices
+        to their range over a given period.
+        
+        %K = ((Close - LowestLow) / (HighestHigh - LowestLow)) * 100
+        %D = SMA of %K over smooth_k periods
+        """
+        # Calculate the lowest low and highest high over the period
+        lowest_low = low.rolling(window=period).min()
+        highest_high = high.rolling(window=period).max()
+        
+        # Calculate %K (fast stochastic)
+        k_percent = ((close - lowest_low) / (highest_high - lowest_low)) * 100
+        
+        # Smooth %K to get the final %K line
+        k_smoothed = k_percent.rolling(window=smooth_k).mean()
+        
+        # Calculate %D (slow stochastic) as SMA of %K
+        d_percent = k_smoothed.rolling(window=smooth_k).mean()
+        
+        return k_smoothed.iloc[-1], d_percent.iloc[-1]

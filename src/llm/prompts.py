@@ -10,27 +10,32 @@ def format_indicators_for_llm(indicators):
     bullish_signals = []
     bearish_signals = []
     neutral_signals = []
-    
+
     for token, data in indicators.items():
         rsi = float(data['rsi'])
         ma_cross = data['ma_cross']
         macd = data['macd']
         volume_ratio = float(data['volume_ratio'])
         adx = data['adx']
+        stochastic_k = float(data['stochastic_k'])
+        stochastic_d = float(data['stochastic_d'])
+        stochastic_signal = data['stochastic_signal']
         price = float(data['current_price'])
         
         # Create signal summary
         signals = []
-        if ma_cross == 'bull' or macd == 'bull':
+        if ma_cross == 'bull' or macd == 'bull' or stochastic_signal == 'bull':
             signals.append('bullish')
-        if ma_cross == 'bear' or macd == 'bear':
+        if ma_cross == 'bear' or macd == 'bear' or stochastic_signal == 'bear':
             signals.append('bearish')
             
         # Categorize by overall sentiment
-        bull_count = (ma_cross == 'bull') + (macd == 'bull') + (rsi > 70)
-        bear_count = (ma_cross == 'bear') + (macd == 'bear') + (rsi < 30)
+        bull_count = (ma_cross == 'bull') + (macd == 'bull') + (stochastic_signal == 'bull') + (rsi > 70)
+        bear_count = (ma_cross == 'bear') + (macd == 'bear') + (stochastic_signal == 'bear') + (rsi < 30)
         
-        signal_text = f"  RSI: {rsi:.1f} | MA: {ma_cross} | MACD: {macd} | Volume: {volume_ratio:.1f}x | ADX: {adx:.1f} | Price: ${price:.6f}"
+        # Handle ADX which might be None
+        adx_text = f"{adx:.1f}" if adx is not None else "N/A"
+        signal_text = f"  RSI: {rsi:.1f} | MA: {ma_cross} | MACD: {macd} | Stoch: {stochastic_signal} ({stochastic_k:.1f}%K, {stochastic_d:.1f}%D) | Volume: {volume_ratio:.1f}x | ADX: {adx_text} | Price: ${price:.6f}"
         
         if bull_count > bear_count:
             bullish_signals.append(f"• {token}: {signal_text}")
@@ -53,7 +58,8 @@ def format_indicators_for_llm(indicators):
     
     formatted += "KEY:\n"
     formatted += "RSI >70 = overbought, <30 = oversold | MA = moving average crossover\n"
-    formatted += "MACD = trend momentum | Volume = relative volume vs average | ADX = trend strength\n"
+    formatted += "MACD = trend momentum | Stoch = stochastic oscillator momentum (%K vs %D)\n"
+    formatted += "Volume = relative volume vs average | ADX = trend strength\n"
     
     return formatted
 
@@ -189,7 +195,7 @@ IMPORTANT: start your response with "Dear User, ..." and end your response with 
     """
 
 def build_crypto_prompt(tool_results, history, indicators):
-    balance, _ = get_crypto_balances_with_value()
+    balance, _ = get_crypto_balances_with_value(indicators)
     
     # Format the data for better LLM comprehension
     formatted_indicators = format_indicators_for_llm(indicators)

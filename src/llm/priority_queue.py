@@ -17,7 +17,7 @@ class LLMRequest:
     """Represents a single LLM request with priority"""
     
     def __init__(self, prompt: str, attachments: List[str] = None, priority: int = 1, 
-                 max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False):
+                 max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown"):
         self.prompt = prompt
         self.attachments = attachments or []
         self.priority = priority  # 1 for email (higher priority), 2 for moltbook (lower priority)
@@ -25,6 +25,7 @@ class LLMRequest:
         self.temperature = temperature
         self.final_query = final_query
         self.use_crypto_prompt = use_crypto_prompt
+        self.task = task  # Which task requested this (discord, email, newsletter, crypto, moltbook)
         self.future = Future()  # Used for thread synchronization
         self.timestamp = time.time()  # Add timestamp for FIFO ordering
         
@@ -62,6 +63,8 @@ class LLMPriorityQueueManager:
         self.running = False
         self.init_lock = threading.Lock()
         self.llm_ready = threading.Event()
+        self.current_task = None  # Track what task is currently being processed
+        self.current_request = None  # Track current request details
         
         # Start the queue processor
         self._start_worker()
@@ -97,8 +100,12 @@ class LLMPriorityQueueManager:
                 # Wait for LLM to be ready
                 self.llm_ready.wait()
                 
+                # Set current task tracking
+                self.current_task = f"{request.task} (priority {request.priority})"
+                self.current_request = request
+                
                 # Process the request
-                print(f"🎯 Processing LLM request (priority {request.priority})")
+                print(f"🎯 Processing LLM request from {request.task} (priority {request.priority})")
                 
                 try:
                     # Set attachments if provided
@@ -125,11 +132,15 @@ class LLMPriorityQueueManager:
                     # Set the result (now a dict with response and generated_images)
                     request.future.set_result(result)
                         
-                    print(f"✅ LLM request completed (priority {request.priority})")
+                    print(f"✅ LLM request completed from {request.task} (priority {request.priority})")
                     
                 except Exception as e:
-                    print(f"❌ Error processing LLM request: {e}")
+                    print(f"❌ Error processing LLM request from {request.task}: {e}")
                     request.future.set_exception(e)
+                
+                # Clear current task tracking
+                self.current_task = None
+                self.current_request = None
                 
                 # Mark task as done
                 self.priority_queue.task_done()
@@ -141,7 +152,7 @@ class LLMPriorityQueueManager:
                 print(f"⚠️ Unexpected error in queue worker: {e}")
     
     def submit_request(self, prompt: str, attachments: List[str] = None, priority: int = 1,
-                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False) -> Dict[str, Any]:
+                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown") -> Dict[str, Any]:
         """
         Submit a prompt request to the LLM priority queue.
         
@@ -153,6 +164,7 @@ class LLMPriorityQueueManager:
             temperature: Optional temperature parameter
             final_query: Whether this is the final query in a conversation
             use_crypto_prompt: Whether to use crypto-specific prompting
+            task: Which task is making this request (discord, email, newsletter, crypto, moltbook)
             
         Returns:
             Dict with 'response' (str) and 'generated_images' (List[str]) keys
@@ -168,7 +180,8 @@ class LLMPriorityQueueManager:
             max_tokens=max_tokens,
             temperature=temperature,
             final_query=final_query,
-            use_crypto_prompt=use_crypto_prompt
+            use_crypto_prompt=use_crypto_prompt,
+            task=task
         )
         
         # Add to priority queue
@@ -187,6 +200,21 @@ class LLMPriorityQueueManager:
         """Get the current size of the priority queue"""
         return self.priority_queue.qsize()
     
+    def get_status(self) -> Dict[str, Any]:
+        """Get detailed status information about the queue and current processing"""
+        return {
+            'queue_size': self.priority_queue.qsize(),
+            'current_task': self.current_task,
+            'current_request': {
+                'task': self.current_request.task if self.current_request else None,
+                'priority': self.current_request.priority if self.current_request else None,
+                'timestamp': self.current_request.timestamp if self.current_request else None,
+                'prompt_preview': self.current_request.prompt[:100] + '...' if self.current_request and len(self.current_request.prompt) > 100 else self.current_request.prompt if self.current_request else None
+            } if self.current_request else None,
+            'running': self.running,
+            'llm_ready': self.llm_ready.is_set() if self.llm_ready else False
+        }
+    
     def shutdown(self):
         """Shutdown the priority queue manager"""
         print("🛑 Shutting down LLM Priority Queue Manager...")
@@ -201,7 +229,7 @@ llm_queue_manager = LLMPriorityQueueManager()
 
 
 def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int = 1,
-                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False) -> Dict[str, Any]:
+                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown") -> Dict[str, Any]:
     """
     Convenience function to submit LLM requests.
     
@@ -213,6 +241,7 @@ def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int
         temperature: Optional temperature parameter
         final_query: Whether this is the final query in a conversation
         use_crypto_prompt: Whether to use crypto-specific prompting
+        task: Which task is making this request (discord, email, newsletter, crypto, moltbook)
         
     Returns:
         Dict with 'response' (str) and 'generated_images' (List[str]) keys
@@ -224,5 +253,6 @@ def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int
         max_tokens=max_tokens,
         temperature=temperature,
         final_query=final_query,
-        use_crypto_prompt=use_crypto_prompt
+        use_crypto_prompt=use_crypto_prompt,
+        task=task
     )

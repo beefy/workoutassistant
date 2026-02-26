@@ -244,6 +244,19 @@ Check crypto balance
 python src/scripts/get_crypto_balance.py
 ```
 
+### Lichess Setup
+Create a new account on Lichess. Convert it to a bot account with this curl command. Note: the account cannot have any games played.
+```
+curl -d '' https://lichess.org/api/bot/account/upgrade -H "Authorization: Bearer <your api token>"
+{"ok":true}
+```
+
+### Youtube / Discord Setup
+```
+brew install ffmpeg
+```
+See DISCORD_BOT_README.md
+
 ### Run the script
 
 Start it in the background
