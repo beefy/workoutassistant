@@ -4,9 +4,7 @@ import time
 import signal
 import sys
 import traceback
-import logging
 from utils.tracking_api import login, status_update
-from utils.logging_config import setup_logging
 import os
 from clients.gmail import GmailClient
 import logging
