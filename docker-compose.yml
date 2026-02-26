@@ -17,6 +17,9 @@ services:
       # Mount models directory for persistence (optional, models can be downloaded on container start)
       - ./models:/app/models
       
+      # Mount generated images directory for AI-generated images
+      - ./generated_images:/app/src/generated_images
+      
       # Mount logs directory
       - ./logs:/app/logs
     
@@ -74,4 +77,6 @@ volumes:
   workout_models:
     driver: local
   workout_logs:
+    driver: local
+  workout_generated_images:
     driver: local

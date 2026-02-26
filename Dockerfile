@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     chromium \
     chromium-driver \
     wget \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user for security
@@ -29,6 +30,7 @@ RUN apt-get update && apt-get install -y \
     chromium-driver \
     sqlite3 \
     wget \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -42,7 +44,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 WORKDIR /app
 
 # Create necessary directories
-RUN mkdir -p /app/models /app/data logs && \
+RUN mkdir -p /app/models /app/data /app/src/generated_images logs && \
     chown -R workoutassistant:workoutassistant /app
 
 # Copy application source code
@@ -53,7 +55,7 @@ COPY --chown=workoutassistant:workoutassistant LICENSE README.md ./
 USER workoutassistant
 
 # Create volume mount points for data persistence and secret management
-VOLUME ["/app/data", "/app/models", "/app/.secrets"]
+VOLUME ["/app/data", "/app/models", "/app/src/generated_images", "/app/.secrets"]
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
