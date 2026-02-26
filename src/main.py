@@ -42,7 +42,8 @@ def auto_restart_wrapper(target_func, name):
                 if admin_email:
                     client = GmailClient()
                     log_path = os.getenv("LOG_PATH", "/app/logs/output.log")
-                    client.send_email_with_attachment(admin_email, f"WorkoutAssistant encountered an Exception in {name} thread", "Please see the attached file.", file_path=log_path)
+                    name = os.getenv("TRACKING_API_USERNAME", "unknown")
+                    client.send_email_with_attachment(admin_email, f"{name} encountered an Exception in {name} thread", "Please see the attached file.", file_path=log_path)
                 
                 tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
                 if tracking_token:
