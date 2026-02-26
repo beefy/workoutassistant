@@ -9,6 +9,12 @@ from utils.tracking_api import login, status_update
 from utils.logging_config import setup_logging
 import os
 from clients.gmail import GmailClient
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Global shutdown event
 shutdown_event = threading.Event()
@@ -16,7 +22,7 @@ shutdown_event = threading.Event()
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
-    logging.info(f"🛑 Received signal {signum}. Initiating graceful shutdown...")
+    logger.info(f"🛑 Received signal {signum}. Initiating graceful shutdown...")
     shutdown_event.set()
 
 
@@ -24,21 +30,22 @@ def auto_restart_wrapper(target_func, name):
     """Wrapper to automatically restart threads that encounter exceptions"""
     while not shutdown_event.is_set():
         try:
-            logging.info(f"🔄 Starting {name} thread...")
+            logger.info(f"🔄 Starting {name} thread...")
             target_func()
         except Exception as e:
             if shutdown_event.is_set():
-                logging.info(f"🛑 {name} thread stopped due to shutdown signal")
+                logger.info(f"🛑 {name} thread stopped due to shutdown signal")
                 break
             
             error_msg = str(e) or repr(e) or "Unknown error"
             exception_type = type(e).__name__
-            logging.error(f"❌ {name} thread crashed: {exception_type}: {error_msg}")
-            logging.error(f"📝 Full traceback:")
-            logging.error(traceback.format_exc())
-            logging.info(f"🔄 Restarting {name} thread in 5 minutes...")
+            logger.error(f"❌ {name} thread crashed: {exception_type}: {error_msg}")
+            logger.error(f"📝 Full traceback:")
+            logger.error(traceback.format_exc())
+            logger.exception("Full traceback:")
+            logger.info(f"🔄 Restarting {name} thread in 5 minutes...")
 
-            logging.warning(f"⚠️ An error occurred: {e}")
+            logger.warning(f"⚠️ An error occurred: {e}")
             try:
                 admin_email = os.getenv("ADMIN_EMAIL")
                 if admin_email:
@@ -51,7 +58,8 @@ def auto_restart_wrapper(target_func, name):
                 if tracking_token:
                     status_update(tracking_token, "Error!")
             except Exception as notify_error:
-                logging.error(f"⚠️ Failed to send error notification: {notify_error}")
+                logger.error(f"⚠️ Failed to send error notification: {notify_error}")
+                logger.exception("Full traceback:")
 
             # Wait for 5 minutes or until shutdown is requested
             for _ in range(300):  # 5 minutes in 1 second intervals
@@ -61,14 +69,11 @@ def auto_restart_wrapper(target_func, name):
 
 
 if __name__ == "__main__":
-    # Setup logging first
-    logger = setup_logging()
-    
     # Setup signal handlers for graceful shutdown
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     
-    logging.info("🚀 Starting WorkoutAssistant...")
+    logger.info("🚀 Starting WorkoutAssistant...")
     
     # Start threads with auto-restart capability
     threads = []
@@ -90,13 +95,13 @@ if __name__ == "__main__":
     try:
         shutdown_event.wait()
     except KeyboardInterrupt:
-        logging.info("🛑 Received KeyboardInterrupt")
+        logger.info("🛑 Received KeyboardInterrupt")
         shutdown_event.set()
     
-    logging.info("🛑 Shutting down WorkoutAssistant...")
+    logger.info("🛑 Shutting down WorkoutAssistant...")
     
     # Wait a moment for threads to finish gracefully
     time.sleep(2)
     
-    logging.info("✅ WorkoutAssistant shutdown complete")
+    logger.info("✅ WorkoutAssistant shutdown complete")
     sys.exit(0)

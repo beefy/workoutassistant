@@ -34,8 +34,7 @@ def get_all_token_indicators():
             
         except Exception as e:
             logger.error(f"✗ Error processing {symbol}: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logger.exception("Full traceback:")
             results[symbol] = None
     
     return results
