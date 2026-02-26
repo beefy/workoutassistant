@@ -42,7 +42,7 @@ def parse_email_body(body):
             "history": []  # email-reply-parser focuses on new content extraction, not history parsing
         }
     except Exception as e:
-        print(f"⚠️ Email parsing failed: {e}")
+        logger.error(f"⚠️ Email parsing failed: {e}")
         # Fallback: use entire body
         return {
             "body": body.strip(),

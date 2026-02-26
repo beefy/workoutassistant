@@ -13,6 +13,12 @@ import time
 from datetime import datetime
 import psutil
 from utils.tracking_api import login, status_update
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class GmailClient:
@@ -28,7 +34,7 @@ class GmailClient:
 
     def send_email(self, to_email, subject, body, is_html=False, cc=None):
         if not all([to_email, subject, body]):
-            print("❌ Send failed: to_email, subject, and body are required")
+            logger.error("❌ Send failed: to_email, subject, and body are required")
             return False
             
         try:
@@ -59,10 +65,10 @@ class GmailClient:
             server.quit()
             
             cc_info = f" (CC: {', '.join(cc_list)})" if cc else ""
-            print(f"✅ Email sent to {to_email}{cc_info}")
+            logger.info(f"✅ Email sent to {to_email}{cc_info}")
             return True
         except Exception as e:
-            print(f"❌ Send failed: {e}")
+            logger.error(f"❌ Send failed: {e}")
             return False
 
     def send_email_with_attachment(self, to_email, subject, body, file_path, is_html=False, cc=None):
@@ -80,11 +86,11 @@ class GmailClient:
             bool: True if email sent successfully, False otherwise
         """
         if not all([to_email, subject, body, file_path]):
-            print("❌ Send failed: to_email, subject, body, and file_path are required")
+            logger.error("❌ Send failed: to_email, subject, body, and file_path are required")
             return False
         
         if not os.path.exists(file_path):
-            print(f"❌ Send failed: File not found: {file_path}")
+            logger.error(f"❌ Send failed: File not found: {file_path}")
             return False
             
         try:
@@ -137,12 +143,12 @@ class GmailClient:
             server.quit()
             
             cc_info = f" (CC: {', '.join(cc_list)})" if cc else ""
-            print(f"✅ Email with attachment sent to {to_email}{cc_info}")
-            print(f"📎 Attached file: {filename} ({os.path.getsize(file_path)} bytes)")
+            logger.info(f"✅ Email with attachment sent to {to_email}{cc_info}")
+            logger.info(f"📎 Attached file: {filename} ({os.path.getsize(file_path)} bytes)")
             return True
             
         except Exception as e:
-            print(f"❌ Send with attachment failed: {e}")
+            logger.error(f"❌ Send with attachment failed: {e}")
             return False
 
     def send_email_with_attachments(self, to_email, subject, body, file_paths, is_html=False, cc=None):
@@ -160,7 +166,7 @@ class GmailClient:
             bool: True if email sent successfully, False otherwise
         """
         if not all([to_email, subject, body, file_paths]):
-            print("❌ Send failed: to_email, subject, body, and file_paths are required")
+            logger.error("❌ Send failed: to_email, subject, body, and file_paths are required")
             return False
         
         # Convert single file path to list for compatibility
@@ -168,7 +174,7 @@ class GmailClient:
             file_paths = [file_paths]
         
         if not file_paths:
-            print("❌ Send failed: At least one file path must be provided")
+            logger.error("❌ Send failed: At least one file path must be provided")
             return False
         
         # Check all files exist before proceeding
@@ -178,7 +184,7 @@ class GmailClient:
                 missing_files.append(file_path)
         
         if missing_files:
-            print(f"❌ Send failed: Files not found: {missing_files}")
+            logger.error(f"❌ Send failed: Files not found: {missing_files}")
             return False
             
         try:
@@ -214,7 +220,7 @@ class GmailClient:
                 
                 # Check for reasonable size limit (25MB total for Gmail)
                 if total_size > 25 * 1024 * 1024:
-                    print(f"⚠️ Warning: Total attachment size ({total_size / (1024*1024):.1f}MB) exceeds Gmail limit")
+                    logger.warning(f"⚠️ Warning: Total attachment size ({total_size / (1024*1024):.1f}MB) exceeds Gmail limit")
                 
                 # Guess the content type based on the file's extension
                 content_type, encoding = mimetypes.guess_type(file_path)
@@ -243,21 +249,21 @@ class GmailClient:
             server.quit()
             
             cc_info = f" (CC: {', '.join(cc_list)})" if cc else ""
-            print(f"✅ Email with {len(file_paths)} attachments sent to {to_email}{cc_info}")
-            print(f"📎 Attached files:")
+            logger.info(f"✅ Email with {len(file_paths)} attachments sent to {to_email}{cc_info}")
+            logger.info(f"📎 Attached files:")
             for file_info in attached_files:
-                print(f"   • {file_info}")
-            print(f"📊 Total size: {total_size / 1024:.1f} KB")
+                logger.info(f"   • {file_info}")
+            logger.info(f"📊 Total size: {total_size / 1024:.1f} KB")
             return True
             
         except Exception as e:
-            print(f"❌ Send with attachments failed: {e}")
+            logger.error(f"❌ Send with attachments failed: {e}")
             return False
 
     def schedule_email(self, to_email, subject, body, send_time, is_html=False):
         """Schedule an email to be sent at a future time"""
         if not all([to_email, subject, body, send_time]):
-            print("❌ Schedule failed: to_email, subject, body, and send_time are required")
+            logger.error("❌ Schedule failed: to_email, subject, body, and send_time are required")
             return False
             
         try:
@@ -266,21 +272,21 @@ class GmailClient:
             current_time = datetime.now()
             
             if target_time <= current_time:
-                print("❌ Schedule failed: send_time must be in the future")
+                logger.error("❌ Schedule failed: send_time must be in the future")
                 return False
             
             delay = (target_time - current_time).total_seconds()
             
-            print(f"📅 Email scheduled to send to {to_email} at {send_time}")
+            logger.info(f"📅 Email scheduled to send to {to_email} at {send_time}")
             
             # Start background thread to send email at scheduled time
             def delayed_send():
                 time.sleep(delay)
                 success = self.send_email(to_email, subject, body, is_html)
                 if success:
-                    print(f"📨 Scheduled email sent to {to_email}")
+                    logger.info(f"📨 Scheduled email sent to {to_email}")
                 else:
-                    print(f"❌ Scheduled email failed to send to {to_email}")
+                    logger.error(f"❌ Scheduled email failed to send to {to_email}")
             
             thread = threading.Thread(target=delayed_send, daemon=True)
             thread.start()
@@ -288,10 +294,10 @@ class GmailClient:
             return True
             
         except ValueError as e:
-            print(f"❌ Schedule failed: Invalid time format. Use YYYY-MM-DD HH:MM. Error: {e}")
+            logger.error(f"❌ Schedule failed: Invalid time format. Use YYYY-MM-DD HH:MM. Error: {e}")
             return False
         except Exception as e:
-            print(f"❌ Schedule failed: {e}")
+            logger.error(f"❌ Schedule failed: {e}")
             return False
 
     def check_emails(self, limit=None, unread_only=True, mark_as_read=True):
@@ -321,7 +327,7 @@ class GmailClient:
             if mark_as_read and unread_only:
                 for msg_id in recent_ids:
                     mail.store(msg_id, '+FLAGS', '\\Seen')
-                print(f"✅ Marked {len(recent_ids)} emails as read")
+                logger.info(f"✅ Marked {len(recent_ids)} emails as read")
             
             if recent_ids:
                 tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
@@ -370,9 +376,9 @@ class GmailClient:
                                         with open(file_path, 'wb') as f:
                                             f.write(part.get_payload(decode=True))
                                         attachments.append(file_path)
-                                        print(f"💾 Saved attachment: {safe_filename}")
+                                        logger.info(f"💾 Saved attachment: {safe_filename}")
                                     except Exception as attach_error:
-                                        print(f"❌ Failed to save attachment {filename}: {attach_error}")
+                                        logger.error(f"❌ Failed to save attachment {filename}: {attach_error}")
                     else:
                         # Single part message
                         payload = email_message.get_payload(decode=True)
@@ -390,15 +396,15 @@ class GmailClient:
                     })
                         
                 except Exception as e:
-                    print(f"❌ Error processing email: {e}")
+                    logger.error(f"❌ Error processing email: {e}")
                     continue
             
             mail.close()
             mail.logout()
-            print(f"✅ Retrieved {len(emails)} emails{' and marked as read' if mark_as_read and unread_only else ''}")
+            logger.info(f"✅ Retrieved {len(emails)} emails{' and marked as read' if mark_as_read and unread_only else ''}")
             
         except Exception as e:
-            print(f"❌ Check emails failed: {e}")
+            logger.error(f"❌ Check emails failed: {e}")
             
         return emails
 
@@ -410,10 +416,10 @@ class GmailClient:
             mail.store(uid, '+FLAGS', '\\Seen')
             mail.close()
             mail.logout()
-            print(f"✅ Marked email {uid} as read")
+            logger.info(f"✅ Marked email {uid} as read")
             return True
         except Exception as e:
-            print(f"❌ Mark as read failed: {e}")
+            logger.error(f"❌ Mark as read failed: {e}")
             return False
 
     def get_unread_count(self):
@@ -427,7 +433,7 @@ class GmailClient:
             mail.logout()
             return count
         except Exception as e:
-            print(f"❌ Count failed: {e}")
+            logger.error(f"❌ Count failed: {e}")
             return 0
 
     def email_to_admin(self, subject, body=None, file_path=None, file_paths=None, is_html=False):
@@ -469,11 +475,11 @@ class GmailClient:
                 success = self.send_email(admin_email, subject, body, is_html)
             
             if success:
-                print(f"📧 Admin notification sent: {subject}")
+                logger.info(f"📧 Admin notification sent: {subject}")
             return success
             
         except Exception as e:
-            print(f"❌ Admin email failed: {e}")
+            logger.error(f"❌ Admin email failed: {e}")
             return False
 
 
@@ -510,10 +516,11 @@ def get_system_info():
 💾 Disk: {system_info['disk_percent']}% used ({system_info['disk_used_gb']}GB / {system_info['disk_total_gb']}GB)
 ⚡ {load_info}"""
         
-        print("✅ System info retrieved")
-        print(formatted_info)
+        logger.info("✅ System info retrieved")
+        logger.info(formatted_info)
         
         return formatted_info
         
     except Exception as e:
+        logger.error(f"❌ Failed to get system info: {e}")
         return f"❌ Failed to get system info: {e}"

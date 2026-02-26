@@ -263,7 +263,7 @@ def create_discord_bot():
                 try:
                     return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
                 except Exception as e:
-                    print(f"Error submitting LLM request: {e}")
+                    logger.error(f"Error submitting LLM request: {e}")
                     return None
             
             # Run in executor with timeout to avoid blocking the event loop
@@ -328,7 +328,7 @@ def create_discord_bot():
                 try:
                     return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
                 except Exception as e:
-                    print(f"Error submitting LLM request: {e}")
+                    logger.error(f"Error submitting LLM request: {e}")
                     return None
             
             # Run in executor with timeout to avoid blocking the event loop
@@ -530,15 +530,15 @@ def run_discord_bot():
     try:
         bot.run(token)
     except discord.LoginFailure:
-        print("Error: Invalid bot token. Please check your DISCORD_BOT_TOKEN.")
+        logger.error("Error: Invalid bot token. Please check your DISCORD_BOT_TOKEN.")
     except Exception as e:
-        print(f"Error starting bot: {e}")
+        logger.error(f"Error starting bot: {e}")
     finally:
         # Clean up temp directory
         try:
             shutil.rmtree(music_bot.temp_dir)
         except Exception as e:
-            print(f"Error cleaning up temp directory: {e}")
+            logger.error(f"Error cleaning up temp directory: {e}")
 
 async def run_discord_bot_async():
     """Run the Discord bot asynchronously (for thread usage)."""
@@ -546,7 +546,7 @@ async def run_discord_bot_async():
     token = os.getenv('DISCORD_BOT_TOKEN')
     
     if not token:
-        print("Error: DISCORD_BOT_TOKEN environment variable not set.")
+        logger.error("Error: DISCORD_BOT_TOKEN environment variable not set.")
         return
     
     bot, music_bot = create_discord_bot()
@@ -554,12 +554,12 @@ async def run_discord_bot_async():
     try:
         await bot.start(token)
     except discord.LoginFailure:
-        print("Error: Invalid bot token. Please check your DISCORD_BOT_TOKEN.")
+        logger.error("Error: Invalid bot token. Please check your DISCORD_BOT_TOKEN.")
     except Exception as e:
-        print(f"Error starting bot: {e}")
+        logger.error(f"Error starting bot: {e}")
     finally:
         # Clean up temp directory
         try:
             shutil.rmtree(music_bot.temp_dir)
         except Exception as e:
-            print(f"Error cleaning up temp directory: {e}")
+            logger.error(f"Error cleaning up temp directory: {e}")

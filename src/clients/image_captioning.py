@@ -9,6 +9,12 @@ import torch
 from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import warnings
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Suppress some transformer warnings for cleaner output
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -34,9 +40,9 @@ class LocalImageCaptioner:
         self.is_pi = self._is_raspberry_pi()
         
         # Don't load model immediately to save RAM
-        print(f"📋 LocalImageCaptioner initialized with model: {self.model_name}")
+        logger.info(f"📋 LocalImageCaptioner initialized with model: {self.model_name}")
         if self.is_pi:
-            print("🍓 Raspberry Pi detected - using memory management strategy")
+            logger.info("🍓 Raspberry Pi detected - using memory management strategy")
     
     def _is_raspberry_pi(self):
         """Detect if running on Raspberry Pi"""
@@ -49,20 +55,20 @@ class LocalImageCaptioner:
     def _load_model(self):
         """Load the image captioning model and processor"""
         if self.is_available():
-            print("📋 Image captioning model already loaded")
+            logger.info("📋 Image captioning model already loaded")
             return True
             
         try:
-            print(f"🤖 Loading image captioning model: {self.model_name}")
+            logger.info(f"🤖 Loading image captioning model: {self.model_name}")
             if self.is_pi:
-                print("🍓 Loading on Raspberry Pi - this may take 30-60 seconds...")
+                logger.info("🍓 Loading on Raspberry Pi - this may take 30-60 seconds...")
             
             # Load processor
-            print("📋 Loading image processor...")
+            logger.info("📋 Loading image processor...")
             self.processor = BlipProcessor.from_pretrained(self.model_name)
             
             # Load model with CPU optimization
-            print("🧠 Loading language model...")
+            logger.info("🧠 Loading language model...")
             self.model = BlipForConditionalGeneration.from_pretrained(
                 self.model_name,
                 torch_dtype=torch.float32,  # Use float32 for CPU compatibility
@@ -73,12 +79,12 @@ class LocalImageCaptioner:
             # Set to evaluation mode
             self.model.eval()
             
-            print("✅ Image captioning model loaded successfully!")
+            logger.info("✅ Image captioning model loaded successfully!")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to load image captioning model: {e}")
-            print("💡 Try installing: pip install torch transformers pillow")
+            logger.error(f"❌ Failed to load image captioning model: {e}")
+            logger.info("💡 Try installing: pip install torch transformers pillow")
             self.model = None
             self.processor = None
             return False
@@ -86,7 +92,7 @@ class LocalImageCaptioner:
     def _unload_model(self):
         """Unload the model to free up RAM"""
         if self.model is not None:
-            print("🗑️ Unloading image captioning model to free RAM...")
+            logger.info("🗑️ Unloading image captioning model to free RAM...")
             del self.model
             self.model = None
         
@@ -101,7 +107,7 @@ class LocalImageCaptioner:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         
-        print("✅ Image captioning model unloaded")
+        logger.info("✅ Image captioning model unloaded")
     
     def is_available(self):
         """Check if the local model is available for use"""
@@ -128,7 +134,7 @@ class LocalImageCaptioner:
             return "❌ Failed to load image captioning model"
         
         try:
-            print(f"🔍 Analyzing image: {os.path.basename(image_path)}")
+            logger.info(f"🔍 Analyzing image: {os.path.basename(image_path)}")
             
             # Load and preprocess image
             image = Image.open(image_path).convert('RGB')
@@ -137,7 +143,7 @@ class LocalImageCaptioner:
             inputs = self.processor(image, return_tensors="pt")
             
             # Generate caption
-            print("🧠 Generating caption..." + (" (This may take 10-30 seconds on Pi)" if self.is_pi else ""))
+            logger.info("🧠 Generating caption..." + (" (This may take 10-30 seconds on Pi)" if self.is_pi else ""))
             
             with torch.no_grad():
                 outputs = self.model.generate(
@@ -155,7 +161,7 @@ class LocalImageCaptioner:
             caption = caption.replace("a picture of ", "").replace("an image of ", "")
             caption = caption.strip().capitalize()
             
-            print("✅ Caption generated successfully!")
+            logger.info("✅ Caption generated successfully!")
             
             # Unload model to free RAM if requested
             if auto_unload:
@@ -190,8 +196,8 @@ class LocalImageCaptioner:
             return "❌ Failed to load image captioning model"
         
         try:
-            print(f"🔍 Analyzing image: {os.path.basename(image_path)}")
-            print(f"❓ Question: {question}")
+            logger.info(f"🔍 Analyzing image: {os.path.basename(image_path)}")
+            logger.info(f"❓ Question: {question}")
             
             # Load and preprocess image
             image = Image.open(image_path).convert('RGB')
@@ -200,7 +206,7 @@ class LocalImageCaptioner:
             inputs = self.processor(image, question, return_tensors="pt")
             
             # Generate answer
-            print("🧠 Generating answer..." + (" (This may take 10-30 seconds on Pi)" if self.is_pi else ""))
+            logger.info("🧠 Generating answer..." + (" (This may take 10-30 seconds on Pi)" if self.is_pi else ""))
             
             with torch.no_grad():
                 outputs = self.model.generate(
@@ -215,7 +221,7 @@ class LocalImageCaptioner:
             answer = self.processor.decode(outputs[0], skip_special_tokens=True)
             answer = answer.strip().capitalize()
             
-            print("✅ Answer generated successfully!")
+            logger.info("✅ Answer generated successfully!")
             
             # Unload model to free RAM if requested
             if auto_unload:
@@ -280,14 +286,14 @@ def ask_about_image_local(image_path, question, model_name="Salesforce/blip-imag
 if __name__ == "__main__":
     # Example usage and testing
     try:
-        print("🧪 Testing Local Image Captioning")
+        logger.info("🧪 Testing Local Image Captioning")
         
         # Initialize captioner
         captioner = LocalImageCaptioner()
         
         if captioner.is_available():
-            print("✅ Model loaded successfully!")
-            print(f"📊 Model info: {captioner.get_model_info()}")
+            logger.info("✅ Model loaded successfully!")
+            logger.info(f"📊 Model info: {captioner.get_model_info()}")
             
             # Look for test image in generated_images folder
             test_image_dir = os.path.join(os.path.dirname(__file__), '..', 'generated_images')
@@ -297,27 +303,27 @@ if __name__ == "__main__":
                 
                 if image_files:
                     test_image = os.path.join(test_image_dir, image_files[0])
-                    print(f"\n🖼️ Testing with image: {image_files[0]}")
+                    logger.info(f"\n🖼️ Testing with image: {image_files[0]}")
                     
                     # Test basic captioning
                     caption = captioner.caption_image(test_image)
-                    print(f"📝 Caption: {caption}")
+                    logger.info(f"📝 Caption: {caption}")
                     
                     # Test question answering
                     question = "What colors are in this image?"
                     answer = captioner.analyze_image_with_question(test_image, question)
-                    print(f"❓ Question: {question}")
-                    print(f"💬 Answer: {answer}")
+                    logger.info(f"❓ Question: {question}")
+                    logger.info(f"💬 Answer: {answer}")
                     
                 else:
-                    print("⚠️ No test images found in generated_images folder")
+                    logger.warning("⚠️ No test images found in generated_images folder")
             else:
-                print("⚠️ generated_images folder not found")
+                logger.warning("⚠️ generated_images folder not found")
                 
         else:
-            print("❌ Failed to load model")
+            logger.error("❌ Failed to load model")
             
     except Exception as e:
-        print(f"❌ Test failed: {e}")
-        print("💡 Make sure to install required packages:")
-        print("   pip install torch transformers pillow")
+        logger.error(f"❌ Test failed: {e}")
+        logger.info("💡 Make sure to install required packages:")
+        logger.info("   pip install torch transformers pillow")

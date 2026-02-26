@@ -1,6 +1,13 @@
 import os
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
 
 class MoltbookClient:
     def __init__(self):
@@ -38,12 +45,12 @@ class MoltbookClient:
         )
         
         if not response.ok:
-            print(f"❌ API Error {response.status_code}: {response.reason}")
+            logger.error(f"❌ API Error {response.status_code}: {response.reason}")
             try:
                 error_details = response.json()
-                print(f"Error details: {error_details}")
+                logger.error(f"Error details: {error_details}")
             except:
-                print(f"Raw error response: {response.text}")
+                logger.error(f"Raw error response: {response.text}")
         
         response.raise_for_status()
         return response.json()

@@ -2,7 +2,12 @@
 import sqlite3
 import os
 from typing import List, Dict, Any
+import logging
+from utils.logging_config import setup_logging
 
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 class SQLiteClient:
     def __init__(self, db_path=None):
@@ -19,7 +24,7 @@ class SQLiteClient:
     def ensure_db_exists(self):
         """Create database file if it doesn't exist"""
         if not os.path.exists(self.db_path):
-            print(f"🔨 Creating database: {self.db_path}")
+            logger.info(f"🔨 Creating database: {self.db_path}")
         
     def execute_query(self, query: str, params=None) -> List[Dict[str, Any]]:
         """Execute an arbitrary SQL query and return results"""
@@ -37,17 +42,17 @@ class SQLiteClient:
                 if query.strip().upper().startswith('SELECT'):
                     rows = cursor.fetchall()
                     result = [dict(row) for row in rows]
-                    print(f"✅ Query returned {len(result)} rows")
+                    logger.info(f"✅ Query returned {len(result)} rows")
                     return result
                 else:
                     # For INSERT, UPDATE, DELETE
                     conn.commit()
                     affected = cursor.rowcount
-                    print(f"✅ Query affected {affected} rows")
+                    logger.info(f"✅ Query affected {affected} rows")
                     return [{"affected_rows": affected, "lastrowid": cursor.lastrowid}]
                     
         except Exception as e:
-            print(f"❌ Database error: {e}")
+            logger.error(f"❌ Database error: {e}")
             return []
     
     def create_table(self, table_name: str, columns: str) -> bool:

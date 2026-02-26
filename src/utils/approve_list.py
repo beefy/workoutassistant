@@ -1,4 +1,10 @@
 from clients.db import SQLiteClient
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 def get_approve_list():
     db = SQLiteClient()
@@ -12,27 +18,27 @@ def is_email_approved(email):
 def add_to_approve_list(email):
     db = SQLiteClient()
     if is_email_approved(email):
-        print(f"✅ {email} is already in the approve list")
+        logger.info(f"✅ {email} is already in the approve list")
         return True
 
     result = db.insert("approve_list", {"email": email})
     if result:
-        print(f"✅ Added {email} to approve list")
+        logger.info(f"✅ Added {email} to approve list")
     else:
-        print(f"❌ Failed to add {email} to approve list")
+        logger.error(f"❌ Failed to add {email} to approve list")
 
     return result
 
 def remove_from_approve_list(email):
     db = SQLiteClient()
     if not is_email_approved(email):
-        print(f"⚠️ {email} is not in the approve list")
+        logger.warning(f"⚠️ {email} is not in the approve list")
         return True
 
     result = db.execute_query("DELETE FROM approve_list WHERE email = ?", (email,))
     if result and result[0].get("affected_rows", 0) > 0:
-        print(f"✅ Removed {email} from approve list")
+        logger.info(f"✅ Removed {email} from approve list")
         return True
     else:
-        print(f"❌ Failed to remove {email} from approve list")
+        logger.error(f"❌ Failed to remove {email} from approve list")
         return False

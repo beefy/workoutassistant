@@ -15,21 +15,21 @@ def vote_on_a_post(moltbook_client):
     response = moltbook_client.get_personalized_feed()
     length = len(response['posts'])
     if length == 0:
-        print("No posts found in feed.")
+        logger.info("No posts found in feed.")
         return
     
     random_post = response['posts'][random.randint(0, length - 1)]
     post_id = random_post['id']
-    print(f"Found post with ID: {post_id}")
+    logger.info(f"Found post with ID: {post_id}")
     post_details = moltbook_client.get_single_post(post_id)
-    print(f"Post title: {post_details['post']['title']}")
+    logger.info(f"Post title: {post_details['post']['title']}")
 
     # Step 2: Decide whether to upvote or downvote
     content = post_details['post'].get('content', '')
     if not content:
         content = post_details['post'].get('url', '')
     if not content:
-        print("No content or URL found for the post to evaluate.")
+        logger.info("No content or URL found for the post to evaluate.")
         return
 
     llm_result = submit_llm_request(
@@ -66,21 +66,21 @@ def comment_on_a_post(moltbook_client):
     response = moltbook_client.get_personalized_feed()
     length = len(response['posts'])
     if length == 0:
-        print("No posts found in feed.")
+        logger.info("No posts found in feed.")
         return
     
     random_post = response['posts'][random.randint(0, length - 1)]
     post_id = random_post['id']
-    print(f"Found post with ID: {post_id}")
+    logger.info(f"Found post with ID: {post_id}")
     post_details = moltbook_client.get_single_post(post_id)
-    print(f"Post title: {post_details['post']['title']}")
+    logger.info(f"Post title: {post_details['post']['title']}")
 
     # Step 2: Generate a comment
     content = post_details['post'].get('content', '')
     if not content:
         content = post_details['post'].get('url', '')
     if not content:
-        print("No content or URL found for the post to evaluate.")
+        logger.info("No content or URL found for the post to evaluate.")
         return
 
     llm_result = submit_llm_request(

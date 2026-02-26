@@ -10,6 +10,12 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 import platform
 import os
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 def get_chrome_driver():
@@ -36,36 +42,36 @@ def get_chrome_driver():
         
         for chromedriver_path in system_paths:
             if os.path.exists(chromedriver_path) and os.access(chromedriver_path, os.X_OK):
-                print(f"🔧 Using system ChromeDriver: {chromedriver_path}")
+                logger.info(f"🔧 Using system ChromeDriver: {chromedriver_path}")
                 service = Service(chromedriver_path)
                 driver = webdriver.Chrome(service=service, options=chrome_options)
                 return driver
     except Exception as e:
-        print(f"⚠️ System ChromeDriver failed: {e}")
+        logger.error(f"⚠️ System ChromeDriver failed: {e}")
     
     # Method 2: Try webdriver-manager (may not work on ARM)
     try:
-        print("🔧 Attempting to use webdriver-manager...")
+        logger.info("🔧 Attempting to use webdriver-manager...")
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
         return driver
     except Exception as e:
-        print(f"⚠️ webdriver-manager failed: {e}")
+        logger.error(f"⚠️ webdriver-manager failed: {e}")
     
     # Method 3: Try default Chrome without specifying driver path
     try:
-        print("🔧 Trying default Chrome setup...")
+        logger.info("🔧 Trying default Chrome setup...")
         driver = webdriver.Chrome(options=chrome_options)
         return driver
     except Exception as e:
-        print(f"⚠️ Default Chrome setup failed: {e}")
+        logger.error(f"⚠️ Default Chrome setup failed: {e}")
     
     raise Exception("Could not initialize ChromeDriver. Please install chromium-chromedriver: sudo apt install chromium-chromedriver")
 
 
 def web_search(query, num_results=2):
     """Perform a web search and return summarized results"""
-    print(f"🔍 Searching web for: {query}")
+    logger.info(f"🔍 Searching web for: {query}")
     
     try:
         # Use DuckDuckGo search (no API key required)
@@ -74,11 +80,11 @@ def web_search(query, num_results=2):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        print(f"🌐 Requesting: {search_url}")
+        logger.info(f"🌐 Requesting: {search_url}")
         response = requests.get(search_url, headers=headers, timeout=10)
         response.raise_for_status()
         
-        print(f"📥 Response status: {response.status_code}, length: {len(response.content)}")
+        logger.info(f"📥 Response status: {response.status_code}, length: {len(response.content)}")
         
         soup = BeautifulSoup(response.content, 'html.parser')
         results = []
@@ -97,17 +103,17 @@ def web_search(query, num_results=2):
         for selector in result_selectors:
             found_results = soup.select(selector)[:num_results]
             if found_results:
-                print(f"✅ Found {len(found_results)} results using selector: {selector}")
+                logger.info(f"✅ Found {len(found_results)} results using selector: {selector}")
                 break
             else:
-                print(f"❌ No results with selector: {selector}")
+                logger.info(f"❌ No results with selector: {selector}")
         
         if not found_results:
-            print("❌ No results found with any selector. HTML preview:")
-            print(str(soup)[:500] + "...")
+            logger.info("❌ No results found with any selector. HTML preview:")
+            logger.info(str(soup)[:500] + "...")
             # Try to find any links that might be results
             all_links = soup.find_all('a', href=True)
-            print(f"Found {len(all_links)} total links")
+            logger.info(f"Found {len(all_links)} total links")
             return [{"title": "Search Failed", "snippet": "No search results found - DuckDuckGo may be blocking requests or changed structure", "url": "", "content": ""}]
         
         for result in found_results:
@@ -140,7 +146,7 @@ def web_search(query, num_results=2):
                 snippet = ""
             
             if title and url and len(url) > 10:  # Basic URL validation
-                print(f"📄 Found result: {title}...")
+                logger.info(f"📄 Found result: {title}...")
                 # Fetch actual content from the page
                 content = fetch_page_content(url)
                 results.append({
@@ -150,17 +156,17 @@ def web_search(query, num_results=2):
                     'content': content
                 })
         
-        print(f"✅ Found {len(results)} search results with content")
+        logger.info(f"✅ Found {len(results)} search results with content")
         return results
         
     except Exception as e:
-        print(f"❌ Web search failed: {e}")
+        logger.error(f"❌ Web search failed: {e}")
         return [{"title": "Search Error", "snippet": f"Unable to search the web: {str(e)}", "url": "", "content": ""}]
 
 def fetch_page_content(url, max_length=3000):
     """Fetch and extract text content from a webpage"""
     try:
-        print(f"📄 Fetching content from: {url[:50]}...")
+        logger.info(f"📄 Fetching content from: {url[:50]}...")
         
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -222,13 +228,13 @@ def fetch_page_content(url, max_length=3000):
         return text
         
     except Exception as e:
-        print(f"⚠️  Failed to fetch content from {url}: {e}")
+        logger.error(f"⚠️  Failed to fetch content from {url}: {e}")
         return "Content could not be retrieved from this page."
 
 
 def get_apnews_articles(max_articles=10):
     """Scrape front page articles from AP News using Selenium for dynamic content"""
-    print("📰 Fetching AP News front page articles with headless browser...")
+    logger.info("📰 Fetching AP News front page articles with headless browser...")
     
     driver = None
     try:
@@ -265,11 +271,11 @@ def get_apnews_articles(max_articles=10):
         for selector in article_selectors:
             article_elements = soup.select(selector)
             if article_elements:
-                print(f"📄 Found {len(article_elements)} articles using selector: {selector}")
+                logger.info(f"📄 Found {len(article_elements)} articles using selector: {selector}")
                 break
         
         if not article_elements:
-            print("❌ No article links found with any selector")
+            logger.info("❌ No article links found with any selector")
             return []
         
         # Process articles
@@ -305,7 +311,7 @@ def get_apnews_articles(max_articles=10):
                 
                 processed_urls.add(url)
                 
-                print(f"📖 Fetching article {len(articles)+1}/{max_articles}: {title[:60]}...")
+                logger.info(f"📖 Fetching article {len(articles)+1}/{max_articles}: {title[:60]}...")
                 
                 # Fetch the full article content
                 article_content = fetch_apnews_article_content_selenium(url)
@@ -318,14 +324,14 @@ def get_apnews_articles(max_articles=10):
                     })
                 
             except Exception as e:
-                print(f"⚠️  Error processing article: {e}")
+                logger.error(f"⚠️  Error processing article: {e}")
                 continue
         
-        print(f"✅ Successfully fetched {len(articles)} AP News articles")
+        logger.info(f"✅ Successfully fetched {len(articles)} AP News articles")
         return articles
         
     except Exception as e:
-        print(f"❌ Failed to fetch AP News articles: {e}")
+        logger.error(f"❌ Failed to fetch AP News articles: {e}")
         return []
     
     finally:
@@ -376,7 +382,7 @@ def fetch_apnews_article_content_selenium(url):
                 break
         
         if not article_body:
-            print("⚠️  Could not find article content with any selector")
+            logger.warning("⚠️  Could not find article content with any selector")
             return "Article content could not be extracted."
         
         # Remove unwanted elements
@@ -410,7 +416,7 @@ def fetch_apnews_article_content_selenium(url):
         return article_text if article_text and len(article_text) > 50 else "Article content could not be extracted."
         
     except Exception as e:
-        print(f"⚠️  Failed to fetch article content from {url}: {e}")
+        logger.error(f"⚠️  Failed to fetch article content from {url}: {e}")
         return "Failed to retrieve article content."
     
     finally:
