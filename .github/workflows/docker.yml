@@ -47,11 +47,17 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: |
+          type=gha
+          type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/workoutassistant:buildcache
+        cache-to: |
+          type=gha,mode=max
+          type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/workoutassistant:buildcache,mode=max
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
         
     - name: Image scan with Trivy
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/workoutassistant:latest
@@ -61,7 +67,7 @@ jobs:
         exit-code: '0'  # Don't fail the build on security issues
         
     - name: Upload Trivy scan results to GitHub Security tab
-      if: github.event_name != 'pull_request'
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-results.sarif'
