@@ -44,8 +44,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 FROM python:3.11-slim AS production
 
 # Install minimal runtime dependencies
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-driver \
     sqlite3 \
