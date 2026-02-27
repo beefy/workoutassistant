@@ -3,8 +3,7 @@
 FROM python:3.11-slim AS builder
 
 # Install system dependencies and build tools in one layer
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
     g++ \
