@@ -3,6 +3,12 @@ import os
 import base64
 import datetime
 import psutil
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 def login(username, password):
     # curl -X POST "https://api.bobtheraspberrypi.com/api/v1/auth/login" \
@@ -19,17 +25,17 @@ def login(username, password):
     response = requests.post(url, headers=headers)
     
     if response.status_code == 200:
-        print("Login successful!")
+        logger.info("Login successful!")
         token = response.json().get("access_token")
         return token
     else:
-        print(f"Failed to login. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to login. Status code: {response.status_code}, Response: {response.text}")
         return None
 
 def status_update(token, status):
     agent_name = os.getenv("TRACKING_API_USERNAME")
     if not agent_name:
-        print("TRACKING_API_USERNAME environment variable not set.")
+        logger.error("TRACKING_API_USERNAME environment variable not set.")
         return
 
     timestamp = datetime.datetime.now(datetime.UTC).isoformat()
@@ -54,9 +60,9 @@ def status_update(token, status):
     response = requests.post(url, json=payload, headers=headers)
 
     if response.status_code == 200 or response.status_code == 201:
-        print("Status update sent successfully!")
+        logger.info("Status update sent successfully!")
     else:
-        print(f"Failed to send status update. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to send status update. Status code: {response.status_code}, Response: {response.text}")
 
 def system_info_update(token):
     cpu_percent = psutil.cpu_percent(interval=1)
@@ -71,7 +77,7 @@ def system_info_update(token):
     # }
     agent_name = os.getenv("TRACKING_API_USERNAME")
     if not agent_name:
-        print("TRACKING_API_USERNAME environment variable not set.")
+        logger.error("TRACKING_API_USERNAME environment variable not set.")
         return
 
     timestamp = datetime.datetime.now(datetime.UTC).isoformat()
@@ -93,14 +99,14 @@ def system_info_update(token):
     response = requests.post(url, json=payload, headers=headers)
 
     if response.status_code == 200 or response.status_code == 201:
-        print("System info sent successfully!")
+        logger.info("System info sent successfully!")
     else:
-        print(f"Failed to send system info. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to send system info. Status code: {response.status_code}, Response: {response.text}")
 
 def response_time_update(token, received_time, response_time):
     agent_name = os.getenv("TRACKING_API_USERNAME")
     if not agent_name:
-        print("TRACKING_API_USERNAME environment variable not set.")
+        logger.error("TRACKING_API_USERNAME environment variable not set.")
         return
 
     url = "https://api.bobtheraspberrypi.com/api/v1/response-times/"
@@ -123,14 +129,14 @@ def response_time_update(token, received_time, response_time):
     response = requests.post(url, json=payload, headers=headers)
 
     if response.status_code == 200 or response.status_code == 201:
-        print("Response time info sent successfully!")
+        logger.info("Response time info sent successfully!")
     else:
-        print(f"Failed to send response time info. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to send response time info. Status code: {response.status_code}, Response: {response.text}")
 
 def heartbeat(token):
     agent_name = os.getenv("TRACKING_API_USERNAME")
     if not agent_name:
-        print("TRACKING_API_USERNAME environment variable not set.")
+        logger.error("TRACKING_API_USERNAME environment variable not set.")
         return
 
     url = "https://api.bobtheraspberrypi.com/api/v1/heartbeat/"
@@ -151,9 +157,9 @@ def heartbeat(token):
     response = requests.post(url, json=payload, headers=headers)
 
     if response.status_code == 200 or response.status_code == 201:
-        print("Heartbeat sent successfully!")
+        logger.info("Heartbeat sent successfully!")
     else:
-        print(f"Failed to send heartbeat. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to send heartbeat. Status code: {response.status_code}, Response: {response.text}")
 
 
 def unsubscribe_user(email):
@@ -163,9 +169,9 @@ def unsubscribe_user(email):
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        print(f"Successfully unsubscribed {email} from newsletter.")
+        logger.info(f"Successfully unsubscribed {email} from newsletter.")
     else:
-        print(f"Failed to unsubscribe {email}. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to unsubscribe {email}. Status code: {response.status_code}, Response: {response.text}")
 
 
 def refresh_indicators(token):
@@ -177,9 +183,9 @@ def refresh_indicators(token):
     }
     response = requests.post(url, headers=headers)
     if response.status_code == 200 or response.status_code == 201:
-        print("Indicator refresh triggered successfully!")
+        logger.info("Indicator refresh triggered successfully!")
     else:
-        print(f"Failed to trigger indicator refresh. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to trigger indicator refresh. Status code: {response.status_code}, Response: {response.text}")
 
 
 def get_indicators(token):
@@ -191,10 +197,10 @@ def get_indicators(token):
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        print("Indicators fetched successfully!")
+        logger.info("Indicators fetched successfully!")
         return response.json()
     else:
-        print(f"Failed to fetch indicators. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to fetch indicators. Status code: {response.status_code}, Response: {response.text}")
         return None
 
 
@@ -207,10 +213,10 @@ def get_indicator_cache_stats(token):
     }
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        print("Cache stats fetched successfully!")
+        logger.info("Cache stats fetched successfully!")
         return response.json()
     else:
-        print(f"Failed to fetch cache stats. Status code: {response.status_code}, Response: {response.text}")
+        logger.error(f"Failed to fetch cache stats. Status code: {response.status_code}, Response: {response.text}")
         return None
 
 
@@ -218,7 +224,7 @@ if __name__ == "__main__":
     username = os.getenv("TRACKING_API_USERNAME")
     password = os.getenv("TRACKING_API_PASSWORD")
     if not username or not password:
-        print("Please set the TRACKING_API_USERNAME and TRACKING_API_PASSWORD environment variables.")
+        logger.error("Please set the TRACKING_API_USERNAME and TRACKING_API_PASSWORD environment variables.")
     else:
         token = login(username, password)
         if token:

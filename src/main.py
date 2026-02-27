@@ -1,49 +1,105 @@
 from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto, discord_bot
 import threading
 import time
+import signal
+import sys
 import traceback
 from utils.tracking_api import login, status_update
 import os
 from clients.gmail import GmailClient
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
+# Global shutdown event
+shutdown_event = threading.Event()
+
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully"""
+    logger.info(f"🛑 Received signal {signum}. Initiating graceful shutdown...")
+    shutdown_event.set()
 
 
 def auto_restart_wrapper(target_func, name):
     """Wrapper to automatically restart threads that encounter exceptions"""
-    while True:
+    while not shutdown_event.is_set():
         try:
-            print(f"🔄 Starting {name} thread...")
+            logger.info(f"🔄 Starting {name} thread...")
             target_func()
         except Exception as e:
+            if shutdown_event.is_set():
+                logger.info(f"🛑 {name} thread stopped due to shutdown signal")
+                break
+            
             error_msg = str(e) or repr(e) or "Unknown error"
             exception_type = type(e).__name__
-            print(f"❌ {name} thread crashed: {exception_type}: {error_msg}")
-            print(f"📝 Full traceback:")
-            traceback.print_exc()
-            print(f"🔄 Restarting {name} thread in 5 minutes...")
+            logger.error(f"❌ {name} thread crashed: {exception_type}: {error_msg}")
+            logger.error(f"📝 Full traceback:")
+            logger.error(traceback.format_exc())
+            logger.exception("Full traceback:")
+            logger.info(f"🔄 Restarting {name} thread in 5 minutes...")
 
-            print(f"⚠️ An error occurred in {name}: {exception_type}: {error_msg}")
-            admin_email = os.getenv("ADMIN_EMAIL")
-            client = GmailClient()
-            client.send_email_with_attachment(admin_email, f"Bob encountered an Exception in {name} thread", "Please see the attached file.", file_path="/home/bob/Code/workoutassistant/output.log")
-            tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
-            if tracking_token:
-                status_update(tracking_token, "Error!")
+            logger.warning(f"⚠️ An error occurred: {e}")
+            try:
+                admin_email = os.getenv("ADMIN_EMAIL")
+                if admin_email:
+                    client = GmailClient()
+                    log_path = os.getenv("LOG_PATH", "/app/logs/output.log")
+                    name = os.getenv("TRACKING_API_USERNAME", "unknown")
+                    client.send_email_with_attachment(admin_email, f"{name} encountered an Exception in {name} thread", "Please see the attached file.", file_path=log_path)
+                
+                tracking_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+                if tracking_token:
+                    status_update(tracking_token, "Error!")
+            except Exception as notify_error:
+                logger.error(f"⚠️ Failed to send error notification: {notify_error}")
+                logger.exception("Full traceback:")
 
-            time.sleep(300)  # Wait for 5 minutes before restarting
+            # Wait for 5 minutes or until shutdown is requested
+            for _ in range(300):  # 5 minutes in 1 second intervals
+                if shutdown_event.is_set():
+                    break
+                time.sleep(1)
 
 
 if __name__ == "__main__":
-    # start threads with auto-restart capability
-    threading.Thread(target=auto_restart_wrapper, args=(heartbeat.main, "heartbeat"), daemon=True).start()
-    threading.Thread(target=auto_restart_wrapper, args=(use_moltbook.main, "moltbook"), daemon=True).start()
-    threading.Thread(target=auto_restart_wrapper, args=(respond_to_email.main, "email"), daemon=True).start()
-    threading.Thread(target=auto_restart_wrapper, args=(newsletter.main, "newsletter"), daemon=True).start()
-    threading.Thread(target=auto_restart_wrapper, args=(trade_crypto.main, "crypto"), daemon=True).start()
-    threading.Thread(target=auto_restart_wrapper, args=(discord_bot.main, "discord_bot"), daemon=True).start()
+    # Setup signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
     
-    # keep main thread alive - wait for keyboard interrupt
+    logger.info("🚀 Starting WorkoutAssistant...")
+    
+    # Start threads with auto-restart capability
+    threads = []
+    thread_configs = [
+        (heartbeat.main, "heartbeat"),
+        (use_moltbook.main, "moltbook"),
+        (respond_to_email.main, "email"),
+        (newsletter.main, "newsletter"),
+        (trade_crypto.main, "crypto"),
+        (discord_bot.main, "discord_bot")
+    ]
+    
+    for func, name in thread_configs:
+        thread = threading.Thread(target=auto_restart_wrapper, args=(func, name), daemon=True)
+        thread.start()
+        threads.append(thread)
+    
+    # Keep main thread alive and handle shutdown
     try:
-        threading.Event().wait()
+        shutdown_event.wait()
     except KeyboardInterrupt:
-        print("Shutting down...")
-        exit(0)
+        logger.info("🛑 Received KeyboardInterrupt")
+        shutdown_event.set()
+    
+    logger.info("🛑 Shutting down WorkoutAssistant...")
+    
+    # Wait a moment for threads to finish gracefully
+    time.sleep(2)
+    
+    logger.info("✅ WorkoutAssistant shutdown complete")
+    sys.exit(0)

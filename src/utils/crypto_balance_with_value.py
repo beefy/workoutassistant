@@ -1,4 +1,10 @@
 from utils.crypto_balance import get_crypto_balances
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 TOKEN_ADDRESSES = {
     "SOL": "So11111111111111111111111111111111111111112",  # Wrapped SOL
@@ -39,9 +45,9 @@ def get_crypto_balances_with_value(indicators):
             "usd_value": balance * usd if usd is not None else None
         }
 
-    print(ret)
+    logger.info(f"Crypto balances: {ret}")
     total_value = sum(item["usd_value"] for item in ret.values() if item["usd_value"] is not None)
-    print("Total value USD:", total_value)
+    logger.info(f"Total value USD: {total_value}")
 
     # Get SOL price and balance for max_buy calculations
     sol_mint = TOKEN_ADDRESSES["SOL"]
@@ -93,5 +99,5 @@ def get_crypto_balances_with_value(indicators):
         ret_with_limits["SOL"]["max_buy"] = 0
         ret_with_limits["SOL"]["max_sell"] = 0
 
-    print("Balances with limits:", ret_with_limits)
+    logger.info(f"Balances with limits: {ret_with_limits}")
     return ret_with_limits, total_value

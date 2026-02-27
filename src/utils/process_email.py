@@ -2,9 +2,15 @@ from clients.gmail import GmailClient
 from llm.priority_queue import submit_llm_request
 from utils.approve_list import is_email_approved, add_to_approve_list, remove_from_approve_list
 from utils.tracking_api import status_update, system_info_update, response_time_update, login, unsubscribe_user
+from utils.logging_config import setup_logging
 import datetime
 import os
+import logging
 from email_reply_parser import EmailReplyParser
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 def parse_email_body(body):
     """
@@ -36,7 +42,7 @@ def parse_email_body(body):
             "history": []  # email-reply-parser focuses on new content extraction, not history parsing
         }
     except Exception as e:
-        print(f"⚠️ Email parsing failed: {e}")
+        logger.error(f"⚠️ Email parsing failed: {e}")
         # Fallback: use entire body
         return {
             "body": body.strip(),
@@ -62,19 +68,19 @@ def process_email():
         if not cc:
             cc = []
 
-        print(f"Processing email from {sender} with subject '{subject}'")
+        logger.info(f"Processing email from {sender} with subject '{subject}'")
 
         if is_email_approved(senders_email):
-            print(f"✅ {sender} is approved. Processing email...")
+            logger.info(f"✅ {sender} is approved. Processing email...")
         elif os.getenv("APPROVED_PHRASE").lower() in body.lower():
-            print(f"✅ {sender} is a friend of Nate. Adding to approve list...")
+            logger.info(f"✅ {sender} is a friend of Nate. Adding to approve list...")
             add_to_approve_list(senders_email)
         else:
-            print(f"❌ {sender} is not approved. Ignoring email.")
+            logger.info(f"❌ {sender} is not approved. Ignoring email.")
             continue
 
         if "UNSUBSCRIBE" in body:
-            print(f"📩 {sender} requested to unsubscribe. Removing from approve list...")
+            logger.info(f"📩 {sender} requested to unsubscribe. Removing from approve list...")
             
             remove_from_approve_list(senders_email)  # SQLite approve list
             unsubscribe_user(senders_email)  # Mongodb newsletter list
@@ -99,12 +105,12 @@ def process_email():
         response = llm_result.get('response', '')
         generated_images = llm_result.get('generated_images', [])
         
-        print(f"Email response generated: {response}")
+        logger.info(f"Email response generated: {response}")
         if generated_images:
-            print(f"Generated {len(generated_images)} images: {generated_images}")
+            logger.info(f"Generated {len(generated_images)} images: {generated_images}")
         
         # Send response email with attachments if images were generated
-        print(f"📧 Sending email to {senders_email}")
+        logger.info(f"📧 Sending email to {senders_email}")
         if generated_images:
             # Send email with image attachments
             gmail.send_email_with_attachments(senders_email, f"Re: {subject}", response, generated_images, cc=cc)
@@ -112,7 +118,7 @@ def process_email():
             # Send email without attachments
             gmail.send_email(senders_email, f"Re: {subject}", response, cc=cc)
 
-        print(f"📧 Completed processing email from {sender}: {subject}")
+        logger.info(f"📧 Completed processing email from {sender}: {subject}")
 
         email_sent_time = datetime.datetime.now(datetime.UTC).isoformat()
         token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))

@@ -18,11 +18,113 @@ Tasks that run on a regular schedule:
  - Browse Moltbook, making posts, making comments, or upvoting/downvoting posts
  - Trade cryptocurrency on the Solana blockchain based on 5 indicators from the last 72 hours of price data
 
-### Headless web search
+### Environment Variables
 
-Install this
+See `.variables.example` for expected environment variables.
+
+You also need a `.variables-watchtower` for watchtower variables (used to send email alerts on server restart or failures)
 ```
+GMAIL_APP_PASSWORD=your_app_password_here
+GMAIL_ADDRESS=your_email@gmail.com
+ADMIN_EMAIL=admin@example.com
+```
+
+### Docker Commands
+
+Install
+```
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Docker Compose (if not included)
+sudo apt install docker-compose-plugin
+```
+
+Ensure it starts on boot
+```
+sudo systemctl enable docker
+```
+
+Commands
+```bash
+# View logs
+docker compose logs -f workoutassistant
+
+# Check status
+docker compose ps
+
+# Update to latest version
+docker compose pull && docker compose up -d
+
+# Stop containers
+docker compose down
+
+# Restart
+docker compose restart
+```
+
+### 🔄 Automatic Updates
+
+The deployment includes [Watchtower](https://github.com/containrrr/watchtower) which:
+- Polls DockerHub every 5 minutes for new images
+- Automatically pulls and deploys updates
+- Sends email notifications when updates occur
+- Cleans up old images to save space
+
+Updates are triggered automatically when code is pushed to the main branch via GitHub Actions.
+
+### Setting Up CI/CD
+
+To set up automatic Docker image building and publishing:
+
+**Set up DockerHub account** and create a repository named `workoutassistant`
+
+**Configure GitHub Secrets** in your repository settings:
+   - Go to Settings → Secrets and variables → Actions
+   - Add these repository secrets:
+     - `DOCKERHUB_USERNAME`: Your DockerHub username
+     - `DOCKERHUB_TOKEN`: Your DockerHub access token ([create one here](https://hub.docker.com/settings/security))
+
+### 🏥 Health Monitoring
+
+The container includes health checks that monitor if the main process is running. Container will restart automatically if health checks fail.
+
+### 🔧 Troubleshooting
+
+**Container won't start:**
+- Check if `~/.variables` file exists and has the required variables
+- Verify Docker is running: `sudo systemctl status docker`
+- Check logs: `docker compose logs workoutassistant`
+
+**Auto-updates not working:**
+- Ensure Watchtower container is running: `docker compose ps`
+- Check Watchtower logs: `docker compose logs watchtower`
+
+### Prerequisites
+
+Install system dependencies:
+```bash
+# Headless web search
 sudo apt install -y chromium chromium-driver
+
+# Python and pip (usually pre-installed)
+sudo apt install -y python3 python3-pip
+
+# SQLite (usually pre-installed)
+sudo apt install -y sqlite3
+```
+
+### Install Python Dependencies
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/workoutassistant.git
+cd workoutassistant
+
+# Install Python packages
+pip install -r requirements.txt
 ```
 
 ### Setup Local LLM

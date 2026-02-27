@@ -6,6 +6,12 @@ import requests
 from huggingface_hub import InferenceClient
 from datetime import datetime
 from PIL import Image, ImageOps
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class HuggingFaceImageGenerator:
@@ -63,8 +69,8 @@ class HuggingFaceImageGenerator:
             model_id = self.models.get(model, self.default_model)
         
         try:
-            print(f"🎨 Generating image with prompt: '{prompt[:50]}...'")
-            print(f"📋 Using model: {model_id}")
+            logger.info(f"🎨 Generating image with prompt: '{prompt[:50]}...'")
+            logger.info(f"📋 Using model: {model_id}")
             
             # Use the new InferenceClient text_to_image method
             image = self.client.text_to_image(
@@ -74,19 +80,19 @@ class HuggingFaceImageGenerator:
                 height=height
             )
             
-            print("✅ Image generated successfully!")
+            logger.info("✅ Image generated successfully!")
             
             # Save image if path provided
             if save_path:
                 # Create directory if it doesn't exist
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 image.save(save_path)
-                print(f"💾 Image saved to: {save_path}")
+                logger.info(f"💾 Image saved to: {save_path}")
             
             return image
             
         except Exception as e:
-            print(f"❌ Error generating image: {e}")
+            logger.error(f"❌ Error generating image: {e}")
             return None
 
     def generate_and_save(self, prompt, filename=None, model=None, **kwargs):
@@ -135,16 +141,16 @@ class HuggingFaceImageGenerator:
             PIL.Image: Modified image object, or None if failed
         """
         if not os.path.exists(image_path):
-            print(f"❌ Input image not found: {image_path}")
+            logger.error(f"❌ Input image not found: {image_path}")
             return None
             
         if not prompt or not prompt.strip():
-            print("❌ Modification prompt cannot be empty")
+            logger.error("❌ Modification prompt cannot be empty")
             return None
         
         # Validate image format
         if not image_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-            print("❌ Only PNG and JPG images are supported")
+            logger.error("❌ Only PNG and JPG images are supported")
             return None
         
         model_id = model if model and "/" in model else self.default_img2img_model
@@ -152,16 +158,16 @@ class HuggingFaceImageGenerator:
             model_id = self.img2img_models.get(model, self.default_img2img_model)
         
         try:
-            print(f"🖼️ Loading input image: {os.path.basename(image_path)}")
-            print(f"✏️ Modification prompt: '{prompt[:50]}...'")
-            print(f"📋 Using model: {model_id}")
+            logger.info(f"🖼️ Loading input image: {os.path.basename(image_path)}")
+            logger.info(f"✏️ Modification prompt: '{prompt[:50]}...'")
+            logger.info(f"📋 Using model: {model_id}")
             
             # Load the input image
             input_image = Image.open(image_path)
             
             # Use FLUX Kontext with Replicate provider
             try:
-                print("🚀 Using FLUX Kontext via Replicate provider...")
+                logger.info("🚀 Using FLUX Kontext via Replicate provider...")
                 provider_client = InferenceClient(provider="replicate", api_key=self.api_token)
                 modified_image = provider_client.image_to_image(
                     image=input_image,
@@ -169,24 +175,24 @@ class HuggingFaceImageGenerator:
                     model=model_id,
                     strength=strength
                 )
-                print("✅ Image modified successfully using FLUX Kontext!")
+                logger.info("✅ Image modified successfully using FLUX Kontext!")
                 
             except Exception as error:
-                print(f"FLUX Kontext failed: {error}")
+                logger.error(f"FLUX Kontext failed: {error}")
                 raise Exception(f"Image modification failed: {error}")
             
-            print("✅ Image modified successfully!")
+            logger.info("✅ Image modified successfully!")
             
             # Save image if path provided
             if save_path:
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 modified_image.save(save_path)
-                print(f"💾 Modified image saved to: {save_path}")
+                logger.info(f"💾 Modified image saved to: {save_path}")
             
             return modified_image
             
         except Exception as e:
-            print(f"❌ Error modifying image: {e}")
+            logger.error(f"❌ Error modifying image: {e}")
             return None
 
     def modify_and_save(self, image_path, prompt, filename=None, model=None, **kwargs):
@@ -225,25 +231,25 @@ class HuggingFaceImageGenerator:
 
     def list_available_models(self):
         """List available image generation models"""
-        print("🤖 Available image generation models:")
+        logger.info("🤖 Available image generation models:")
         for name, model_id in self.models.items():
-            print(f"  • {name}: {model_id}")
-        print(f"\n✏️ Available image-to-image models:")
+            logger.info(f"  • {name}: {model_id}")
+        logger.info(f"\n✏️ Available image-to-image models:")
         for name, model_id in self.img2img_models.items():
-            print(f"  • {name}: {model_id} (Replicate provider)")
-        print(f"\n💡 Default text-to-image model: {self.default_model}")
-        print(f"✏️ Default image-to-image model: {self.default_img2img_model}")
+            logger.info(f"  • {name}: {model_id} (Replicate provider)")
+        logger.info(f"\n💡 Default text-to-image model: {self.default_model}")
+        logger.info(f"✏️ Default image-to-image model: {self.default_img2img_model}")
 
     def test_connection(self):
         """Test connection to Hugging Face API"""
         try:
             # Test with a simple model list or connection check
             models = ["flux_schnell", "stable_diffusion"]
-            print("✅ Connection to Hugging Face Inference API successful!")
-            print(f"Available models in client: {list(self.models.keys())}")
+            logger.info("✅ Connection to Hugging Face Inference API successful!")
+            logger.info(f"Available models in client: {list(self.models.keys())}")
             return True
         except Exception as e:
-            print(f"❌ Connection test failed: {e}")
+            logger.error(f"❌ Connection test failed: {e}")
             return False
 
 
@@ -268,7 +274,7 @@ def generate_image_simple(prompt, save=True, model=None):
             return generator.generate_image(prompt, model=model)
             
     except Exception as e:
-        print(f"❌ Failed to generate image: {e}")
+        logger.error(f"❌ Failed to generate image: {e}")
         return None
 
 
@@ -293,7 +299,7 @@ def modify_image_simple(image_path, prompt, save=True, model=None):
             return generator.modify_image(image_path, prompt, model=model)
             
     except Exception as e:
-        print(f"❌ Failed to modify image: {e}")
+        logger.error(f"❌ Failed to modify image: {e}")
         return None
 
 
@@ -313,13 +319,13 @@ if __name__ == "__main__":
         image_path = generator.generate_and_save(prompt)
         
         if image_path:
-            print(f"🎉 Generated image saved to: {image_path}")
+            logger.info(f"🎉 Generated image saved to: {image_path}")
 
             # Modify the image with a new prompt
             modification_prompt = "Make it look like a Van Gogh painting"
             modified_image_path = generator.modify_and_save(image_path, modification_prompt)
         
     except Exception as e:
-        print(f"❌ Error: {e}")
-        print("💡 Make sure to set your HF_API_TOKEN environment variable")
-        print("   Get your free token at: https://huggingface.co/settings/tokens")
+        logger.error(f"❌ Error: {e}")
+        logger.info("💡 Make sure to set your HF_API_TOKEN environment variable")
+        logger.info("   Get your free token at: https://huggingface.co/settings/tokens")

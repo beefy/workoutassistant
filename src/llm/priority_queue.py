@@ -11,6 +11,12 @@ import time
 from typing import Callable, List, Optional, Dict, Any
 from concurrent.futures import Future
 from llm.local_llm import LocalLLM
+import logging
+from utils.logging_config import setup_logging
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class LLMRequest:
@@ -79,14 +85,14 @@ class LLMPriorityQueueManager:
         """Initialize the LLM instance (called once)"""
         with self.init_lock:
             if self.llm is None:
-                print("🤖 Initializing global LLM instance...")
-                self.llm = LocalLLM()
-                print("✅ LLM initialized successfully")
+                logger.info("🤖 Initializing global LLM instance...")
+                self._llm = LocalLLM()
+                logger.info("✅ LLM initialized successfully")
                 self.llm_ready.set()
     
     def _process_queue(self):
         """Background worker that processes LLM requests from the priority queue"""
-        print("🔄 LLM priority queue worker started")
+        logger.info("🔄 LLM priority queue worker started")
         
         while self.running:
             try:
@@ -105,7 +111,7 @@ class LLMPriorityQueueManager:
                 self.current_request = request
                 
                 # Process the request
-                print(f"🎯 Processing LLM request from {request.task} (priority {request.priority})")
+                logger.info(f"🎯 Processing LLM request from {request.task} (priority {request.priority})")
                 
                 try:
                     # Set attachments if provided
@@ -132,10 +138,10 @@ class LLMPriorityQueueManager:
                     # Set the result (now a dict with response and generated_images)
                     request.future.set_result(result)
                         
-                    print(f"✅ LLM request completed from {request.task} (priority {request.priority})")
+                    logger.info(f"✅ LLM request completed from {request.task} (priority {request.priority})")
                     
                 except Exception as e:
-                    print(f"❌ Error processing LLM request from {request.task}: {e}")
+                    logger.error(f"❌ Error processing LLM request from {request.task}: {e}")
                     request.future.set_exception(e)
                 
                 # Clear current task tracking
@@ -149,7 +155,7 @@ class LLMPriorityQueueManager:
                 # Timeout occurred, continue loop
                 continue
             except Exception as e:
-                print(f"⚠️ Unexpected error in queue worker: {e}")
+                logger.warning(f"⚠️ Unexpected error in queue worker: {e}")
     
     def submit_request(self, prompt: str, attachments: List[str] = None, priority: int = 1,
                       max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown") -> Dict[str, Any]:
@@ -186,14 +192,14 @@ class LLMPriorityQueueManager:
         
         # Add to priority queue
         self.priority_queue.put(request)
-        print(f"📝 LLM request queued (priority {priority})")
+        logger.info(f"📝 LLM request queued (priority {priority})")
         
         # Block until response is ready
         try:
             result = request.future.result()  # This will block until the request is processed
             return result
         except Exception as e:
-            print(f"❌ LLM request failed: {e}")
+            logger.error(f"❌ LLM request failed: {e}")
             raise
     
     def get_queue_size(self) -> int:
@@ -217,11 +223,11 @@ class LLMPriorityQueueManager:
     
     def shutdown(self):
         """Shutdown the priority queue manager"""
-        print("🛑 Shutting down LLM Priority Queue Manager...")
+        logger.info("🛑 Shutting down LLM Priority Queue Manager...")
         self.running = False
         if self.worker_thread:
             self.worker_thread.join(timeout=5.0)
-        print("✅ LLM Priority Queue Manager shutdown complete")
+        logger.info("✅ LLM Priority Queue Manager shutdown complete")
 
 
 # Global instance
