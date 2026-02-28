@@ -1,4 +1,4 @@
-from utils.tracking_api import login, get_indicators
+from utils.tracking_api import login, get_indicators, refresh_indicators
 from utils.crypto_balance_with_value import get_crypto_balances_with_value
 from clients.crypto_trade import execute_crypto_trade
 import time
@@ -10,7 +10,9 @@ if not token:
     print("Failed to log in to tracking API. Please check your credentials.")
     exit(1)
 
-# refresh_indicators(token)
+confirm = input("Refresh indicators before selling? (yes/no): ")
+if confirm.lower() == "yes":
+    refresh_indicators(token)
 
 indicators = get_indicators(token)
 
