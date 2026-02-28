@@ -63,6 +63,10 @@ docker compose down
 
 # Restart
 docker compose restart
+
+# SSH into the docker container
+docker exec -it workoutassistant /bin/bash
+cat /app/logs/output.log
 ```
 
 To fix permission denied error

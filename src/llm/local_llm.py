@@ -110,22 +110,35 @@ class LocalLLM:
 
     def find_model_file(self):
         logger.info("🔍 Searching for model files...")
-        expanded_path = os.path.expanduser("~/models/")
         
-        # Try 128k model first, fall back to 4k
+        # Search paths: containerized path first, then local development path
+        search_paths = [
+            "/app/models",  # Docker container mounted path
+            os.path.expanduser("~/models")  # Local development path
+        ]
+        
+        # Try 128k model first, fall back to 4k, and include the fine-tuned variant
         models_to_try = [
             "Phi-3-mini-128k-instruct-q4.gguf",
             "Phi-3-mini-128k-instruct-Q4_K_M.gguf",  # Alternative 128k model
             "Phi-3-mini-4k-instruct-q4.gguf"
         ]
         
-        for model_name in models_to_try:
-            full_path = os.path.join(expanded_path, model_name)
-            if os.path.exists(full_path):
-                logger.info(f"✅ Found model: {full_path}")
-                return full_path
+        for search_path in search_paths:
+            logger.info(f"🔍 Searching in: {search_path}")
+            if os.path.exists(search_path):
+                for model_name in models_to_try:
+                    full_path = os.path.join(search_path, model_name)
+                    if os.path.exists(full_path):
+                        logger.info(f"✅ Found model: {full_path}")
+                        return full_path
+            else:
+                logger.debug(f"📁 Directory not found: {search_path}")
 
         logger.error("❌ No model files found in common locations")
+        logger.info("Searched in the following directories:")
+        for path in search_paths:
+            logger.info(f"  - {path}")
         logger.info("To download a model:")
         logger.info("  mkdir -p ~/models")
         logger.info("  cd ~/models")
