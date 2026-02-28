@@ -37,10 +37,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G
-          cpus: '3.5'
+          memory: 8G
+          cpus: '4.0'
         reservations:
-          memory: 2G
+          memory: 1G
           cpus: '1.0'
     
     # Health check
