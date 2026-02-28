@@ -77,6 +77,15 @@ newgrp docker
 docker ps
 ```
 
+More setup
+```
+mkdir -p ./logs ./data ./generated_images && chmod 755 ./logs ./data ./generated_images
+```
+or
+```
+sudo chown -R $USER:$USER ./logs ./data ./generated_images 2>/dev/null || echo "Some directories don't exist yet - that's ok"
+```
+
 ### 🔄 Automatic Updates
 
 The deployment includes [Watchtower](https://github.com/containrrr/watchtower) which:

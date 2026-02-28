@@ -20,6 +20,9 @@ services:
       
       # Mount logs directory
       - ./logs:/app/logs
+      
+      # Mount secrets directory for .variables file
+      - ${HOME}/.variables:/app/.secrets/.variables:ro
     
     environment:
       # Environment variables that are safe to include
@@ -27,6 +30,8 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - LOG_LEVEL=INFO
+      # Fix permissions by running as current user
+    user: "1000:1000"
       
     # Resource limits (adjust based on your Raspberry Pi specs)
     deploy:
