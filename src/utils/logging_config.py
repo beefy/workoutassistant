@@ -19,7 +19,7 @@ def setup_logging():
     
     # Setup root logger
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     
     # Avoid duplicate handlers if setup_logging is called multiple times
     if logger.handlers:
