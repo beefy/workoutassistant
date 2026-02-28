@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   workoutassistant:
     # Use the image from DockerHub (will be built by GitHub Actions)
@@ -61,12 +59,13 @@ services:
     container_name: watchtower
     restart: unless-stopped
     env_file:
-      - ~/.variables-watchtower  # Only Gmail credentials, not crypto keys
+      - ~/.variables-watchtower  # Variables will be read from this file into the container
     environment:
       - WATCHTOWER_POLL_INTERVAL=300  # Check for updates every 5 minutes
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
-      - WATCHTOWER_NOTIFICATIONS=shoutrrr://smtp://workoutassistant:${GMAIL_APP_PASSWORD}@smtp.gmail.com:587/?from=${GMAIL_ADDRESS}&to=${ADMIN_EMAIL}&subject=Watchtower%20Update
+      # Email notifications will use variables from env_file:
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr://smtp://workoutassistant:$$GMAIL_APP_PASSWORD@smtp.gmail.com:587/?from=$$GMAIL_ADDRESS&to=$$ADMIN_EMAIL&subject=Watchtower%20Update
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: workoutassistant
