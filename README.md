@@ -65,6 +65,18 @@ docker compose down
 docker compose restart
 ```
 
+To fix permission denied error
+```
+# Add your user to docker group
+sudo usermod -aG docker $USER
+
+# Then either logout/login OR run:
+newgrp docker
+
+# Verify it worked:
+docker ps
+```
+
 ### 🔄 Automatic Updates
 
 The deployment includes [Watchtower](https://github.com/containrrr/watchtower) which:
