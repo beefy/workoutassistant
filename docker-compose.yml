@@ -6,14 +6,14 @@ services:
     restart: unless-stopped
 
     env_file:
-      - ~/.variables
+      - ${HOME}/.variables
     
     volumes:
       # Mount data directory for persistence
       - ./data:/app/data
       
-      # Mount models directory for persistence (optional, models can be downloaded on container start)
-      - ./models:/app/models
+      # Mount models directory from user's home directory
+      - ${HOME}/models:/app/models
       
       # Mount generated images directory for AI-generated images
       - ./generated_images:/app/src/generated_images
@@ -59,7 +59,7 @@ services:
     container_name: watchtower
     restart: unless-stopped
     env_file:
-      - ~/.variables-watchtower  # Variables will be read from this file into the container
+      - ${HOME}/.variables-watchtower  # Variables will be read from this file into the container
     environment:
       - WATCHTOWER_POLL_INTERVAL=300  # Check for updates every 5 minutes
       - WATCHTOWER_CLEANUP=true
