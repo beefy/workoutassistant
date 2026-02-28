@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class LocalLLM:
-    def __init__(self, model_path=None, n_ctx=16384, n_threads=4):  # 128k context to match model training
+    def __init__(self, model_path=None, n_ctx=8192, n_threads=3):  # Conservative settings for 6GB Pi
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.n_threads = n_threads
@@ -163,14 +163,15 @@ class LocalLLM:
                 return False
         
         try:
-            # Try with default settings first
+            # Try with conservative settings for Pi
             self.model = Llama(
                 model_path=self.model_path,
                 n_ctx=self.n_ctx,
                 n_threads=self.n_threads,
                 verbose=False,  # Reduce output noise
                 use_mmap=True,
-                use_mlock=False  # Don't lock memory on Pi
+                use_mlock=False,  # Don't lock memory on Pi
+                n_gpu_layers=0   # Force CPU-only for stability
             )
             
             load_time = time.time() - start_time
@@ -182,7 +183,7 @@ class LocalLLM:
             logger.info("🔄 Trying with progressively smaller contexts to find optimal size...")
             
             # Try different context sizes to find what fits in available RAM
-            context_sizes_to_try = [65536, 32768, 16384, 8192, 4096]  # 64k, 32k, 16k, 8k, 4k
+            context_sizes_to_try = [4096, 2048, 1024]  # 4k, 2k, 1k - very conservative for Pi
             
             for ctx_size in context_sizes_to_try:
                 try:
