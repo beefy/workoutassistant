@@ -67,13 +67,26 @@ docker compose restart
 
 To fix permission denied error
 ```
+# First, check if docker group exists
+grep docker /etc/group
+
+# If docker group doesn't exist, create it:
+sudo groupadd docker
+
 # Add your user to docker group
 sudo usermod -aG docker $USER
 
-# Then either logout/login OR run:
+# Verify the user was added (should show your username)
+getent group docker
+
+# MUST logout/login or restart SSH session for permanent fix
+reboot
+
+# Temporary fix for current session only:
 newgrp docker
 
-# Verify it worked:
+# After logout/login, verify it worked:
+groups | grep docker
 docker ps
 ```
 

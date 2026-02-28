@@ -11,13 +11,8 @@ import os
 
 def setup_logging():
     """Configure logging to output to both console and file"""
-    log_path = os.getenv("LOG_PATH", "/app/logs/output.log")
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
     
-    # Create formatters
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    
-    # Setup root logger
+    # Setup root logger first
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     
@@ -25,15 +20,30 @@ def setup_logging():
     if logger.handlers:
         return logger
     
-    # Console handler (for Docker logs)
+    # Create formatters
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Console handler (for Docker logs) - this must work!
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.DEBUG)
     logger.addHandler(console_handler)
     
-    # File handler (for email attachments)
-    file_handler = logging.FileHandler(log_path)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    # File handler (separate try-catch so console always works)
+    log_path = os.getenv("LOG_PATH", "/app/logs/output.log")
+    try:
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except (PermissionError, OSError) as e:
+        # If file logging fails, log warning to console but continue
+        console_handler.stream.write(f"WARNING: Could not setup file logging: {e}\n")
+        console_handler.stream.flush()
+    
+    # Force immediate output (no buffering)
+    sys.stdout.flush()
+    sys.stderr.flush()
     
     return logger
 
