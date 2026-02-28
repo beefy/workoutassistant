@@ -32,10 +32,17 @@ services:
       - LOG_LEVEL=INFO
       # Fix permissions by running as current user
     user: "1000:1000"
+      
+    # Resource limits (adjust based on your Raspberry Pi specs)  
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '3.5'
+        reservations:
+          memory: 2G
+          cpus: '0.5'
 
-    mem_limit: 7G
-    cpus: 4
-    
     # Health check
     healthcheck:
       test: ["CMD", "python", "-c", "import psutil; import os; exit(0 if any('main.py' in cmd for cmd in [' '.join(p.cmdline()) for p in psutil.process_iter()]) else 1)"]
