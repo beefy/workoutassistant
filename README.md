@@ -103,6 +103,41 @@ or
 sudo chown -R $USER:$USER ./logs ./data ./generated_images 2>/dev/null || echo "Some directories don't exist yet - that's ok"
 ```
 
+To make docker start on startup
+```
+sudo systemctl enable docker
+sudo systemctl enable docker.socket
+```
+
+To make docker not start on startup
+```
+sudo systemctl disable docker
+sudo systemctl disable docker.socket
+```
+
+To start docker
+```
+sudo systemctl start docker
+sudo systemctl start docker.socket
+```
+
+To check if docker is running
+```
+sudo systemctl status docker
+```
+
+### System Monitoring
+```bash
+# Monitor temperature
+vcgencmd measure_temp
+
+# Check throttling status
+vcgencmd get_throttled
+
+# Monitor power supply
+vcgencmd measure_volts
+```
+
 ### 🔄 Automatic Updates
 
 The deployment includes [Watchtower](https://github.com/containrrr/watchtower) which:
