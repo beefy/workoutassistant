@@ -32,16 +32,9 @@ services:
       - LOG_LEVEL=INFO
       # Fix permissions by running as current user
     user: "1000:1000"
-      
-    # Resource limits (adjust based on your Raspberry Pi specs)
-    deploy:
-      resources:
-        limits:
-          memory: 5.5G  # Leave ~2.5GB for host OS and Docker overhead
-          cpus: '3.5'   # Leave some CPU headroom for system processes
-        reservations:
-          memory: 1G
-          cpus: '0.5'
+
+    mem_limit: 7G
+    cpus: 4
     
     # Health check
     healthcheck:
