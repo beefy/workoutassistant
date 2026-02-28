@@ -86,7 +86,7 @@ class LLMPriorityQueueManager:
         with self.init_lock:
             if self.llm is None:
                 logger.info("🤖 Initializing global LLM instance...")
-                self._llm = LocalLLM()
+                self.llm = LocalLLM()
                 logger.info("✅ LLM initialized successfully")
                 self.llm_ready.set()
     
