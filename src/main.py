@@ -80,7 +80,7 @@ if __name__ == "__main__":
         (use_moltbook.main, "moltbook"),
         (respond_to_email.main, "email"),
         (newsletter.main, "newsletter"),
-        (trade_crypto.main, "crypto"),
+        # (trade_crypto.main, "crypto"),
         (discord_bot.main, "discord_bot")
     ]
     
