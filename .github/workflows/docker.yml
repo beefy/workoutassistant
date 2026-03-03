@@ -48,7 +48,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        platforms: linux/amd64,linux/arm64  # Support both x86_64 and ARM64 (for Raspberry Pi)
+        platforms: linux/arm64  # ARM64 only for Raspberry Pi deployment
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
