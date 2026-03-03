@@ -31,8 +31,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - LOG_LEVEL=INFO
-      # Fix permissions by running as current user
-    user: "1000:1000"
+      # User is handled by Dockerfile, no need to override
       
     # Resource limits (adjust based on your Raspberry Pi specs)  
     deploy:
