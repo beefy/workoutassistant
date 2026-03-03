@@ -1,7 +1,8 @@
 services:
   workoutassistant:
     # Use the image from DockerHub (will be built by GitHub Actions)
-    image: ${DOCKER_IMAGE:-beefybeefy/workoutassistant:latest}
+    # image: ${DOCKER_IMAGE:-beefybeefy/workoutassistant:latest}
+    image: workoutassistant-local  # Changed from remote image
     platform: linux/arm64  # Force ARM64 architecture for Raspberry Pi
     container_name: workoutassistant
     restart: unless-stopped

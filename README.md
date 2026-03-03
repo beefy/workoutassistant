@@ -67,6 +67,12 @@ docker compose restart
 # SSH into the docker container
 docker exec -it workoutassistant /bin/bash
 cat /app/logs/output.log
+
+# Build locally
+docker build -t workoutassistant-local .
+
+# Run with local image override
+docker-compose up -d workoutassistant
 ```
 
 To fix permission denied error
