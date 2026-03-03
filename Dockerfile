@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.4
 # Multi-stage build to minimize image size
-FROM python:3.11-slim AS builder
+FROM --platform=$BUILDPLATFORM python:3.11-slim AS builder
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # Install system dependencies and build tools in one layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,18 +31,36 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /app
 
 # Set environment variables for building packages
-ENV CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS -DCMAKE_BUILD_TYPE=Release"
+# Configure CMAKE for target architecture
+RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        echo "Configuring for ARM64"; \
+        export CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DLLAMA_NATIVE=OFF"; \
+    else \
+        echo "Configuring for AMD64"; \
+        export CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS -DCMAKE_BUILD_TYPE=Release"; \
+    fi && \
+    echo $CMAKE_ARGS > /tmp/cmake_args
 ENV FORCE_CMAKE=1
+ENV LLAMA_NO_METAL=1
+ENV LLAMA_NO_CUDA=1
 
 # Copy requirements and install Python packages
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cargo/registry \
+    export CMAKE_ARGS=$(cat /tmp/cmake_args) && \
     pip install --upgrade pip setuptools wheel && \
+    # Install dependencies with architecture-specific handling
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        echo "Installing ARM64 packages..."; \
+        pip install --only-binary=:all: torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu || \
+        pip install torch torchvision torchaudio; \
+    fi && \
     pip install -r requirements.txt
 
 # Production stage
-FROM python:3.11-slim AS production
+FROM --platform=$TARGETPLATFORM python:3.11-slim AS production
+ARG TARGETPLATFORM
 
 # Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
