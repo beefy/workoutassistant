@@ -126,6 +126,11 @@ To check if docker is running
 sudo systemctl status docker
 ```
 
+To check docker events
+```
+docker events
+```
+
 ### System Monitoring
 ```bash
 # Monitor temperature
