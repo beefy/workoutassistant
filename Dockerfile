@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Multi-stage build to minimize image size
-FROM --platform=$BUILDPLATFORM python:3.11-slim AS builder
+FROM --platform=$TARGETPLATFORM python:3.11-slim AS builder
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
