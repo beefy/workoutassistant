@@ -1,8 +1,8 @@
 services:
   workoutassistant:
     # Use the image from DockerHub (will be built by GitHub Actions)
-    # image: ${DOCKER_IMAGE:-beefybeefy/workoutassistant:latest}
-    image: workoutassistant-local  # Changed from remote image
+    image: ${DOCKER_IMAGE:-beefybeefy/workoutassistant:latest}
+    # image: workoutassistant-local  # Changed from remote image
     platform: linux/arm64  # Force ARM64 architecture for Raspberry Pi
     container_name: workoutassistant
     restart: unless-stopped
@@ -54,21 +54,21 @@ services:
         max-file: "3"
 
 # Optional: Add a watchtower container for automatic updates (disabled due to restart loop)
-#  watchtower:
-#    image: containrrr/watchtower:latest
-#    container_name: watchtower
-#    restart: unless-stopped
-#    env_file:
-#      - ${HOME}/.variables-watchtower  # Variables will be read from this file into the container
-#    environment:
-#      - WATCHTOWER_POLL_INTERVAL=300  # Check for updates every 5 minutes
-#      - WATCHTOWER_CLEANUP=true
-#      - WATCHTOWER_INCLUDE_RESTARTING=true
-#      # Email notifications will use variables from env_file:
-#      - WATCHTOWER_NOTIFICATIONS=shoutrrr://smtp://workoutassistant:$$GMAIL_APP_PASSWORD@smtp.gmail.com:587/?from=$$GMAIL_ADDRESS&to=$$ADMIN_EMAIL&subject=Watchtower%20Update
-#    volumes:
-#      - /var/run/docker.sock:/var/run/docker.sock
-#    command: workoutassistant
+watchtower:
+  image: containrrr/watchtower:latest
+  container_name: watchtower
+  restart: unless-stopped
+  env_file:
+    - ${HOME}/.variables-watchtower  # Variables will be read from this file into the container
+  environment:
+    - WATCHTOWER_POLL_INTERVAL=300  # Check for updates every 5 minutes
+    - WATCHTOWER_CLEANUP=true
+    - WATCHTOWER_INCLUDE_RESTARTING=true
+    # Email notifications will use variables from env_file:
+    - WATCHTOWER_NOTIFICATIONS=shoutrrr://smtp://workoutassistant:$$GMAIL_APP_PASSWORD@smtp.gmail.com:587/?from=$$GMAIL_ADDRESS&to=$$ADMIN_EMAIL&subject=Watchtower%20Update
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+  command: workoutassistant
 
 volumes:
   workout_data:

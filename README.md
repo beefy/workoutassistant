@@ -69,7 +69,7 @@ docker exec -it workoutassistant /bin/bash
 cat /app/logs/output.log
 
 # Build locally
-docker build -t workoutassistant-local .
+nohup docker build -t workoutassistant-local . > docker-build.log 2>&1 &
 
 # Run with local image override
 docker-compose up -d workoutassistant
@@ -394,4 +394,10 @@ kill 12345
 
 # Force kill
 kill -9 12345
+```
+
+### Run the gh actions runner
+
+```
+nohup ./run.sh > output.log 2>&1 &
 ```
