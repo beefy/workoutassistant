@@ -53,10 +53,16 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     # Install dependencies with architecture-specific handling
     if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
         echo "Installing ARM64 packages..."; \
+        # Force rebuild llama-cpp-python for ARM64 with proper flags
+        CMAKE_ARGS="-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DLLAMA_NATIVE=OFF -DLLAMA_AVX=OFF -DLLAMA_AVX2=OFF -DLLAMA_FMA=OFF" \
+        FORCE_CMAKE=1 \
+        pip install --no-binary llama-cpp-python llama-cpp-python --force-reinstall; \
         pip install --only-binary=:all: torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu || \
         pip install torch torchvision torchaudio; \
     fi && \
-    pip install -r requirements.txt
+    # Install remaining requirements (skip llama-cpp-python if already installed above)
+    grep -v "llama-cpp-python" requirements.txt > requirements_filtered.txt && \
+    pip install -r requirements_filtered.txt
 
 # Production stage
 FROM --platform=$TARGETPLATFORM python:3.11-slim AS production
