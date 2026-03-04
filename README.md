@@ -22,7 +22,7 @@ Tasks that run on a regular schedule:
 
 See `.variables.example` for expected environment variables.
 
-You also need a `.variables-watchtower` for watchtower variables (used to send email alerts on server restart or failures)
+You also need a `.env` for watchtower variables (used to send email alerts on server restart or failures)
 ```
 GMAIL_APP_PASSWORD=your_app_password_here
 GMAIL_ADDRESS=your_email@gmail.com
