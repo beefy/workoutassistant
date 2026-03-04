@@ -36,11 +36,11 @@ def bob():
             current_minute = now.minute
             current_hour = now.hour
 
-        # Submit LLM request at 3+ minutes past the hour, but only once per hour
+        # Submit LLM request at 1+ minutes past the hour, but only once per hour
         if last_llm_request_hour is None:
             last_llm_request_hour = current_hour  # Initialize on first run and don't run until the next hour
-        elif current_minute >= 3 and last_llm_request_hour != current_hour:
-            logger.info(f"3+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
+        elif current_minute >= 1 and last_llm_request_hour != current_hour:
+            logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
             llm_result = submit_llm_request("", priority=1, max_tokens=1000, temperature=0.7, final_query=False, use_crypto_prompt=True, task="Crypto trading decision")
             response = llm_result.get('response', '')
             logger.info(f"LLM response for crypto trading: {response}")
@@ -58,11 +58,11 @@ def bobby():
         current_minute = now.minute
         current_hour = now.hour
         
-        # Submit LLM request at 3+ minutes past the hour, but only once per hour
+        # Submit LLM request at 1+ minutes past the hour, but only once per hour
         if last_llm_request_hour is None:
             last_llm_request_hour = current_hour
-        elif current_minute >= 3 and last_llm_request_hour != current_hour:
-            logger.info(f"3+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
+        elif current_minute >= 1 and last_llm_request_hour != current_hour:
+            logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
             beta()
             last_llm_request_hour = current_hour
 
@@ -77,11 +77,11 @@ def robert():
         current_minute = now.minute
         current_hour = now.hour
         
-        # Submit LLM request at 3+ minutes past the hour, but only once per hour
+        # Submit LLM request at 1+ minutes past the hour, but only once per hour
         if last_llm_request_hour is None:
             last_llm_request_hour = current_hour
-        elif current_minute >= 3 and last_llm_request_hour != current_hour:
-            logger.info(f"3+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
+        elif current_minute >= 1 and last_llm_request_hour != current_hour:
+            logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
             alpha()
             last_llm_request_hour = current_hour
 
