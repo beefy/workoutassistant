@@ -15,7 +15,7 @@ from utils.crypto_balance import get_sol_balance
 from utils.crypto_balance_with_value import get_crypto_balances_with_value
 import logging
 from utils.logging_config import setup_logging
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from solana.exceptions import SolanaRpcException
 import httpx
 
@@ -113,7 +113,7 @@ class CryptoTrader:
     
     @retry(
         stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=1, max=30),
+        wait=wait_random_exponential(multiplier=1, min=1, max=30),
         retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError)),
         reraise=True
     )
@@ -161,7 +161,7 @@ class CryptoTrader:
     
     @retry(
         stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=15),
+        wait=wait_random_exponential(multiplier=1, min=2, max=15),
         retry=retry_if_exception_type((requests.exceptions.RequestException, SolanaRpcException, ConnectionError, TimeoutError)),
         reraise=True
     )
@@ -231,7 +231,7 @@ class CryptoTrader:
         # Sign and send the transaction
         @retry(
             stop=stop_after_attempt(3),
-            wait=wait_exponential(multiplier=1, min=2, max=10),
+            wait=wait_random_exponential(multiplier=1, min=2, max=10),
             retry=retry_if_exception_type((SolanaRpcException, ConnectionError, TimeoutError)),
             reraise=True
         )
@@ -280,7 +280,7 @@ class CryptoTrader:
                     # Retry function for skip_preflight attempt
                     @retry(
                         stop=stop_after_attempt(2),
-                        wait=wait_exponential(multiplier=1, min=1, max=5),
+                        wait=wait_random_exponential(multiplier=1, min=1, max=5),
                         retry=retry_if_exception_type((SolanaRpcException, ConnectionError, TimeoutError)),
                         reraise=True
                     )
@@ -385,7 +385,7 @@ def execute_crypto_trade(
     # Wrap the balance fetching with retry due to rate limiting
     @retry(
         stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=1, max=30),
+        wait=wait_random_exponential(multiplier=1, min=1, max=30),
         retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
         reraise=True
     )

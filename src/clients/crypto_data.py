@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 import time
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class BirdeyeDataFetcher:
         
     @retry(
         stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=2, max=60),
+        wait=wait_random_random_exponential(multiplier=1, min=2, max=60),
         retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError)),
         reraise=True
     )
@@ -80,7 +80,7 @@ class BirdeyeDataFetcher:
     
     @retry(
         stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=1, min=2, max=60),
+        wait=wait_random_random_exponential(multiplier=1, min=2, max=60),
         retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError)),
         reraise=True
     )
@@ -158,7 +158,7 @@ class IndicatorCalculator:
         
     @retry(
         stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=30),
+        wait=wait_random_exponential(multiplier=1, min=1, max=30),
         retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError, ValueError)),
         reraise=True
     )

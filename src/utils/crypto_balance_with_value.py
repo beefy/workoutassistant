@@ -1,7 +1,7 @@
 from utils.crypto_balance import get_crypto_balances
 import logging
 from utils.logging_config import setup_logging
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from solana.exceptions import SolanaRpcException
 import httpx
 
@@ -33,7 +33,7 @@ ADDRESS_TO_SYMBOL = {addr: sym for sym, addr in TOKEN_ADDRESSES.items()}
 
 @retry(
     stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=1, max=30),
+    wait=wait_random_exponential(multiplier=1, min=1, max=30),
     retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
     reraise=True
 )

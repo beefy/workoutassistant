@@ -3,7 +3,7 @@ from solana.rpc.api import Client
 from solders.pubkey import Pubkey
 from solana.rpc.types import TokenAccountOpts
 import os
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from solana.exceptions import SolanaRpcException
 import httpx
 import logging
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @retry(
     stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=1, max=30),
+    wait=wait_random_exponential(multiplier=1, min=1, max=30),
     retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
     reraise=True
 )
@@ -30,7 +30,7 @@ def get_sol_balance():
 
 @retry(
     stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=1, max=30),
+    wait=wait_random_exponential(multiplier=1, min=1, max=30),
     retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
     reraise=True
 )
