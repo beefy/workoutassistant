@@ -1,7 +1,7 @@
 import time
 import datetime
 from llm.priority_queue import submit_llm_request
-from utils.tracking_api import login, refresh_indicators
+from utils.tracking_api import login, refresh_indicators, status_update
 import os
 import logging
 from utils.logging_config import setup_logging
@@ -22,9 +22,14 @@ def bob():
         # Refresh indicators at the top of every hour
         if current_minute == 0:
             logger.info(f"Top of hour detected ({current_hour}:00), refreshing indicators...")
+            # track time spent refreshing indicators in case it takes a while
+            start_time = datetime.datetime.now()
             token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
             refresh_indicators(token)
-            logger.info("Indicators refreshed.")
+            end_time = datetime.datetime.now()
+            elapsed_time = (end_time - start_time).total_seconds()
+            logger.info(f"Indicators refreshed in {elapsed_time:.2f} seconds.")
+            status_update(token, f"Refreshed indicators (took {elapsed_time:.2f} seconds)")
             
             # Check time again after refresh in case it took a while
             now = datetime.datetime.now()
