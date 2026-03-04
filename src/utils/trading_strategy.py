@@ -143,6 +143,11 @@ def alpha():
     
     for i in range(target_trades):
         token_symbol, score = sorted_tokens[i]
+        
+        # Refresh balances before each purchase (previous buys reduce SOL balance)
+        if i > 0:
+            balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+        
         token_data = balances.get(token_symbol, {})
         max_buy = token_data.get('max_buy', 0)
         
@@ -236,6 +241,11 @@ def beta():
     
     for i in range(target_trades):
         token_symbol, score = sorted_tokens[i]
+        
+        # Refresh balances before each purchase (previous buys reduce SOL balance)
+        if i > 0:
+            balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+        
         token_data = balances.get(token_symbol, {})
         max_buy = token_data.get('max_buy', 0)
         
