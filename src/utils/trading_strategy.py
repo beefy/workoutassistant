@@ -114,13 +114,39 @@ def alpha():
                 logger.info(f"{token_symbol} sell result: {result}")
                 trades_executed += 1
     
-    # Refresh balances after selling (max_buy amounts will have changed)
+    # Refresh balances after selling bearish tokens
     if trades_executed > 0:
         balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
-        logger.info(f"Updated balances after selling. New total USD value: ${max_value:.2f}")
+        logger.info(f"Updated balances after selling bearish tokens. New total USD value: ${max_value:.2f}")
     
     # Check if any tokens are bullish (score > 3)
     bullish_tokens = [token for token, score in sorted_tokens if score > 3]
+    target_tokens = [token for token, score in sorted_tokens[:3] if score > 3]  # Top 3 bullish tokens
+    
+    # Rebalancing: Sell held tokens that are no longer in target list (but not bearish)
+    currently_held = [token for token, data in balances.items() 
+                     if token not in ['SOL', 'USDC'] and data.get('balance', 0) > 0]
+    
+    tokens_to_sell = [token for token in currently_held 
+                     if token not in target_tokens and scores.get(token, 0) >= 0]
+    
+    for token_symbol in tokens_to_sell:
+        token_data = balances.get(token_symbol, {})
+        max_sell = token_data.get('max_sell', 0)
+        balance = token_data.get('balance', 0)
+        
+        if max_sell > 0 and balance > 0:
+            sell_amount = min(max_sell * 0.95, balance)
+            logger.info(f"Alpha: Rebalancing - Selling {sell_amount:.6f} {token_symbol} (no longer in top 3, score: {scores.get(token_symbol, 'N/A')})")
+            
+            result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
+            logger.info(f"{token_symbol} rebalance sell result: {result}")
+            trades_executed += 1
+    
+    # Refresh balances after rebalancing sells
+    if tokens_to_sell:
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+        logger.info(f"Updated balances after rebalancing. New total USD value: ${max_value:.2f}")
     
     if not bullish_tokens:
         logger.info("No strongly bullish tokens found. Buying USDC instead.")
@@ -141,26 +167,25 @@ def alpha():
     # Alpha strategy: Equal allocation among top 3 most bullish tokens
     target_trades = min(3, len(bullish_tokens))
     
-    # Get initial total SOL available for trading
-    sol_data = balances.get('SOL', {})
-    total_sol_available = sol_data.get('max_buy', 0)
+    if target_trades == 0:
+        logger.info("No qualifying tokens for Alpha strategy")
+        return
     
-    # Divide SOL equally among target trades (with 95% safety margin)
-    sol_per_token = (total_sol_available / target_trades) * 0.95
-    logger.info(f"Alpha: Allocating {sol_per_token:.6f} SOL to each of {target_trades} tokens")
+    logger.info(f"Alpha: Equal allocation strategy among {target_trades} tokens")
     
     for i in range(target_trades):
         token_symbol, score = sorted_tokens[i]
         
         # Refresh balances before each purchase (previous buys reduce SOL balance)
-        if i > 0:
-            balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
-            sol_data = balances.get('SOL', {})
-            current_sol = sol_data.get('max_buy', 0)
-            # Use remaining allocation or current SOL, whichever is smaller
-            buy_amount_sol = min(sol_per_token, current_sol * 0.95)
-        else:
-            buy_amount_sol = sol_per_token
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+        sol_data = balances.get('SOL', {})
+        current_sol_available = sol_data.get('max_buy', 0)
+        
+        # Calculate equal allocation: remaining SOL divided by remaining trades
+        remaining_trades = target_trades - i
+        buy_amount_sol = (current_sol_available / remaining_trades) * 0.95
+        
+        logger.info(f"Alpha: Trade {i+1}/{target_trades} - Allocating {buy_amount_sol:.6f} SOL to {token_symbol}")
         
         if buy_amount_sol > 0:
             # Convert SOL amount to token amount using price data
@@ -234,14 +259,40 @@ def beta():
                 logger.info(f"{token_symbol} sell result: {result}")
                 trades_executed += 1
     
-    # Refresh balances after selling (max_buy amounts will have changed)
+    # Refresh balances after selling bearish tokens
     sells_executed = trades_executed
     if sells_executed > 0:
         balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
-        logger.info(f"Updated balances after selling. New total USD value: ${max_value:.2f}")
+        logger.info(f"Updated balances after selling bearish tokens. New total USD value: ${max_value:.2f}")
     
     # Check if we have any bullish tokens
     bullish_tokens = [token for token, score in sorted_tokens if score > 1]
+    target_tokens = [token for token, score in sorted_tokens[:5] if score > 1]  # Top 5 bullish tokens
+    
+    # Rebalancing: Sell held tokens that are no longer in target list (but not bearish)
+    currently_held = [token for token, data in balances.items() 
+                     if token not in ['SOL', 'USDC'] and data.get('balance', 0) > 0]
+    
+    tokens_to_sell = [token for token in currently_held 
+                     if token not in target_tokens and scores.get(token, 0) >= 0]
+    
+    for token_symbol in tokens_to_sell:
+        token_data = balances.get(token_symbol, {})
+        max_sell = token_data.get('max_sell', 0)
+        balance = token_data.get('balance', 0)
+        
+        if max_sell > 0 and balance > 0:
+            sell_amount = min(max_sell * 0.95, balance)
+            logger.info(f"Beta: Rebalancing - Selling {sell_amount:.6f} {token_symbol} (no longer in top 5, score: {scores.get(token_symbol, 'N/A')})")
+            
+            result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
+            logger.info(f"{token_symbol} rebalance sell result: {result}")
+            trades_executed += 1
+    
+    # Refresh balances after rebalancing sells
+    if tokens_to_sell:
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+        logger.info(f"Updated balances after rebalancing. New total USD value: ${max_value:.2f}")
     
     if not bullish_tokens:
         logger.info("No bullish tokens found. Buying USDC instead.")
@@ -265,29 +316,27 @@ def beta():
         logger.info("No qualifying tokens for Beta strategy")
         return
     
-    # Calculate total score and weights
-    total_score = sum(score for _, score in top_tokens)
-    logger.info(f"Beta: Total score for weight calculation: {total_score}")
-    
-    # Get initial total SOL available for trading
-    sol_data = balances.get('SOL', {})
-    total_sol_available = sol_data.get('max_buy', 0) * 0.95  # 95% safety margin
+    # Calculate total score for remaining tokens
+    remaining_tokens = list(top_tokens)
+    logger.info(f"Beta: Score-weighted allocation strategy among {len(remaining_tokens)} tokens")
     
     for i, (token_symbol, score) in enumerate(top_tokens):
         # Refresh balances before each purchase (previous buys reduce SOL balance)
-        if i > 0:
-            balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
-        
-        # Calculate this token's allocation based on its score weight
-        weight = score / total_score
-        allocated_sol = total_sol_available * weight
-        
-        # Check current SOL availability
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
         current_sol_data = balances.get('SOL', {})
         current_sol_available = current_sol_data.get('max_buy', 0) * 0.95
         
-        # Use the smaller of allocated amount or current availability
-        buy_amount_sol = min(allocated_sol, current_sol_available)
+        # Recalculate weights based on remaining tokens to maintain proper proportional allocation
+        remaining_total_score = sum(s for _, s in remaining_tokens[i:])
+        if remaining_total_score <= 0:
+            logger.warning(f"No remaining score for allocation. Skipping {token_symbol}")
+            continue
+        
+        # Calculate this token's share of remaining SOL based on its score weight among remaining tokens
+        weight_in_remaining = score / remaining_total_score
+        buy_amount_sol = current_sol_available * weight_in_remaining
+        
+        logger.info(f"Beta: Trade {i+1}/{len(top_tokens)} - Allocating {buy_amount_sol:.6f} SOL ({weight_in_remaining:.1%}) to {token_symbol}")
         
         if buy_amount_sol > 0:
             # Convert SOL amount to token amount using price data
