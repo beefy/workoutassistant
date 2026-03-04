@@ -66,11 +66,11 @@ def calculate_bullishness_score(indicators_data):
 
 def alpha():
     """
-    Alpha Strategy: Aggressive Momentum Strategy
+    Alpha Strategy: Concentrated Equal-Weight Strategy
     - Sells bearish tokens (score < 0) first
-    - Focuses on tokens with highest RSI and strongest bull signals
-    - Buys top 3 most bullish tokens with available max_buy amounts
-    - Uses 95% of max amounts to account for price changes
+    - Buys top 3 most bullish tokens (score > 3) with EQUAL allocation
+    - Divides available SOL equally among the 3 tokens (33% each)
+    - High conviction, concentrated positions
     """
     logger.info("=== Running Alpha Strategy (Aggressive Momentum) ===")
     
@@ -129,7 +129,7 @@ def alpha():
         if max_buy > 0:
             # Use 95% of max_buy to account for price changes
             buy_amount = max_buy * 0.95
-            logger.info(f"Buying {buy_amount:.6f} USDC (95% of max_buy: {max_buy})")
+            logger.info(f"Alpha: Buying {buy_amount:.6f} USDC (95% of max_buy: {max_buy})")
             result = execute_crypto_trade("USDC", "buy", buy_amount, indicators['indicators'])
             logger.info(f"USDC trade result: {result}")
             trades_executed += 1
@@ -138,8 +138,16 @@ def alpha():
         logger.info(f"Alpha strategy completed. Executed {trades_executed} trades.")
         return
     
-    # Alpha strategy: Buy top 3 most bullish tokens
+    # Alpha strategy: Equal allocation among top 3 most bullish tokens
     target_trades = min(3, len(bullish_tokens))
+    
+    # Get initial total SOL available for trading
+    sol_data = balances.get('SOL', {})
+    total_sol_available = sol_data.get('max_buy', 0)
+    
+    # Divide SOL equally among target trades (with 95% safety margin)
+    sol_per_token = (total_sol_available / target_trades) * 0.95
+    logger.info(f"Alpha: Allocating {sol_per_token:.6f} SOL to each of {target_trades} tokens")
     
     for i in range(target_trades):
         token_symbol, score = sorted_tokens[i]
@@ -147,18 +155,29 @@ def alpha():
         # Refresh balances before each purchase (previous buys reduce SOL balance)
         if i > 0:
             balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+            sol_data = balances.get('SOL', {})
+            current_sol = sol_data.get('max_buy', 0)
+            # Use remaining allocation or current SOL, whichever is smaller
+            buy_amount_sol = min(sol_per_token, current_sol * 0.95)
+        else:
+            buy_amount_sol = sol_per_token
         
-        token_data = balances.get(token_symbol, {})
-        max_buy = token_data.get('max_buy', 0)
-        
-        if max_buy > 0:
-            # Use 95% of max_buy to account for price changes
-            buy_amount = max_buy * 0.95
-            logger.info(f"Alpha: Buying {buy_amount:.6f} {token_symbol} (score: {score}, 95% of max_buy: {max_buy})")
+        if buy_amount_sol > 0:
+            # Convert SOL amount to token amount using price data
+            token_data = balances.get(token_symbol, {})
+            sol_data = balances.get('SOL', {})
             
-            result = execute_crypto_trade(token_symbol, "buy", buy_amount, indicators['indicators'])
-            logger.info(f"{token_symbol} trade result: {result}")
-            trades_executed += 1
+            if token_data.get('usd_price') and sol_data.get('usd_price'):
+                token_price_sol = token_data['usd_price'] / sol_data['usd_price']
+                token_amount = buy_amount_sol / token_price_sol
+                
+                logger.info(f"Alpha: Buying {token_amount:.6f} {token_symbol} with {buy_amount_sol:.6f} SOL (score: {score}, equal allocation)")
+                
+                result = execute_crypto_trade(token_symbol, "buy", token_amount, indicators['indicators'])
+                logger.info(f"{token_symbol} trade result: {result}")
+                trades_executed += 1
+            else:
+                logger.error(f"Could not find price data for {token_symbol}. Skipping trade.")
         else:
             logger.info(f"No available funds to buy {token_symbol}")
     
@@ -167,11 +186,11 @@ def alpha():
 
 def beta():
     """
-    Beta Strategy: Balanced Risk-Adjusted Strategy  
-    - Considers multiple factors with risk management
-    - Buys more tokens but with smaller amounts
-    - Sells tokens that become bearish
-    - Uses 95% of max amounts to account for price changes
+    Beta Strategy: Score-Weighted Diversified Strategy  
+    - Sells bearish tokens (score < 0) first
+    - Buys top 5 bullish tokens (score > 1) with score-weighted allocation
+    - Higher scoring tokens get proportionally more allocation
+    - More diversified, risk-managed approach
     """
     logger.info("=== Running Beta Strategy (Balanced Risk-Adjusted) ===")
     
@@ -230,37 +249,63 @@ def beta():
         max_buy = usdc_data.get('max_buy', 0)
         if max_buy > 0:
             buy_amount = max_buy * 0.95
-            logger.info(f"Buying {buy_amount:.6f} USDC (95% of max_buy: {max_buy})")
+            logger.info(f"Beta: Buying {buy_amount:.6f} USDC (95% of max_buy: {max_buy})")
             result = execute_crypto_trade("USDC", "buy", buy_amount, indicators['indicators'])
             logger.info(f"USDC trade result: {result}")
             trades_executed += 1
         return
     
-    # Beta strategy: Buy top 5 bullish tokens with scaled amounts
+    # Beta strategy: Score-weighted allocation among top 5 bullish tokens
     target_trades = min(5, len(bullish_tokens))
     
-    for i in range(target_trades):
-        token_symbol, score = sorted_tokens[i]
-        
+    # Get the top tokens and their scores for weight calculation
+    top_tokens = [(symbol, score) for symbol, score in sorted_tokens[:target_trades] if score > 1]
+    
+    if not top_tokens:
+        logger.info("No qualifying tokens for Beta strategy")
+        return
+    
+    # Calculate total score and weights
+    total_score = sum(score for _, score in top_tokens)
+    logger.info(f"Beta: Total score for weight calculation: {total_score}")
+    
+    # Get initial total SOL available for trading
+    sol_data = balances.get('SOL', {})
+    total_sol_available = sol_data.get('max_buy', 0) * 0.95  # 95% safety margin
+    
+    for i, (token_symbol, score) in enumerate(top_tokens):
         # Refresh balances before each purchase (previous buys reduce SOL balance)
         if i > 0:
             balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
         
-        token_data = balances.get(token_symbol, {})
-        max_buy = token_data.get('max_buy', 0)
+        # Calculate this token's allocation based on its score weight
+        weight = score / total_score
+        allocated_sol = total_sol_available * weight
         
-        if max_buy > 0 and score > 1:  # Only buy if moderately bullish
-            # Scale buy amount based on rank and score
-            # Top ranked gets 95% of max, others get progressively less
-            scale_factor = 0.95 * (0.8 ** i)  # 95%, 76%, 61%, 49%, 39%
-            buy_amount = max_buy * scale_factor
+        # Check current SOL availability
+        current_sol_data = balances.get('SOL', {})
+        current_sol_available = current_sol_data.get('max_buy', 0) * 0.95
+        
+        # Use the smaller of allocated amount or current availability
+        buy_amount_sol = min(allocated_sol, current_sol_available)
+        
+        if buy_amount_sol > 0:
+            # Convert SOL amount to token amount using price data
+            token_data = balances.get(token_symbol, {})
+            sol_data = balances.get('SOL', {})
             
-            logger.info(f"Beta: Buying {buy_amount:.6f} {token_symbol} (score: {score}, {scale_factor*100:.0f}% of max_buy: {max_buy})")
-            
-            result = execute_crypto_trade(token_symbol, "buy", buy_amount, indicators['indicators'])
-            logger.info(f"{token_symbol} trade result: {result}")
-            trades_executed += 1
+            if token_data.get('usd_price') and sol_data.get('usd_price'):
+                token_price_sol = token_data['usd_price'] / sol_data['usd_price']
+                token_amount = buy_amount_sol / token_price_sol
+                
+                logger.info(f"Beta: Buying {token_amount:.6f} {token_symbol} with {buy_amount_sol:.6f} SOL (score: {score}, weight: {weight:.1%})")
+                
+                result = execute_crypto_trade(token_symbol, "buy", token_amount, indicators['indicators'])
+                logger.info(f"{token_symbol} trade result: {result}")
+                trades_executed += 1
+            else:
+                logger.error(f"Could not find price data for {token_symbol}. Skipping trade.")
         else:
-            logger.info(f"Skipping {token_symbol} - insufficient funds or low score")
+            logger.info(f"Skipping {token_symbol} - insufficient funds available")
     
     logger.info(f"Beta strategy completed. Executed {trades_executed} trades.")
