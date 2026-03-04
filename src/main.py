@@ -75,14 +75,33 @@ if __name__ == "__main__":
     
     # Start threads with auto-restart capability
     threads = []
-    thread_configs = [
-        (heartbeat.main, "heartbeat"),
-        (use_moltbook.main, "moltbook"),
-        (respond_to_email.main, "email"),
-        (newsletter.main, "newsletter"),
-        # (trade_crypto.main, "crypto"),
-        (discord_bot.main, "discord_bot")
-    ]
+    agent_name = os.getenv("TRACKING_API_USERNAME", "unknown")
+
+    thread_configs = []
+    if agent_name == "bob":
+        logger.info("👋 Hello Bob! Starting your personalized assistant threads.")
+        thread_configs = [
+            (heartbeat.main, "heartbeat"),
+            (use_moltbook.main, "moltbook"),
+            (respond_to_email.main, "email"),
+            (trade_crypto.bob, "crypto"),
+        ]
+    elif agent_name == "bobby":
+        logger.info("👋 Hello Bobby! Starting your personalized assistant threads.")
+        thread_configs = [
+            (heartbeat.main, "heartbeat"),
+            (use_moltbook.main, "moltbook"),
+            (respond_to_email.main, "email"),
+            (trade_crypto.bobby, "crypto"),
+            (newsletter.main, "newsletter"),
+            (discord_bot.main, "discord_bot")
+        ]
+    elif agent_name == "robert":
+        logger.info("👋 Hello Robert! Starting your personalized assistant threads.")
+        thread_configs = [
+            (heartbeat.main, "heartbeat"),
+            (trade_crypto.robert, "crypto"),
+        ]
     
     for func, name in thread_configs:
         thread = threading.Thread(target=auto_restart_wrapper, args=(func, name), daemon=True)

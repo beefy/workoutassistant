@@ -5,12 +5,13 @@ from utils.tracking_api import login, refresh_indicators
 import os
 import logging
 from utils.logging_config import setup_logging
+from utils.trading_strategy import alpha, beta
 
 # Setup logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-def main():
+def bob():
     last_llm_request_hour = None
     
     while True:
@@ -18,12 +19,10 @@ def main():
         current_minute = now.minute
         current_hour = now.hour
         
-        username = os.getenv("TRACKING_API_USERNAME")
-        
         # Refresh indicators at the top of every hour
-        if username == "bob" and current_minute == 0:
+        if current_minute == 0:
             logger.info(f"Top of hour detected ({current_hour}:00), refreshing indicators...")
-            token = login(username, os.getenv("TRACKING_API_PASSWORD"))
+            token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
             refresh_indicators(token)
             logger.info("Indicators refreshed.")
             
@@ -44,3 +43,41 @@ def main():
         
         # Sleep for 1 minute before checking again
         time.sleep(60)
+
+
+def bobby():
+    last_llm_request_hour = None
+    
+    while True:
+        now = datetime.datetime.now()
+        current_minute = now.minute
+        current_hour = now.hour
+        
+        # Submit LLM request at 3+ minutes past the hour, but only once per hour
+        if last_llm_request_hour is None:
+            last_llm_request_hour = current_hour
+        elif current_minute >= 3 and last_llm_request_hour != current_hour:
+            logger.info(f"3+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
+            beta()
+            last_llm_request_hour = current_hour
+
+        time.sleep(60)  # Sleep for 1 minute
+
+
+def robert():
+    last_llm_request_hour = None
+    
+    while True:
+        now = datetime.datetime.now()
+        current_minute = now.minute
+        current_hour = now.hour
+        
+        # Submit LLM request at 3+ minutes past the hour, but only once per hour
+        if last_llm_request_hour is None:
+            last_llm_request_hour = current_hour
+        elif current_minute >= 3 and last_llm_request_hour != current_hour:
+            logger.info(f"3+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
+            alpha()
+            last_llm_request_hour = current_hour
+
+        time.sleep(60)  # Sleep for 1 minute
