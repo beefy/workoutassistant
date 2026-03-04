@@ -53,20 +53,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  ouroboros:
-    image: pyouroboros/ouroboros:latest
-    container_name: ouroboros
-    restart: unless-stopped
-    environment:
-      - CLEANUP=true
-      - INTERVAL=300
-      - LOG_LEVEL=info
-      - SELF_UPDATE=true
-      - IGNORE=postgres
-      - TZ=UTC
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-
 volumes:
   workout_data:
     driver: local

@@ -144,11 +144,20 @@ vcgencmd measure_volts
 
 ### 🔄 Automatic Updates
 
-The deployment includes ouroboros which:
+The deployment includes a script which:
 - Polls DockerHub every 5 minutes for new images
 - Automatically pulls and deploys updates
 
-Updates are triggered automatically when code is pushed to the main branch via GitHub Actions.
+
+To run it
+```
+# Edit crontab
+crontab -e
+
+# Add this line (checks for updates every 5 minutes):
+*/5 * * * * /home/Code/workoutassistant/src/scripts/update_cron.sh >> /home/Code/workoutassistant/update.log 2>&1
+```
+
 
 ### Setting Up CI/CD
 
