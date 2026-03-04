@@ -61,6 +61,10 @@ jobs:
         build-args: |
           BUILDKIT_INLINE_CACHE=1
         
+    - name: Pull image for scanning
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      run: docker pull ${{ secrets.DOCKERHUB_USERNAME }}/workoutassistant:latest
+        
     - name: Image scan with Trivy
       if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
       uses: aquasecurity/trivy-action@master
