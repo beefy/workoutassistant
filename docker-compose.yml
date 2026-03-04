@@ -65,7 +65,7 @@ services:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
       # Email notifications will use variables from env_file:
-      - WATCHTOWER_NOTIFICATIONS=smtp://$$GMAIL_ADDRESS:$$GMAIL_APP_PASSWORD@smtp.gmail.com:587/?from=$$GMAIL_ADDRESS&to=$$ADMIN_EMAIL&subject=Watchtower%20Update
+      - WATCHTOWER_NOTIFICATIONS=email://$$GMAIL_ADDRESS:$$GMAIL_APP_PASSWORD@smtp.gmail.com:587/?from=$$GMAIL_ADDRESS&to=$$ADMIN_EMAIL&subject=Watchtower%%20Update
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: workoutassistant
