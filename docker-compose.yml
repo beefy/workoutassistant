@@ -55,7 +55,7 @@ services:
 
   # Optional: Add a watchtower container for automatic updates (disabled due to restart loop)
   watchtower:
-    image: containrrr/watchtower:1.7.1
+    image: containrrr/watchtower:latest-dev
     container_name: watchtower
     restart: unless-stopped
     environment:
