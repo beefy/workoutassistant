@@ -15,6 +15,9 @@ from utils.crypto_balance import get_sol_balance
 from utils.crypto_balance_with_value import get_crypto_balances_with_value
 import logging
 from utils.logging_config import setup_logging
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from solana.exceptions import SolanaRpcException
+import httpx
 
 # Setup logging
 setup_logging()
@@ -108,6 +111,12 @@ class CryptoTrader:
         
         logger.info(f"🎯 Wallet address: {self.wallet_address}")
     
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=1, max=30),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError)),
+        reraise=True
+    )
     def get_quote(self, input_token: str, output_token: str, amount: Union[int, float, Decimal]) -> Dict:
         """
         Get a quote for a token swap.
@@ -141,12 +150,21 @@ class CryptoTrader:
         
         try:
             headers = get_api_headers()
+            logger.info(f"🔄 Getting quote: {input_token} -> {output_token} (amount: {amount_int})")
             response = requests.get(JUPITER_QUOTE_ENDPOINT, params=params, headers=headers, timeout=10)
             response.raise_for_status()
+            logger.info(f"✅ Quote received successfully")
             return response.json()
         except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ Quote request failed, will retry: {e}")
             raise Exception(f"Failed to get quote from Jupiter API: {e}")
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=15),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, SolanaRpcException, ConnectionError, TimeoutError)),
+        reraise=True
+    )
     def execute_swap(self, quote: Dict) -> Dict:
         """
         Execute a swap using a Jupiter quote.
@@ -175,11 +193,14 @@ class CryptoTrader:
         try:
             headers = get_api_headers()
             headers['Content-Type'] = 'application/json'  # Required for POST requests
+            logger.info(f"💸 Executing swap via Jupiter API...")
             response = requests.post(JUPITER_SWAP_ENDPOINT, json=swap_payload, headers=headers, timeout=10)
             response.raise_for_status()
             
             swap_response = response.json()
+            logger.info(f"✅ Swap payload received from Jupiter")
         except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ Swap request failed, will retry: {e}")
             raise Exception(f"Failed to execute swap via Jupiter API: {e}")
         
         # Check if swap response has the expected transaction data
@@ -208,7 +229,13 @@ class CryptoTrader:
             raise Exception(f"Failed to deserialize transaction: {deserialize_error}. Transaction data length: {len(transaction_data) if 'transaction_data' in locals() else 'unknown'}")
         
         # Sign and send the transaction
-        try:
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=2, max=10),
+            retry=retry_if_exception_type((SolanaRpcException, ConnectionError, TimeoutError)),
+            reraise=True
+        )
+        def send_transaction_with_retry():
             logger.info("🚀 Sending transaction to Solana network...")
             
             # Sign the VersionedTransaction
@@ -222,8 +249,6 @@ class CryptoTrader:
                 transaction.message,
                 [self.keypair]
             )
-
-            # signed_transaction = transaction
             
             # Send the transaction with proper options
             tx_opts = TxOpts(
@@ -240,29 +265,47 @@ class CryptoTrader:
             # Check if transaction was successful
             if hasattr(result, 'value') and result.value:
                 logger.info("✅ Transaction sent successfully")
-                signature = str(result.value)
+                return str(result.value)
             else:
                 raise Exception(f"Transaction failed: {result}")
                 
+        try:
+            signature = send_transaction_with_retry()
         except Exception as send_error:
             # If preflight failed, try with skip_preflight=True
             if "preflight" in str(send_error).lower():
                 try:
                     logger.warning("⚠️ Preflight failed, retrying with skip_preflight=True...")
-                    tx_opts_skip = TxOpts(
-                        skip_preflight=True,
-                        preflight_commitment=Commitment("confirmed"),
-                        max_retries=3
+                    
+                    # Retry function for skip_preflight attempt
+                    @retry(
+                        stop=stop_after_attempt(2),
+                        wait=wait_exponential(multiplier=1, min=1, max=5),
+                        retry=retry_if_exception_type((SolanaRpcException, ConnectionError, TimeoutError)),
+                        reraise=True
                     )
-                    result = self.client.send_transaction(
-                        signed_transaction,
-                        opts=tx_opts_skip
-                    )
-                    if hasattr(result, 'value') and result.value:
-                        logger.info("✅ Transaction sent successfully (with skip_preflight)")
-                        signature = str(result.value)
-                    else:
-                        raise Exception(f"Transaction failed even with skip_preflight: {result}")
+                    def send_transaction_skip_preflight():
+                        transaction = VersionedTransaction.from_bytes(transaction_bytes)
+                        signed_transaction = VersionedTransaction(
+                            transaction.message,
+                            [self.keypair]
+                        )
+                        tx_opts_skip = TxOpts(
+                            skip_preflight=True,
+                            preflight_commitment=Commitment("confirmed"),
+                            max_retries=3
+                        )
+                        result = self.client.send_transaction(
+                            signed_transaction,
+                            opts=tx_opts_skip
+                        )
+                        if hasattr(result, 'value') and result.value:
+                            logger.info("✅ Transaction sent successfully (with skip_preflight)")
+                            return str(result.value)
+                        else:
+                            raise Exception(f"Transaction failed even with skip_preflight: {result}")
+                    
+                    signature = send_transaction_skip_preflight()
                 except Exception as retry_error:
                     raise Exception(f"Failed to send transaction even with skip_preflight: {retry_error}")
             else:
@@ -339,7 +382,18 @@ def execute_crypto_trade(
     logger.info(f"Current SOL balance: {sol_balance:.6f} SOL")
     minimum_sol_balance = 0.01  # Keep at least 0.01 SOL for transaction fees
     
-    token_values, total_value = get_crypto_balances_with_value(indicators)
+    # Wrap the balance fetching with retry due to rate limiting
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=1, max=30),
+        retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
+        reraise=True
+    )
+    def get_balances_with_retry():
+        logger.info("🪙 Fetching token balances with value...")
+        return get_crypto_balances_with_value(indicators)
+    
+    token_values, total_value = get_balances_with_retry()
     
     # Check that the token is in the approved list of tokens to trade
     if token_symbol.upper() not in TOKEN_ADDRESSES:

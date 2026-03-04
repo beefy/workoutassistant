@@ -1,6 +1,9 @@
 from utils.crypto_balance import get_crypto_balances
 import logging
 from utils.logging_config import setup_logging
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from solana.exceptions import SolanaRpcException
+import httpx
 
 # Setup logging
 setup_logging()
@@ -28,7 +31,14 @@ TOKEN_ADDRESSES = {
 # Reverse mapping for easy lookup
 ADDRESS_TO_SYMBOL = {addr: sym for sym, addr in TOKEN_ADDRESSES.items()}
 
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=1, max=30),
+    retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
+    reraise=True
+)
 def get_crypto_balances_with_value(indicators):
+    logger.info("🔄 Fetching crypto balances with USD values...")
     balances = get_crypto_balances()
     ret = {}
 
@@ -48,6 +58,7 @@ def get_crypto_balances_with_value(indicators):
     logger.info(f"Crypto balances: {ret}")
     total_value = sum(item["usd_value"] for item in ret.values() if item["usd_value"] is not None)
     logger.info(f"Total value USD: {total_value}")
+    logger.info("✅ Successfully calculated crypto balances with values")
 
     # Get SOL price and balance for max_buy calculations
     sol_mint = TOKEN_ADDRESSES["SOL"]

@@ -4,6 +4,10 @@ import pandas as pd
 import numpy as np
 import os
 import time
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Solana token addresses (mainnet)
 TOKEN_ADDRESSES = {
@@ -32,6 +36,12 @@ class BirdeyeDataFetcher:
         self.base_url = "https://public-api.birdeye.so"
         self.headers = {"X-API-KEY": self.api_key}
         
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError)),
+        reraise=True
+    )
     def get_historical_hourly(self, token_address, hours=72):
         """
         Fetch last 72 hours of hourly data
@@ -49,14 +59,31 @@ class BirdeyeDataFetcher:
             "time_to": end_time
         }
         
-        response = requests.get(url, headers=self.headers, params=params)
-        data = response.json()
-        
-        # Wait 2 seconds before next API call to avoid rate limiting
-        time.sleep(2)
-        
-        return self.process_candles(data['data']['items'])
+        try:
+            logger.info(f"📈 Fetching {hours}h of price data for {token_address}...")
+            response = requests.get(url, headers=self.headers, params=params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            
+            logger.info(f"✅ Successfully fetched historical data")
+            
+            # Wait 2 seconds before next API call to avoid rate limiting
+            time.sleep(2)
+            
+            return self.process_candles(data['data']['items'])
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ Birdeye historical data request failed, will retry: {e}")
+            # Wait longer before retry on rate limit
+            if "429" in str(e):
+                time.sleep(5)
+            raise
     
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=2, max=60),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError)),
+        reraise=True
+    )
     def get_current_price(self, token_address):
         """
         Get current price in USD for a token
@@ -67,20 +94,33 @@ class BirdeyeDataFetcher:
             "address": token_address
         }
         
-        response = requests.get(url, headers=self.headers, params=params)
-        
-        if response.status_code != 200:
-            raise Exception(f"API request failed with status {response.status_code}: {response.text}")
+        try:
+            logger.info(f"💰 Fetching current price for {token_address}...")
+            response = requests.get(url, headers=self.headers, params=params, timeout=10)
+            response.raise_for_status()
             
-        data = response.json()
-        
-        # Wait 2 seconds before next API call to avoid rate limiting
-        time.sleep(2)
-        
-        if 'data' in data and 'value' in data['data']:
-            return float(data['data']['value'])
-        else:
-            raise ValueError(f"Unable to fetch price data for token {token_address}")
+            if response.status_code != 200:
+                raise Exception(f"API request failed with status {response.status_code}: {response.text}")
+                
+            data = response.json()
+            logger.info(f"✅ Successfully fetched current price")
+            
+            # Wait 2 seconds before next API call to avoid rate limiting
+            time.sleep(2)
+            
+            if 'data' in data and 'value' in data['data']:
+                price = float(data['data']['value'])
+                logger.info(f"💲 Current price: ${price:.6f}")
+                return price
+            else:
+                raise ValueError(f"Unable to fetch price data for token {token_address}")
+                
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"⚠️ Birdeye price request failed, will retry: {e}")
+            # Wait longer before retry on rate limit
+            if "429" in str(e):
+                time.sleep(5)
+            raise
     
     def process_candles(self, candles):
         """Convert to DataFrame for easy indicator calculation"""
@@ -116,8 +156,16 @@ class IndicatorCalculator:
     def __init__(self):
         self.cache = {}  # Store historical data for each token
         
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=30),
+        retry=retry_if_exception_type((requests.exceptions.RequestException, ConnectionError, TimeoutError, ValueError)),
+        reraise=True
+    )
     def update_token_data(self, token_symbol, token_address, fetcher):
         """Fetch fresh data and calculate all indicators"""
+        
+        logger.info(f"🗺️ Updating data for {token_symbol} ({token_address})...")
         
         # Get last 72 hours of data
         df = fetcher.get_historical_hourly(token_address, hours=72)
@@ -128,6 +176,7 @@ class IndicatorCalculator:
         # Calculate all 5 indicators
         indicators = self.calculate_all_indicators(df)
         
+        logger.info(f"✅ Successfully updated data and calculated indicators for {token_symbol}")
         return indicators
     
     def calculate_all_indicators(self, df):
