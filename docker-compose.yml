@@ -55,7 +55,7 @@ services:
 
   # Optional: Add a watchtower container for automatic updates (disabled due to restart loop)
   watchtower:
-    image: containrrr/watchtower:latest-dev
+    image: containrrr/watchtower:latest
     platform: linux/arm64  # Force ARM64 architecture for Raspberry Pi
     container_name: watchtower
     restart: unless-stopped
