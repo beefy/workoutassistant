@@ -59,13 +59,23 @@ services:
     container_name: watchtower
     restart: unless-stopped
     env_file:
-      - ${HOME}/.variables-watchtower  # Variables will be read from this file into the container
+      - ${HOME}/.variables-watchtower
     environment:
-      - WATCHTOWER_POLL_INTERVAL=300  # Check for updates every 5 minutes
+      - WATCHTOWER_POLL_INTERVAL=300
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
-      # Email notifications will use variables from env_file:
-      - WATCHTOWER_NOTIFICATIONS=email://$$GMAIL_ADDRESS:$$GMAIL_APP_PASSWORD@smtp.gmail.com:587/?from=$$GMAIL_ADDRESS&to=$$ADMIN_EMAIL&subject=Watchtower%%20Update
+
+      # Enable email notifications
+      - WATCHTOWER_NOTIFICATIONS=email
+
+      # SMTP settings
+      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=${GMAIL_ADDRESS}
+      - WATCHTOWER_NOTIFICATION_EMAIL_TO=${ADMIN_EMAIL}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=smtp.gmail.com
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=587
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=${GMAIL_ADDRESS}
+      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${GMAIL_APP_PASSWORD}
+      - WATCHTOWER_NOTIFICATION_EMAIL_DELAY=2
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: workoutassistant
