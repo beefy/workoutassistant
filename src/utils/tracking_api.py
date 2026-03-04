@@ -220,6 +220,46 @@ def get_indicator_cache_stats(token):
         return None
 
 
+def upload_balances(token, balances):
+    # POST /api/v1/balances/upload
+    # {
+    #     "agent_name": "string",
+    #     "balances": [
+    #         {
+    #         "token_name": "string",
+    #         "token_amount_in_wallet": 0,
+    #         "token_value_usd": 0
+    #         }
+    #     ],
+    #     "timestamp": "2026-03-04T21:48:37.462Z"
+    # }
+    url = "https://api.bobtheraspberrypi.com/api/v1/balances/upload"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}"
+    }
+
+    balances_cleaned = []
+    for balance in balances:
+        balances_cleaned.append({
+            "token_name": balance,
+            "token_amount_in_wallet": balances[balance]['balance'],
+            "token_value_usd": balances[balance]['usd_price']
+        })
+
+    payload = {
+        "agent_name": os.getenv("TRACKING_API_USERNAME"),
+        "balances": balances_cleaned,
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat()
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code == 200 or response.status_code == 201:
+        logger.info("Balances uploaded successfully!")
+    else:
+        logger.error(f"Failed to upload balances. Status code: {response.status_code}, Response: {response.text}")
+
+
 if __name__ == "__main__":
     username = os.getenv("TRACKING_API_USERNAME")
     password = os.getenv("TRACKING_API_PASSWORD")

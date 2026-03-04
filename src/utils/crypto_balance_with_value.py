@@ -1,9 +1,12 @@
+import os
+
 from utils.crypto_balance import get_crypto_balances
 import logging
 from utils.logging_config import setup_logging
 from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type
 from solana.exceptions import SolanaRpcException
 import httpx
+from utils.tracking_api import login, upload_balances
 
 # Setup logging
 setup_logging()
@@ -111,4 +114,6 @@ def get_crypto_balances_with_value(indicators):
         ret_with_limits["SOL"]["max_sell"] = 0
 
     logger.info(f"Balances with limits: {ret_with_limits}")
+    token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    upload_balances(token, ret_with_limits)
     return ret_with_limits, total_value
