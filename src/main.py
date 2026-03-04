@@ -77,6 +77,9 @@ if __name__ == "__main__":
     threads = []
     agent_name = os.getenv("TRACKING_API_USERNAME", "unknown")
 
+    token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    status_update(token, "Starting threads")
+
     thread_configs = []
     if agent_name == "bob":
         logger.info("👋 Hello Bob! Starting your personalized assistant threads.")

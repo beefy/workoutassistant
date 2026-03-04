@@ -1,4 +1,4 @@
-from utils.tracking_api import login, get_indicators
+from utils.tracking_api import login, get_indicators, status_update
 import os
 from clients.crypto_trade import execute_crypto_trade
 from utils.crypto_balance_with_value import get_crypto_balances_with_value
@@ -207,6 +207,8 @@ def alpha():
             logger.info(f"No available funds to buy {token_symbol}")
     
     logger.info(f"Alpha strategy completed. Executed {trades_executed} trades.")
+    token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    status_update(token, f"Executed {trades_executed} crypto trades.")
 
 
 def beta():
@@ -358,3 +360,5 @@ def beta():
             logger.info(f"Skipping {token_symbol} - insufficient funds available")
     
     logger.info(f"Beta strategy completed. Executed {trades_executed} trades.")
+    token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    status_update(token, f"Executed {trades_executed} crypto trades.")
