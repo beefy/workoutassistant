@@ -53,31 +53,19 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Optional: Add a watchtower container for automatic updates (disabled due to restart loop)
-  watchtower:
-    image: containrrr/watchtower:latest
-    platform: linux/arm64  # Force ARM64 architecture for Raspberry Pi
-    container_name: watchtower
+  ouroboros:
+    image: pyouroboros/ouroboros:latest
+    container_name: ouroboros
     restart: unless-stopped
     environment:
-      - WATCHTOWER_POLL_INTERVAL=300
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_INCLUDE_RESTARTING=true
-
-      # Enable email notifications
-      - WATCHTOWER_NOTIFICATIONS=email
-
-      # SMTP settings
-      - WATCHTOWER_NOTIFICATION_EMAIL_FROM=${GMAIL_ADDRESS}
-      - WATCHTOWER_NOTIFICATION_EMAIL_TO=${ADMIN_EMAIL}
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER=smtp.gmail.com
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PORT=587
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_USER=${GMAIL_ADDRESS}
-      - WATCHTOWER_NOTIFICATION_EMAIL_SERVER_PASSWORD=${GMAIL_APP_PASSWORD}
-      - WATCHTOWER_NOTIFICATION_EMAIL_DELAY=900
+      - CLEANUP=true
+      - INTERVAL=300
+      - LOG_LEVEL=info
+      - SELF_UPDATE=true
+      - IGNORE=postgres
+      - TZ=UTC
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: workoutassistant
 
 volumes:
   workout_data:

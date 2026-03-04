@@ -22,13 +22,6 @@ Tasks that run on a regular schedule:
 
 See `.variables.example` for expected environment variables.
 
-You also need a `.env` for watchtower variables (used to send email alerts on server restart or failures)
-```
-GMAIL_APP_PASSWORD=your_app_password_here
-GMAIL_ADDRESS=your_email@gmail.com
-ADMIN_EMAIL=admin@example.com
-```
-
 ### Docker Commands
 
 Install
@@ -151,11 +144,9 @@ vcgencmd measure_volts
 
 ### 🔄 Automatic Updates
 
-The deployment includes [Watchtower](https://github.com/containrrr/watchtower) which:
+The deployment includes ouroboros which:
 - Polls DockerHub every 5 minutes for new images
 - Automatically pulls and deploys updates
-- Sends email notifications when updates occur
-- Cleans up old images to save space
 
 Updates are triggered automatically when code is pushed to the main branch via GitHub Actions.
 
