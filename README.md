@@ -155,7 +155,7 @@ To run it
 crontab -e
 
 # Add this line (checks for updates every 5 minutes):
-*/5 * * * * /home/Code/workoutassistant/src/scripts/update_cron.sh >> /home/Code/workoutassistant/update.log 2>&1
+*/5 * * * * /home/bob/Code/workoutassistant/src/scripts/update_cron.sh >> /home/bob/Code/workoutassistant/update.log 2>&1
 ```
 
 
