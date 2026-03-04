@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 @retry(
-    stop=stop_after_attempt(5),
-    wait=wait_random_exponential(multiplier=1, min=1, max=30),
+    stop=stop_after_attempt(7),
+    wait=wait_random_exponential(multiplier=3, min=2, max=120),
     retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
     reraise=True
 )
@@ -29,8 +29,8 @@ def get_sol_balance():
 
 
 @retry(
-    stop=stop_after_attempt(5),
-    wait=wait_random_exponential(multiplier=1, min=1, max=30),
+    stop=stop_after_attempt(7),
+    wait=wait_random_exponential(multiplier=3, min=2, max=120),
     retry=retry_if_exception_type((SolanaRpcException, httpx.TimeoutException, httpx.HTTPStatusError, ConnectionError)),
     reraise=True
 )
