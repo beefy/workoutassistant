@@ -67,9 +67,10 @@ def calculate_bullishness_score(indicators_data):
 def alpha():
     """
     Alpha Strategy: Aggressive Momentum Strategy
+    - Sells bearish tokens (score < 0) first
     - Focuses on tokens with highest RSI and strongest bull signals
     - Buys top 3 most bullish tokens with available max_buy amounts
-    - Uses 95% of max_buy to account for price changes
+    - Uses 95% of max amounts to account for price changes
     """
     logger.info("=== Running Alpha Strategy (Aggressive Momentum) ===")
     
@@ -95,6 +96,29 @@ def alpha():
     sorted_tokens = sorted(scores.items(), key=lambda x: x[1], reverse=True)
     logger.info(f"Tokens sorted by bullishness: {sorted_tokens}")
     
+    trades_executed = 0
+    
+    # First, sell any bearish tokens we currently hold
+    for token_symbol, score in sorted_tokens:
+        if score < 0:  # Bearish token
+            token_data = balances.get(token_symbol, {})
+            max_sell = token_data.get('max_sell', 0)
+            balance = token_data.get('balance', 0)
+            
+            if max_sell > 0 and balance > 0:
+                # Use 95% of max_sell to account for price changes
+                sell_amount = min(max_sell * 0.95, balance)
+                logger.info(f"Alpha: Selling {sell_amount:.6f} {token_symbol} (bearish score: {score})")
+                
+                result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
+                logger.info(f"{token_symbol} sell result: {result}")
+                trades_executed += 1
+    
+    # Refresh balances after selling (max_buy amounts will have changed)
+    if trades_executed > 0:
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+        logger.info(f"Updated balances after selling. New total USD value: ${max_value:.2f}")
+    
     # Check if any tokens are bullish (score > 3)
     bullish_tokens = [token for token, score in sorted_tokens if score > 3]
     
@@ -108,12 +132,13 @@ def alpha():
             logger.info(f"Buying {buy_amount:.6f} USDC (95% of max_buy: {max_buy})")
             result = execute_crypto_trade("USDC", "buy", buy_amount, indicators['indicators'])
             logger.info(f"USDC trade result: {result}")
+            trades_executed += 1
         else:
             logger.info("No available funds to buy USDC")
+        logger.info(f"Alpha strategy completed. Executed {trades_executed} trades.")
         return
     
     # Alpha strategy: Buy top 3 most bullish tokens
-    trades_executed = 0
     target_trades = min(3, len(bullish_tokens))
     
     for i in range(target_trades):
@@ -184,6 +209,12 @@ def beta():
                 result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
                 logger.info(f"{token_symbol} sell result: {result}")
                 trades_executed += 1
+    
+    # Refresh balances after selling (max_buy amounts will have changed)
+    sells_executed = trades_executed
+    if sells_executed > 0:
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+        logger.info(f"Updated balances after selling. New total USD value: ${max_value:.2f}")
     
     # Check if we have any bullish tokens
     bullish_tokens = [token for token, score in sorted_tokens if score > 1]
