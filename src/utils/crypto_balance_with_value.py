@@ -7,6 +7,8 @@ from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_i
 from solana.exceptions import SolanaRpcException
 import httpx
 from utils.tracking_api import login, upload_balances
+import random
+import time
 
 # Setup logging
 setup_logging()
@@ -42,6 +44,10 @@ ADDRESS_TO_SYMBOL = {addr: sym for sym, addr in TOKEN_ADDRESSES.items()}
 )
 def get_crypto_balances_with_value(indicators):
     logger.info("🔄 Fetching crypto balances with USD values...")
+
+    # wait between 1 and 5 seconds
+    time.sleep(random.uniform(1, 5))
+
     balances = get_crypto_balances()
     ret = {}
 
