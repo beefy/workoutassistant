@@ -17,11 +17,6 @@ logger = logging.getLogger(__name__)
 def main():
     """Main function to run Discord bot task."""
     logger.info("🤖 Starting Discord Bot Task...")
-    username = os.getenv("TRACKING_API_USERNAME")
-    if username != "bob":
-        logger.warning("⚠️ Discord bot is only intended to run for user 'bob'. Skipping startup.")
-        return
-    
     # Create new event loop for this thread
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
