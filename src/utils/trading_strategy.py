@@ -108,7 +108,12 @@ def alpha():
             if max_sell > 0 and balance > 0:
                 # Use 95% of max_sell to account for price changes
                 sell_amount = min(max_sell * 0.95, balance)
-                logger.info(f"Alpha: Selling {sell_amount:.6f} {token_symbol} (bearish score: {score})")
+                # Check USD value before selling
+                usd_value = sell_amount * token_data.get('usd_price', 0)
+                if usd_value <= 0.001:
+                    logger.info(f"Alpha: Skipping sell of {token_symbol} - USD value ${usd_value:.6f} is not positive")
+                    continue
+                logger.info(f"Alpha: Selling {sell_amount:.6f} {token_symbol} (USD value: ${usd_value:.6f}, bearish score: {score})")
                 
                 result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
                 logger.info(f"{token_symbol} sell result: {result}")
@@ -137,7 +142,12 @@ def alpha():
         
         if max_sell > 0 and balance > 0:
             sell_amount = min(max_sell * 0.95, balance)
-            logger.info(f"Alpha: Rebalancing - Selling {sell_amount:.6f} {token_symbol} (no longer in top 3, score: {scores.get(token_symbol, 'N/A')})")
+            # Check USD value before selling
+            usd_value = sell_amount * token_data.get('usd_price', 0)
+            if usd_value <= 0.001:
+                logger.info(f"Alpha: Skipping rebalance sell of {token_symbol} - USD value ${usd_value:.6f} is not positive")
+                continue
+            logger.info(f"Alpha: Rebalancing - Selling {sell_amount:.6f} {token_symbol} (USD value: ${usd_value:.6f}, no longer in top 3, score: {scores.get(token_symbol, 'N/A')})")
             
             result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
             logger.info(f"{token_symbol} rebalance sell result: {result}")
@@ -255,7 +265,12 @@ def beta():
             if max_sell > 0 and balance > 0:
                 # Use 95% of max_sell to account for price changes
                 sell_amount = min(max_sell * 0.95, balance)
-                logger.info(f"Beta: Selling {sell_amount:.6f} {token_symbol} (bearish score: {score})")
+                # Check USD value before selling
+                usd_value = sell_amount * token_data.get('usd_price', 0)
+                if usd_value <= 0.00:
+                    logger.info(f"Beta: Skipping sell of {token_symbol} - USD value ${usd_value:.6f} is not positive")
+                    continue
+                logger.info(f"Beta: Selling {sell_amount:.6f} {token_symbol} (USD value: ${usd_value:.6f}, bearish score: {score})")
                 
                 result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
                 logger.info(f"{token_symbol} sell result: {result}")
@@ -285,7 +300,12 @@ def beta():
         
         if max_sell > 0 and balance > 0:
             sell_amount = min(max_sell * 0.95, balance)
-            logger.info(f"Beta: Rebalancing - Selling {sell_amount:.6f} {token_symbol} (no longer in top 5, score: {scores.get(token_symbol, 'N/A')})")
+            # Check USD value before selling
+            usd_value = sell_amount * token_data.get('usd_price', 0)
+            if usd_value <= 0.00:
+                logger.info(f"Beta: Skipping rebalance sell of {token_symbol} - USD value ${usd_value:.6f} is not positive")
+                continue
+            logger.info(f"Beta: Rebalancing - Selling {sell_amount:.6f} {token_symbol} (USD value: ${usd_value:.6f}, no longer in top 5, score: {scores.get(token_symbol, 'N/A')})")
             
             result = execute_crypto_trade(token_symbol, "sell", sell_amount, indicators['indicators'])
             logger.info(f"{token_symbol} rebalance sell result: {result}")
