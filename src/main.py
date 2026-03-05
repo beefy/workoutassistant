@@ -87,7 +87,7 @@ if __name__ == "__main__":
             (heartbeat.main, "heartbeat"),
             (use_moltbook.main, "moltbook"),
             (respond_to_email.main, "email"),
-            # (trade_crypto.bob, "crypto"),
+            (trade_crypto.bob, "crypto"),
         ]
     elif agent_name == "bobby":
         logger.info("👋 Hello Bobby! Starting your personalized assistant threads.")
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             (heartbeat.main, "heartbeat"),
             (use_moltbook.main, "moltbook"),
             (respond_to_email.main, "email"),
-            # (trade_crypto.bobby, "crypto"),
+            (trade_crypto.bobby, "crypto"),
             (newsletter.main, "newsletter"),
             (discord_bot.main, "discord_bot")
         ]
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         logger.info("👋 Hello Robert! Starting your personalized assistant threads.")
         thread_configs = [
             (heartbeat.main, "heartbeat"),
-            # (trade_crypto.robert, "crypto"),
+            (trade_crypto.robert, "crypto"),
         ]
     
     for func, name in thread_configs:
