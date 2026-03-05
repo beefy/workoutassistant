@@ -198,10 +198,6 @@ def alpha():
         return
     
     logger.info("Fetched indicators: %s", indicators['indicators'])
-    balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
-    logger.info("Crypto balances with USD value: %s", balances)
-    logger.info(f"Total USD value of crypto holdings: ${max_value:.2f}")
-
     signals = {}
     for token in indicators['indicators']:
         signal = process_indicators_alpha(indicators['indicators'][token])
@@ -218,6 +214,39 @@ def alpha():
                     tokens_to_buy = dict(sorted(tokens_to_buy.items(), key=lambda item: item[1], reverse=True)[:3])
 
     logger.info("Tokens prioritized for buying: %s", tokens_to_buy)
+    balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+    logger.info("Crypto balances with USD value: %s", balances)
+    logger.info(f"Total USD value of crypto holdings: ${max_value:.2f}")
+    current_holdings = {}
+    for token in balances:
+        if balances[token]['usd_value'] > 0.01:
+            current_holdings[token] = balances[token]['usd_value']
+    
+    # sell all and buy USDC if no strong buy signals
+    if not tokens_to_buy:
+        for token in current_holdings:
+            if token != "USDC" and token != "SOL":
+                execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
+
+        execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
+        api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+        status_update(api_token, "Bought USDC")
+        return
+    
+    # sell any tokens not in buy list
+    for token in current_holdings:
+        if token not in tokens_to_buy and token != "SOL":
+            execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
+    
+    balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+    # buy tokens in buy list
+    for token in tokens_to_buy:
+        if token in balances and token != "SOL":
+            execute_crypto_trade(token, "buy", balances[token]['max_buy'] / len(tokens_to_buy), indicators['indicators'])
+
+    api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    status_update(api_token, f"Investing in {', '.join(tokens_to_buy.keys())}")
+
 
 def beta():
     logger.info("=== Running Beta Strategy ===")
@@ -233,10 +262,6 @@ def beta():
         return
     
     logger.info("Fetched indicators: %s", indicators['indicators'])
-    balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
-    logger.info("Crypto balances with USD value: %s", balances)
-    logger.info(f"Total USD value of crypto holdings: ${max_value:.2f}")
-
     signals = {}
     for token in indicators['indicators']:
         signal = process_indicators_beta(indicators['indicators'][token])
@@ -253,9 +278,35 @@ def beta():
                     tokens_to_buy = dict(sorted(tokens_to_buy.items(), key=lambda item: item[1], reverse=True)[:3])
 
     logger.info("Tokens prioritized for buying: %s", tokens_to_buy)
+    balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+    logger.info("Crypto balances with USD value: %s", balances)
+    logger.info(f"Total USD value of crypto holdings: ${max_value:.2f}")
+    current_holdings = {}
+    for token in balances:
+        if balances[token]['usd_value'] > 0.01:
+            current_holdings[token] = balances[token]['usd_value']
+    
+    # sell all and buy USDC if no strong buy signals
+    if not tokens_to_buy:
+        for token in current_holdings:
+            if token != "USDC" and token != "SOL":
+                execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
 
+        execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
+        api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+        status_update(api_token, "Bought USDC")
+        return
+    
+    # sell any tokens not in buy list
+    for token in current_holdings:
+        if token not in tokens_to_buy and token != "SOL":
+            execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
+    
+    balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+    # buy tokens in buy list
+    for token in tokens_to_buy:
+        if token in balances and token != "SOL":
+            execute_crypto_trade(token, "buy", balances[token]['max_buy'] / len(tokens_to_buy), indicators['indicators'])
 
-if __name__ == "__main__":
-    alpha()
-    logger.info("\n\n\n\n")
-    beta()
+    api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    status_update(api_token, f"Investing in {', '.join(tokens_to_buy.keys())}")
