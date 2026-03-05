@@ -187,12 +187,12 @@ def process_indicators_beta(indicators):
 def alpha():
     logger.info("=== Running Alpha Strategy ===")
     
-    token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
-    if not token:
+    api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    if not api_token:
         logger.error("Failed to log in to tracking API. Please check your credentials.")
         return
     
-    indicators = get_indicators(token)
+    indicators = get_indicators(api_token)
     if not indicators:
         logger.error("Failed to fetch indicators.")
         return
@@ -251,12 +251,12 @@ def alpha():
 def beta():
     logger.info("=== Running Beta Strategy ===")
     
-    token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
-    if not token:
+    api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
+    if not api_token:
         logger.error("Failed to log in to tracking API. Please check your credentials.")
         return
     
-    indicators = get_indicators(token)
+    indicators = get_indicators(api_token)
     if not indicators:
         logger.error("Failed to fetch indicators.")
         return
