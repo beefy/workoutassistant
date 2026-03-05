@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     libopenblas-dev \
     liblapack-dev \
+    libsodium-dev \
+    libopus-dev \
     pkg-config \
     curl \
     git \
@@ -65,6 +67,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     ffmpeg \
     libopenblas0 \
+    libsodium23 \
+    libopus0 \
+    libffi8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
