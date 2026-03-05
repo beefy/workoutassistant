@@ -228,6 +228,8 @@ def alpha():
             if token != "USDC" and token != "SOL":
                 execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
 
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
+
         execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
         api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
         status_update(api_token, "Bought USDC")
@@ -291,6 +293,8 @@ def beta():
         for token in current_holdings:
             if token != "USDC" and token != "SOL":
                 execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
+
+        balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
 
         execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
         api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
