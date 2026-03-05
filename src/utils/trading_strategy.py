@@ -267,7 +267,7 @@ def beta():
                 sell_amount = min(max_sell * 0.95, balance)
                 # Check USD value before selling
                 usd_value = sell_amount * token_data.get('usd_price', 0)
-                if usd_value <= 0.00:
+                if usd_value <= 0.001:
                     logger.info(f"Beta: Skipping sell of {token_symbol} - USD value ${usd_value:.6f} is not positive")
                     continue
                 logger.info(f"Beta: Selling {sell_amount:.6f} {token_symbol} (USD value: ${usd_value:.6f}, bearish score: {score})")
@@ -302,7 +302,7 @@ def beta():
             sell_amount = min(max_sell * 0.95, balance)
             # Check USD value before selling
             usd_value = sell_amount * token_data.get('usd_price', 0)
-            if usd_value <= 0.00:
+            if usd_value <= 0.001:
                 logger.info(f"Beta: Skipping rebalance sell of {token_symbol} - USD value ${usd_value:.6f} is not positive")
                 continue
             logger.info(f"Beta: Rebalancing - Selling {sell_amount:.6f} {token_symbol} (USD value: ${usd_value:.6f}, no longer in top 5, score: {scores.get(token_symbol, 'N/A')})")
