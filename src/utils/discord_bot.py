@@ -230,13 +230,13 @@ class MusicBot:
                     task_id = response["task_id"]
                     logger.info(f"Created task with ID: {task_id}")
                     
-                    # Poll for completion (check every 15 seconds, max 15 minutes)
+                    # Poll for completion (check every 5 seconds, max 15 minutes)
                     import time
-                    max_attempts = 60  # 15 minutes with 15 second intervals
+                    max_attempts = 180  # 15 minutes with 5 second intervals
                     attempt = 0
                     
                     while attempt < max_attempts:
-                        time.sleep(15)  # Wait 15 seconds between checks
+                        time.sleep(5)  # Wait 5 seconds between checks
                         status_response = check_speech_gen_task_status(task_id)
                         status = status_response.get("status", "")
                         
