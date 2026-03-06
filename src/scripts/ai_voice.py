@@ -7,13 +7,14 @@ def clone_voice(ref_audio_path, ref_text, gen_text):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # # List available 🐸TTS models
-    print(TTS().list_models())
+    # print(TTS().list_models())
 
     # Initialize TTS
-    tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+    tts_generate = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+    tts_convert = TTS("voice_conversion_models/multilingual/multi-dataset/openvoice_v2").to(device)
 
     # List speakers
-    print(tts.speakers)
+    # print(tts.speakers)
 
     # Run TTS
     # ❗ XTTS supports both, but many models allow only one of the `speaker` and
@@ -34,17 +35,25 @@ def clone_voice(ref_audio_path, ref_text, gen_text):
     #     file_path="output.wav"
     # )
 
-    tts.tts_to_file(
+    print("Generating reference TTS audio...")
+    tts_generate.tts_to_file(
         text="Hello world!",
         language="en",
-        speaker_wav=ref_audio_path,
-        file_path="cloned_output.wav"
+        speaker="Craig Gutsy",
+        file_path="output.wav"
+    )
+
+    print("Converting voice using reference audio...")
+    tts_convert.voice_conversion_to_file(
+        source_wav="output.wav",
+        target_wav=ref_audio_path,
+        file_path="converted_output.wav"
     )
 
 
 if __name__ == "__main__":
     clone_voice(
-        ref_audio_path='src/audio_samples/obama2.ogg',
+        ref_audio_path='src/audio_samples/obama.ogg',
         ref_text="Mrs Rodham was a remarkable person, to anyone who knows her history knows what a strong, determined, and gifted person she was. For her to have been able to live the life that she did and to see her daughter succeed at the pinnacle of public service in this country, I'm sure was deeply satisfying to her. You know. My thoughts and Chel's thoughs, the entire white house's thoughts go out to the entire Clinton family and I know that she will be remembered as someone who helped make a difference in this country and this world. Alright?",
         gen_text="Test text to see if voice cloning works!"
     )
