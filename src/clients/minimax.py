@@ -194,8 +194,6 @@ def get_voice():
 
 
 # if __name__ == "__main__":
-#     # response = get_voice()
-#     # print(response)
 #     obama_voice_id = "moss_audio_8dd65fdb-19a0-11f1-a9eb-d68e15ebe5cd"
 #     text = "The quick brown fox jumps over the lazy dog."
 #     # response = create_speech_gen_task(obama_voice_id, text)
