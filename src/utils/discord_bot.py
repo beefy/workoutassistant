@@ -270,7 +270,7 @@ class MusicBot:
             # Generate Obama TTS with timeout
             audio_file = await asyncio.wait_for(
                 loop.run_in_executor(None, generate_obama_tts),
-                timeout=360.0  # 6 minute timeout
+                timeout=900.0  # 15 minute timeout
             )
             
             if not audio_file or not os.path.exists(audio_file):
