@@ -29,9 +29,17 @@ def clone_voice(ref_audio_path, ref_text, gen_text):
     # TTS to a file, use a preset speaker
     tts.tts_to_file(
         text="Hello world!",
-        speaker_wav=ref_audio_path,
         language="en",
+        speaker="Craig Gutsy",
         file_path="output.wav"
+    )
+
+    tts.tts_to_file(
+        text="Hello world!",
+        language="en",
+        source_wav="output.wav",
+        target_wav=ref_audio_path,
+        file_path="cloned_output.wav"
     )
 
 
