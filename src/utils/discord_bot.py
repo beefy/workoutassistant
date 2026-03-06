@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 from scripts.youtube_audio import search_and_download_music_video
 from llm.priority_queue import LLMPriorityQueueManager
 from clients.generate_image import HuggingFaceImageGenerator
+from clients.minimax import create_speech_gen_task, check_speech_gen_task_status, retrieve_file_content
 
 class MusicBot:
     def __init__(self):
@@ -202,6 +203,115 @@ class MusicBot:
             await channel.send(f"❌ TTS Error: {str(e)}")
             logger.error(f"Error in generate_tts_and_play: {e}")
 
+    async def generate_obama_tts_and_play(self, channel, text, voice_channel):
+        """Generate Obama TTS audio using Minimax API and play it in the voice channel."""
+        try:
+            obama_voice_id = "moss_audio_8dd65fdb-19a0-11f1-a9eb-d68e15ebe5cd"
+            
+            # Send status message
+            status_msg = await channel.send(f"🇺🇸 Generating Obama TTS: {text[:50]}{'...' if len(text) > 50 else ''}")
+            
+            # Create a temporary directory for this TTS  
+            download_path = os.path.join(self.temp_dir, f"obama_tts_{channel.guild.id}")
+            Path(download_path).mkdir(exist_ok=True)
+            
+            # Generate TTS audio file path
+            tts_file = os.path.join(download_path, f"obama_tts_{channel.guild.id}.mp3")
+            
+            # Run Obama TTS generation in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def generate_obama_tts():
+                """Generate Obama TTS using Minimax API in separate thread"""
+                try:
+                    # Create speech generation task
+                    logger.info(f"Creating Obama speech generation task for text: {text[:100]}...")
+                    response = create_speech_gen_task(obama_voice_id, text)
+                    task_id = response["task_id"]
+                    logger.info(f"Created task with ID: {task_id}")
+                    
+                    # Poll for completion (check every 5 seconds, max 5 minutes)
+                    import time
+                    max_attempts = 60  # 5 minutes with 5 second intervals
+                    attempt = 0
+                    
+                    while attempt < max_attempts:
+                        time.sleep(5)  # Wait 5 seconds between checks
+                        status_response = check_speech_gen_task_status(task_id)
+                        status = status_response.get("status", "")
+                        
+                        logger.info(f"Task {task_id} status check {attempt + 1}/{max_attempts}: {status}")
+                        
+                        if status == "Success":
+                            file_id = status_response["file_id"]
+                            logger.info(f"Task completed, retrieving file content for file_id: {file_id}")
+                            
+                            # Retrieve and save the file content
+                            file_content = retrieve_file_content(file_id)
+                            with open(tts_file, "wb") as f:
+                                f.write(file_content)
+                            
+                            logger.info(f"Obama TTS file saved: {tts_file}")
+                            return tts_file if os.path.exists(tts_file) else None
+                            
+                        elif status == "Failed":
+                            logger.error(f"Obama TTS task failed: {status_response}")
+                            return None
+                            
+                        attempt += 1
+                    
+                    logger.error(f"Obama TTS task timed out after {max_attempts} attempts")
+                    return None
+                    
+                except Exception as e:
+                    logger.error(f"Error generating Obama TTS: {e}")
+                    return None
+            
+            # Generate Obama TTS with timeout
+            audio_file = await asyncio.wait_for(
+                loop.run_in_executor(None, generate_obama_tts),
+                timeout=360.0  # 6 minute timeout
+            )
+            
+            if not audio_file or not os.path.exists(audio_file):
+                await status_msg.edit(content="❌ Could not generate Obama TTS audio.")
+                return
+            
+            await status_msg.edit(content=f"🇺🇸 Generated! Joining voice channel...")
+            
+            # Join voice channel
+            voice_client = await self.join_voice_channel(voice_channel)
+            
+            # Stop any currently playing audio
+            if voice_client.is_playing():
+                voice_client.stop()
+            
+            await status_msg.edit(content=f"🇺🇸 Obama speaking: {text[:30]}{'...' if len(text) > 30 else ''}")
+            
+            # Play the Obama TTS audio
+            audio_source = discord.FFmpegPCMAudio(audio_file)
+            voice_client.play(audio_source)
+            
+            # Wait for playback to finish, then clean up
+            while voice_client.is_playing():
+                await asyncio.sleep(1)
+                
+            # Clean up the TTS file
+            try:
+                os.remove(audio_file)
+                # Remove download directory if empty
+                if os.path.exists(download_path) and not os.listdir(download_path):
+                    os.rmdir(download_path)
+            except Exception as e:
+                logger.error(f"Error cleaning up Obama TTS file {audio_file}: {e}")
+            await status_msg.edit(content="✅ Obama finished speaking.")
+                
+        except asyncio.TimeoutError:
+            await channel.send("⏱️ Obama TTS generation timed out.")
+        except Exception as e:
+            await channel.send(f"❌ Obama TTS Error: {str(e)}")
+            logger.error(f"Error in generate_obama_tts_and_play: {e}")
+
 def create_discord_bot():
     """Create and configure the Discord bot."""
     # Bot setup
@@ -369,6 +479,68 @@ def create_discord_bot():
             await ctx.send(f"❌ Error with LLM talk request: {str(e)}")
             logger.error(f"Error in bob_talk_command: {e}")
     
+    @bot.command(name='bob_talk_obama')
+    async def bob_talk_obama_command(ctx, *, prompt):
+        """Send a prompt to the LLM and speak the response using Obama voice in voice chat."""
+        try:
+            # Check if user is in a voice channel
+            if ctx.author.voice is None:
+                await ctx.send("❌ You need to be in a voice channel to use this command!")
+                return
+                
+            voice_channel = ctx.author.voice.channel
+            
+            await ctx.send(f"🧠🇺🇸 Adding to LLM queue and will speak response with Obama voice: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
+            
+            # Run the blocking LLM request in a separate thread to avoid blocking the Discord event loop
+            loop = asyncio.get_event_loop()
+            
+            def submit_llm_request():
+                """Submit request in separate thread"""
+                try:
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                except Exception as e:
+                    logger.error(f"Error submitting LLM request: {e}")
+                    return None
+            
+            # Run in executor with timeout to avoid blocking the event loop
+            try:
+                future = await asyncio.wait_for(
+                    loop.run_in_executor(None, submit_llm_request),
+                    timeout=2340.0  # 39 minute timeout
+                )
+                
+                # Get the response
+                if future:
+                    response = future.result() if hasattr(future, 'result') else future
+                    if response:
+                        # Handle both string and dict responses
+                        if isinstance(response, dict) and 'response' in response:
+                            response_text = response['response']
+                        elif isinstance(response, str):
+                            response_text = response
+                        else:
+                            response_text = str(response)
+                        
+                        # Limit text length for TTS to prevent abuse
+                        if len(response_text) > 1000:
+                            response_text = response_text[:1000]
+                            await ctx.send("⚠️ Response truncated to 1000 characters for Obama TTS.")
+                        
+                        # Generate Obama TTS and play the response
+                        await music_bot.generate_obama_tts_and_play(ctx.channel, response_text, voice_channel)
+                        
+                    else:
+                        await ctx.send("🤔 LLM returned empty response")
+                else:
+                    await ctx.send("🤔 LLM request failed")
+            except asyncio.TimeoutError:
+                await ctx.send("⏱️ LLM request timed out after 2340 seconds.")
+                
+        except Exception as e:
+            await ctx.send(f"❌ Error with LLM Obama talk request: {str(e)}")
+            logger.error(f"Error in bob_talk_obama_command: {e}")
+    
     @bot.command(name='status')
     async def status_command(ctx):
         """Get the current status of the system and LLM queue."""
@@ -448,6 +620,24 @@ def create_discord_bot():
         # Generate TTS and play
         await music_bot.generate_tts_and_play(ctx.channel, text, voice_channel)
     
+    @bot.command(name='say_obama')
+    async def say_obama_command(ctx, *, text):
+        """Use Obama voice text-to-speech via Minimax API to speak in the voice channel."""
+        # Check if user is in a voice channel
+        if ctx.author.voice is None:
+            await ctx.send("❌ You need to be in a voice channel to use this command!")
+            return
+            
+        voice_channel = ctx.author.voice.channel
+        
+        # Limit text length to prevent abuse
+        if len(text) > 1000:
+            await ctx.send("❌ Text too long! Please limit to 1000 characters.")
+            return
+        
+        # Generate Obama TTS and play
+        await music_bot.generate_obama_tts_and_play(ctx.channel, text, voice_channel)
+    
     @bot.command(name='stop')
     async def stop_music(ctx):
         """Stop the currently playing music."""
@@ -482,13 +672,15 @@ def create_discord_bot():
 
 **Music & Audio:**
 • `!groovy <song name>` - Search and play audio from YouTube
-• `!say <text>` - Speak text using text-to-speech
+• `!say <text>` - Speak text using standard text-to-speech
+• `!say_obama <text>` - Speak text using Obama voice (Minimax API)
 • `!stop` - Stop the currently playing music
 • `!leave` - Make the bot leave the voice channel
 
 **AI Features:**
 • `!bob <prompt>` - Send a prompt to the LLM
 • `!bob_talk <prompt>` - Send a prompt to the LLM and speak the response
+• `!bob_talk_obama <prompt>` - Send a prompt to the LLM and speak with Obama voice
 • `!image <description>` - Generate an AI image
 
 **System:**
@@ -499,8 +691,10 @@ def create_discord_bot():
 **Examples:**
 • `!groovy Bohemian Rhapsody`
 • `!say Hello everyone, how are you doing today?`
+• `!say_obama My fellow Americans, we choose to go to the moon!`
 • `!bob What is the meaning of life?`
 • `!bob_talk Tell me a joke`
+• `!bob_talk_obama Tell me about the audacity of hope`
 • `!image a cute cat wearing sunglasses`
 • `!status` - Check what's currently processing
         """
