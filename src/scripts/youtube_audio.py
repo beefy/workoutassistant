@@ -97,6 +97,65 @@ def search_and_download_music_video(title: str, download_path: str = "downloads"
         print(f"Error: {e}")
         return None
 
+def download_youtube_audio(video_url: str, download_path: str = "downloads", start_at: int = 0) -> str:
+    """
+    Download audio from a YouTube video URL.
+    
+    Args:
+        video_url (str): The URL of the YouTube video
+        download_path (str): Directory to save the downloaded audio
+        start_at (int): Start time in seconds to begin downloading from (optional)
+    Returns:
+        str: Path to the downloaded audio file
+    """
+    try:
+        # Create download directory if it doesn't exist
+        Path(download_path).mkdir(exist_ok=True)
+        
+        # Configure yt-dlp options for downloading audio
+        ydl_download_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'quiet': False
+        }
+        
+        print(f"Downloading audio from: {video_url}")
+        
+        # Download the audio
+        with yt_dlp.YoutubeDL(ydl_download_opts) as ydl:
+            ydl.download([video_url])
+        
+        # Find the downloaded file (it will have .mp3 extension after processing)
+        download_dir = Path(download_path)
+        mp3_files = list(download_dir.glob("*.mp3"))
+        
+        if mp3_files:
+            # Get the most recently created mp3 file
+            output_file = max(mp3_files, key=os.path.getctime)
+            print(f"Downloaded successfully: {output_file}")
+
+            # trim initial seconds with ffmpeg if start_at > 0
+            if start_at > 0:
+                trimmed_output_file = output_file.with_name(output_file.stem + "_trimmed.mp3")
+                os.system(f"ffmpeg -i \"{output_file}\" -ss {start_at} -c copy \"{trimmed_output_file}\"")
+                output_file.unlink()  # remove original file
+                trimmed_output_file.rename(output_file)  # rename trimmed file to original name
+                print(f"Trimmed audio to start at {start_at} seconds: {output_file}")
+
+            return str(output_file)
+        else:
+            raise Exception("Downloaded file not found")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+
 def main():
     """
     Main function to run the script with command line arguments.
