@@ -26,6 +26,7 @@ from scripts.youtube_audio import search_and_download_music_video, download_yout
 from llm.priority_queue import LLMPriorityQueueManager
 from clients.generate_image import HuggingFaceImageGenerator
 from utils.voices import generate_voice_tts_file, get_voice_emoji, get_voice_display_name
+from utils.convo import generate_convo, convo_to_audio, splice_audio_together
 
 class MusicBot:
     def __init__(self):
@@ -861,6 +862,80 @@ def create_discord_bot():
         else:
             await ctx.send("Bot is not connected to a voice channel.")
     
+    @bot.command(name='convo')
+    async def convo_command(ctx, *, topic):
+        """Generate a conversation chain with audio about the given topic."""
+        try:
+            # Send initial status message
+            status_msg = await ctx.send(f"🎭 Starting conversation generation about: {topic}")
+            
+            # Create a temporary directory for this conversation
+            convo_path = os.path.join(music_bot.temp_dir, f"convo_{ctx.guild.id}_{ctx.message.id}")
+            Path(convo_path).mkdir(exist_ok=True)
+            
+            final_audio_path = os.path.join(convo_path, "final_convo.mp3")
+            
+            # Run the conversation generation in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def generate_full_convo():
+                """Generate conversation, audio, and splice together in separate thread"""
+                try:
+                    # Generate conversation
+                    convo = generate_convo(topic)
+                    
+                    # Convert to audio
+                    convo_to_audio(convo)
+                    
+                    # Splice audio together
+                    splice_audio_together(len(convo), final_audio_path)
+                    
+                    return final_audio_path, len(convo)
+                except Exception as e:
+                    logger.error(f"Error in generate_full_convo: {e}")
+                    raise
+            
+            # Update status for LLM generation
+            await status_msg.edit(content=f"🧠 Generating conversation about: {topic}...")
+            
+            # Generate conversation with no timeout (this will take a while)
+            try:
+                result = await loop.run_in_executor(None, generate_full_convo)
+                audio_file_path, convo_length = result
+                
+                if not audio_file_path or not os.path.exists(audio_file_path):
+                    await status_msg.edit(content="❌ Failed to generate conversation audio.")
+                    return
+                
+                # Update status for upload
+                await status_msg.edit(content=f"✅ Generated {convo_length} part conversation! Uploading audio file...")
+                
+                # Upload the audio file
+                with open(audio_file_path, 'rb') as f:
+                    file = discord.File(f, filename=f"conversation_{topic.replace(' ', '_')[:30]}.mp3")
+                    await ctx.send(
+                        f"🎭 Here's your conversation about **{topic}** ({convo_length} parts with Obama and Trump voices):", 
+                        file=file
+                    )
+                
+                # Clean up
+                await status_msg.edit(content="🎭 Conversation generated and uploaded successfully!")
+                
+            except Exception as e:
+                await status_msg.edit(content=f"❌ Error during conversation generation: {str(e)[:100]}")
+                logger.error(f"Error in convo generation: {e}")
+            
+            # Clean up temporary files
+            try:
+                if os.path.exists(convo_path):
+                    shutil.rmtree(convo_path)
+            except Exception as e:
+                logger.error(f"Error cleaning up convo files: {e}")
+                
+        except Exception as e:
+            await ctx.send(f"❌ Error with conversation command: {str(e)}")
+            logger.error(f"Error in convo_command: {e}")
+    
     @bot.command(name='help_bob')
     async def help_bob(ctx):
         """Show help for music commands."""
@@ -884,6 +959,7 @@ def create_discord_bot():
 • `!bob_talk_trump <prompt>` - Send a prompt to the LLM and speak with Trump voice
 • `!bob_talk_peter <prompt>` - Send a prompt to the LLM and speak with Peter voice
 • `!image <description>` - Generate an AI image
+• `!convo <topic>` - Generate a conversation chain with Obama/Trump voices about a topic
 
 **System:**
 • `!status` - Show system status and LLM queue info
@@ -903,6 +979,7 @@ def create_discord_bot():
 • `!bob_talk_trump Tell me about making America great again`
 • `!bob_talk_peter Tell me something interesting`
 • `!image a cute cat wearing sunglasses`
+• `!convo the benefits of exercise` - Generate Obama/Trump conversation
 • `!status` - Check what's currently processing
         """
         await ctx.send(help_text)
