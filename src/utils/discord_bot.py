@@ -880,62 +880,13 @@ def create_discord_bot():
             # Run the full process in executor to avoid blocking
             loop = asyncio.get_event_loop()
             
-            def generate_full_convo_video():
-                """Download video, generate conversation, audio, replace video audio, and trim in separate thread"""
-                try:
-                    # Step 1: Download the YouTube video
-                    await status_msg.edit(content=f"📥 Downloading YouTube video...")
-                    video_file = download_youtube_video("https://www.youtube.com/watch?v=EtVOvPyuOjk", video_download_path)
-                    
-                    if not video_file or not os.path.exists(video_file):
-                        raise Exception("Failed to download YouTube video")
-                    
-                    # Step 2: Generate conversation
-                    convo = generate_convo(topic)
-                    
-                    # Step 3: Convert to audio
-                    convo_to_audio(convo)
-                    
-                    # Step 4: Splice audio together
-                    splice_audio_together(len(convo), final_audio_path)
-                    
-                    if not os.path.exists(final_audio_path):
-                        raise Exception("Failed to generate conversation audio")
-                    
-                    # Step 5: Get audio duration for trimming
-                    import subprocess
-                    result = subprocess.run(
-                        ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', 
-                         '-of', 'csv=p=0', final_audio_path],
-                        capture_output=True, text=True
-                    )
-                    audio_duration = float(result.stdout.strip())
-                    
-                    # Step 6: Replace video audio with conversation audio and trim
-                    trim_cmd = [
-                        'ffmpeg', '-i', video_file, '-i', final_audio_path,
-                        '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
-                        '-t', str(audio_duration), '-y', final_video_path
-                    ]
-                    
-                    subprocess.run(trim_cmd, check=True)
-                    
-                    if not os.path.exists(final_video_path):
-                        raise Exception("Failed to create final video")
-                    
-                    return final_video_path, len(convo), audio_duration
-                    
-                except Exception as e:
-                    logger.error(f"Error in generate_full_convo_video: {e}")
-                    raise
-            
             # Update status for video download
             await status_msg.edit(content=f"📥 Downloading video and generating conversation about: {topic}...")
             
             # Generate conversation video with no timeout (this will take a while)
             try:
                 def sync_generate_full_convo_video():
-                    """Synchronous wrapper for the async parts"""
+                    """Synchronous wrapper for generating the conversation video"""
                     try:
                         # Step 1: Download the YouTube video
                         video_file = download_youtube_video("https://www.youtube.com/watch?v=EtVOvPyuOjk", video_download_path)
@@ -948,6 +899,39 @@ def create_discord_bot():
                         
                         # Step 3: Convert to audio
                         convo_to_audio(convo)
+                        
+                        # Step 4: Splice audio together
+                        splice_audio_together(len(convo), final_audio_path)
+                        
+                        if not os.path.exists(final_audio_path):
+                            raise Exception("Failed to generate conversation audio")
+                        
+                        # Step 5: Get audio duration for trimming
+                        import subprocess
+                        result = subprocess.run(
+                            ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', 
+                             '-of', 'csv=p=0', final_audio_path],
+                            capture_output=True, text=True
+                        )
+                        audio_duration = float(result.stdout.strip())
+                        
+                        # Step 6: Replace video audio with conversation audio and trim
+                        trim_cmd = [
+                            'ffmpeg', '-i', video_file, '-i', final_audio_path,
+                            '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
+                            '-t', str(audio_duration), '-y', final_video_path
+                        ]
+                        
+                        subprocess.run(trim_cmd, check=True)
+                        
+                        if not os.path.exists(final_video_path):
+                            raise Exception("Failed to create final video")
+                        
+                        return final_video_path, len(convo), audio_duration
+                        
+                    except Exception as e:
+                        logger.error(f"Error in sync_generate_full_convo_video: {e}")
+                        raise
                         
                         # Step 4: Splice audio together
                         splice_audio_together(len(convo), final_audio_path)
