@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 from scripts.youtube_audio import search_and_download_music_video, download_youtube_audio
 from llm.priority_queue import LLMPriorityQueueManager
 from clients.generate_image import HuggingFaceImageGenerator
-from clients.minimax import create_speech_gen_task, check_speech_gen_task_status, retrieve_file_content
+from utils.voices import generate_voice_tts_file, get_voice_emoji, get_voice_display_name
+from utils.convo import generate_convo, convo_to_audio, splice_audio_together
 
 class MusicBot:
     def __init__(self):
@@ -251,81 +252,40 @@ class MusicBot:
             await channel.send(f"❌ TTS Error: {str(e)}")
             logger.error(f"Error in generate_tts_and_play: {e}")
 
-    async def generate_obama_tts_and_play(self, channel, text, voice_channel):
-        """Generate Obama TTS audio using Minimax API and play it in the voice channel."""
+    async def generate_voice_tts_and_play(self, channel, text, voice_channel, voice_name):
+        """Generate voice TTS audio using Minimax API and play it in the voice channel."""
         try:
-            obama_voice_id = "moss_audio_8dd65fdb-19a0-11f1-a9eb-d68e15ebe5cd"
+            emoji = get_voice_emoji(voice_name)
+            display_name = get_voice_display_name(voice_name)
             
             # Send status message
-            status_msg = await channel.send(f"🇺🇸 Generating Obama TTS: {text[:50]}{'...' if len(text) > 50 else ''}")
+            status_msg = await channel.send(f"{emoji} Generating {display_name} TTS: {text[:50]}{'...' if len(text) > 50 else ''}")
             
             # Create a temporary directory for this TTS  
-            download_path = os.path.join(self.temp_dir, f"obama_tts_{channel.guild.id}")
+            download_path = os.path.join(self.temp_dir, f"{voice_name}_tts_{channel.guild.id}")
             Path(download_path).mkdir(exist_ok=True)
             
             # Generate TTS audio file path
-            tts_file = os.path.join(download_path, f"obama_tts_{channel.guild.id}.mp3")
+            tts_file = os.path.join(download_path, f"{voice_name}_tts_{channel.guild.id}.mp3")
             
-            # Run Obama TTS generation in executor to avoid blocking
+            # Run voice TTS generation in executor to avoid blocking
             loop = asyncio.get_event_loop()
             
-            def generate_obama_tts():
-                """Generate Obama TTS using Minimax API in separate thread"""
-                try:
-                    # Create speech generation task
-                    logger.info(f"Creating Obama speech generation task for text: {text[:100]}...")
-                    response = create_speech_gen_task(obama_voice_id, text)
-                    task_id = response["task_id"]
-                    logger.info(f"Created task with ID: {task_id}")
-                    
-                    # Poll for completion (check every 5 seconds, max 15 minutes)
-                    import time
-                    max_attempts = 180  # 15 minutes with 5 second intervals
-                    attempt = 0
-                    
-                    while attempt < max_attempts:
-                        time.sleep(5)  # Wait 5 seconds between checks
-                        status_response = check_speech_gen_task_status(task_id)
-                        status = status_response.get("status", "")
-                        
-                        logger.info(f"Task {task_id} status check {attempt + 1}/{max_attempts}: {status}")
-                        
-                        if status == "Success":
-                            file_id = status_response["file_id"]
-                            logger.info(f"Task completed, retrieving file content for file_id: {file_id}")
-                            
-                            # Retrieve and save the file content
-                            file_content = retrieve_file_content(file_id)
-                            with open(tts_file, "wb") as f:
-                                f.write(file_content)
-                            
-                            logger.info(f"Obama TTS file saved: {tts_file}")
-                            return tts_file if os.path.exists(tts_file) else None
-                            
-                        elif status == "Failed":
-                            logger.error(f"Obama TTS task failed: {status_response}")
-                            return None
-                            
-                        attempt += 1
-                    
-                    logger.error(f"Obama TTS task timed out after {max_attempts} attempts")
-                    return None
-                    
-                except Exception as e:
-                    logger.error(f"Error generating Obama TTS: {e}")
-                    return None
+            def generate_tts():
+                """Generate voice TTS using Minimax API in separate thread"""
+                return generate_voice_tts_file(text, voice_name, tts_file, max_wait_minutes=15)
             
-            # Generate Obama TTS with timeout
-            audio_file = await asyncio.wait_for(
-                loop.run_in_executor(None, generate_obama_tts),
+            # Generate voice TTS with timeout
+            success = await asyncio.wait_for(
+                loop.run_in_executor(None, generate_tts),
                 timeout=900.0  # 15 minute timeout
             )
             
-            if not audio_file or not os.path.exists(audio_file):
-                await status_msg.edit(content="❌ Could not generate Obama TTS audio.")
+            if not success or not os.path.exists(tts_file):
+                await status_msg.edit(content=f"❌ Could not generate {display_name} TTS audio.")
                 return
             
-            await status_msg.edit(content=f"🇺🇸 Generated! Joining voice channel...")
+            await status_msg.edit(content=f"{emoji} Generated! Joining voice channel...")
             
             # Join voice channel
             voice_client = await self.join_voice_channel(voice_channel)
@@ -334,10 +294,10 @@ class MusicBot:
             if voice_client.is_playing():
                 voice_client.stop()
             
-            await status_msg.edit(content=f"🇺🇸 Obama speaking: {text[:30]}{'...' if len(text) > 30 else ''}")
+            await status_msg.edit(content=f"{emoji} {display_name} speaking: {text[:30]}{'...' if len(text) > 30 else ''}")
             
-            # Play the Obama TTS audio
-            audio_source = discord.FFmpegPCMAudio(audio_file)
+            # Play the voice TTS audio
+            audio_source = discord.FFmpegPCMAudio(tts_file)
             voice_client.play(audio_source)
             
             # Wait for playback to finish, then clean up
@@ -346,237 +306,31 @@ class MusicBot:
                 
             # Clean up the TTS file
             try:
-                os.remove(audio_file)
+                os.remove(tts_file)
                 # Remove download directory if empty
                 if os.path.exists(download_path) and not os.listdir(download_path):
                     os.rmdir(download_path)
             except Exception as e:
-                logger.error(f"Error cleaning up Obama TTS file {audio_file}: {e}")
-            await status_msg.edit(content="✅ Obama finished speaking.")
+                logger.error(f"Error cleaning up {display_name} TTS file {tts_file}: {e}")
+            await status_msg.edit(content=f"✅ {display_name} finished speaking.")
                 
         except asyncio.TimeoutError:
-            await channel.send("⏱️ Obama TTS generation timed out.")
+            await channel.send(f"⏱️ {get_voice_display_name(voice_name)} TTS generation timed out.")
         except Exception as e:
-            await channel.send(f"❌ Obama TTS Error: {str(e)}")
-            logger.error(f"Error in generate_obama_tts_and_play: {e}")
+            await channel.send(f"❌ {get_voice_display_name(voice_name)} TTS Error: {str(e)}")
+            logger.error(f"Error in generate_voice_tts_and_play for {voice_name}: {e}")
+
+    async def generate_obama_tts_and_play(self, channel, text, voice_channel):
+        """Generate Obama TTS audio and play it in the voice channel."""
+        await self.generate_voice_tts_and_play(channel, text, voice_channel, "obama")
 
     async def generate_trump_tts_and_play(self, channel, text, voice_channel):
-        """Generate Trump TTS audio using Minimax API and play it in the voice channel."""
-        try:
-            trump_voice_id = "moss_audio_9561203c-19b4-11f1-a01c-32006e4c0821"
-            
-            # Send status message
-            status_msg = await channel.send(f"🔴 Generating Trump TTS: {text[:50]}{'...' if len(text) > 50 else ''}")
-            
-            # Create a temporary directory for this TTS  
-            download_path = os.path.join(self.temp_dir, f"trump_tts_{channel.guild.id}")
-            Path(download_path).mkdir(exist_ok=True)
-            
-            # Generate TTS audio file path
-            tts_file = os.path.join(download_path, f"trump_tts_{channel.guild.id}.mp3")
-            
-            # Run Trump TTS generation in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            
-            def generate_trump_tts():
-                """Generate Trump TTS using Minimax API in separate thread"""
-                try:
-                    # Create speech generation task
-                    logger.info(f"Creating Trump speech generation task for text: {text[:100]}...")
-                    response = create_speech_gen_task(trump_voice_id, text)
-                    task_id = response["task_id"]
-                    logger.info(f"Created task with ID: {task_id}")
-                    
-                    # Poll for completion (check every 5 seconds, max 15 minutes)
-                    import time
-                    max_attempts = 180  # 15 minutes with 5 second intervals
-                    attempt = 0
-                    
-                    while attempt < max_attempts:
-                        time.sleep(5)  # Wait 5 seconds between checks
-                        status_response = check_speech_gen_task_status(task_id)
-                        status = status_response.get("status", "")
-                        
-                        logger.info(f"Task {task_id} status check {attempt + 1}/{max_attempts}: {status}")
-                        
-                        if status == "Success":
-                            file_id = status_response["file_id"]
-                            logger.info(f"Task completed, retrieving file content for file_id: {file_id}")
-                            
-                            # Retrieve and save the file content
-                            file_content = retrieve_file_content(file_id)
-                            with open(tts_file, "wb") as f:
-                                f.write(file_content)
-                            
-                            logger.info(f"Trump TTS file saved: {tts_file}")
-                            return tts_file if os.path.exists(tts_file) else None
-                            
-                        elif status == "Failed":
-                            logger.error(f"Trump TTS task failed: {status_response}")
-                            return None
-                            
-                        attempt += 1
-                    
-                    logger.error(f"Trump TTS task timed out after {max_attempts} attempts")
-                    return None
-                    
-                except Exception as e:
-                    logger.error(f"Error generating Trump TTS: {e}")
-                    return None
-            
-            # Generate Trump TTS with timeout
-            audio_file = await asyncio.wait_for(
-                loop.run_in_executor(None, generate_trump_tts),
-                timeout=900.0  # 15 minute timeout
-            )
-            
-            if not audio_file or not os.path.exists(audio_file):
-                await status_msg.edit(content="❌ Could not generate Trump TTS audio.")
-                return
-            
-            await status_msg.edit(content=f"🔴 Generated! Joining voice channel...")
-            
-            # Join voice channel
-            voice_client = await self.join_voice_channel(voice_channel)
-            
-            # Stop any currently playing audio
-            if voice_client.is_playing():
-                voice_client.stop()
-            
-            await status_msg.edit(content=f"🔴 Trump speaking: {text[:30]}{'...' if len(text) > 30 else ''}")
-            
-            # Play the Trump TTS audio
-            audio_source = discord.FFmpegPCMAudio(audio_file)
-            voice_client.play(audio_source)
-            
-            # Wait for playback to finish, then clean up
-            while voice_client.is_playing():
-                await asyncio.sleep(1)
-                
-            # Clean up the TTS file
-            try:
-                os.remove(audio_file)
-                # Remove download directory if empty
-                if os.path.exists(download_path) and not os.listdir(download_path):
-                    os.rmdir(download_path)
-            except Exception as e:
-                logger.error(f"Error cleaning up Trump TTS file {audio_file}: {e}")
-            await status_msg.edit(content="✅ Trump finished speaking.")
-                
-        except asyncio.TimeoutError:
-            await channel.send("⏱️ Trump TTS generation timed out.")
-        except Exception as e:
-            await channel.send(f"❌ Trump TTS Error: {str(e)}")
-            logger.error(f"Error in generate_trump_tts_and_play: {e}")
+        """Generate Trump TTS audio and play it in the voice channel."""
+        await self.generate_voice_tts_and_play(channel, text, voice_channel, "trump")
 
     async def generate_peter_tts_and_play(self, channel, text, voice_channel):
-        """Generate Peter TTS audio using Minimax API and play it in the voice channel."""
-        try:
-            peter_voice_id = "moss_audio_ddb8ca95-19ba-11f1-b623-469aaa213a1a"
-            
-            # Send status message
-            status_msg = await channel.send(f"🔷 Generating Peter TTS: {text[:50]}{'...' if len(text) > 50 else ''}")
-            
-            # Create a temporary directory for this TTS  
-            download_path = os.path.join(self.temp_dir, f"peter_tts_{channel.guild.id}")
-            Path(download_path).mkdir(exist_ok=True)
-            
-            # Generate TTS audio file path
-            tts_file = os.path.join(download_path, f"peter_tts_{channel.guild.id}.mp3")
-            
-            # Run Peter TTS generation in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            
-            def generate_peter_tts():
-                """Generate Peter TTS using Minimax API in separate thread"""
-                try:
-                    # Create speech generation task
-                    logger.info(f"Creating Peter speech generation task for text: {text[:100]}...")
-                    response = create_speech_gen_task(peter_voice_id, text)
-                    task_id = response["task_id"]
-                    logger.info(f"Created task with ID: {task_id}")
-                    
-                    # Poll for completion (check every 5 seconds, max 15 minutes)
-                    import time
-                    max_attempts = 180  # 15 minutes with 5 second intervals
-                    attempt = 0
-                    
-                    while attempt < max_attempts:
-                        time.sleep(5)  # Wait 5 seconds between checks
-                        status_response = check_speech_gen_task_status(task_id)
-                        status = status_response.get("status", "")
-                        
-                        logger.info(f"Task {task_id} status check {attempt + 1}/{max_attempts}: {status}")
-                        
-                        if status == "Success":
-                            file_id = status_response["file_id"]
-                            logger.info(f"Task completed, retrieving file content for file_id: {file_id}")
-                            
-                            # Retrieve and save the file content
-                            file_content = retrieve_file_content(file_id)
-                            with open(tts_file, "wb") as f:
-                                f.write(file_content)
-                            
-                            logger.info(f"Peter TTS file saved: {tts_file}")
-                            return tts_file if os.path.exists(tts_file) else None
-                            
-                        elif status == "Failed":
-                            logger.error(f"Peter TTS task failed: {status_response}")
-                            return None
-                            
-                        attempt += 1
-                    
-                    logger.error(f"Peter TTS task timed out after {max_attempts} attempts")
-                    return None
-                    
-                except Exception as e:
-                    logger.error(f"Error generating Peter TTS: {e}")
-                    return None
-            
-            # Generate Peter TTS with timeout
-            audio_file = await asyncio.wait_for(
-                loop.run_in_executor(None, generate_peter_tts),
-                timeout=900.0  # 15 minute timeout
-            )
-            
-            if not audio_file or not os.path.exists(audio_file):
-                await status_msg.edit(content="❌ Could not generate Peter TTS audio.")
-                return
-            
-            await status_msg.edit(content=f"🔷 Generated! Joining voice channel...")
-            
-            # Join voice channel
-            voice_client = await self.join_voice_channel(voice_channel)
-            
-            # Stop any currently playing audio
-            if voice_client.is_playing():
-                voice_client.stop()
-            
-            await status_msg.edit(content=f"🔷 Peter speaking: {text[:30]}{'...' if len(text) > 30 else ''}")
-            
-            # Play the Peter TTS audio
-            audio_source = discord.FFmpegPCMAudio(audio_file)
-            voice_client.play(audio_source)
-            
-            # Wait for playback to finish, then clean up
-            while voice_client.is_playing():
-                await asyncio.sleep(1)
-                
-            # Clean up the TTS file
-            try:
-                os.remove(audio_file)
-                # Remove download directory if empty
-                if os.path.exists(download_path) and not os.listdir(download_path):
-                    os.rmdir(download_path)
-            except Exception as e:
-                logger.error(f"Error cleaning up Peter TTS file {audio_file}: {e}")
-            await status_msg.edit(content="✅ Peter finished speaking.")
-                
-        except asyncio.TimeoutError:
-            await channel.send("⏱️ Peter TTS generation timed out.")
-        except Exception as e:
-            await channel.send(f"❌ Peter TTS Error: {str(e)}")
-            logger.error(f"Error in generate_peter_tts_and_play: {e}")
+        """Generate Peter TTS audio and play it in the voice channel."""
+        await self.generate_voice_tts_and_play(channel, text, voice_channel, "peter")
 
 def create_discord_bot():
     """Create and configure the Discord bot."""
@@ -1108,6 +862,80 @@ def create_discord_bot():
         else:
             await ctx.send("Bot is not connected to a voice channel.")
     
+    @bot.command(name='convo')
+    async def convo_command(ctx, *, topic):
+        """Generate a conversation chain with audio about the given topic."""
+        try:
+            # Send initial status message
+            status_msg = await ctx.send(f"🎭 Starting conversation generation about: {topic}")
+            
+            # Create a temporary directory for this conversation
+            convo_path = os.path.join(music_bot.temp_dir, f"convo_{ctx.guild.id}_{ctx.message.id}")
+            Path(convo_path).mkdir(exist_ok=True)
+            
+            final_audio_path = os.path.join(convo_path, "final_convo.mp3")
+            
+            # Run the conversation generation in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def generate_full_convo():
+                """Generate conversation, audio, and splice together in separate thread"""
+                try:
+                    # Generate conversation
+                    convo = generate_convo(topic)
+                    
+                    # Convert to audio
+                    convo_to_audio(convo)
+                    
+                    # Splice audio together
+                    splice_audio_together(len(convo), final_audio_path)
+                    
+                    return final_audio_path, len(convo)
+                except Exception as e:
+                    logger.error(f"Error in generate_full_convo: {e}")
+                    raise
+            
+            # Update status for LLM generation
+            await status_msg.edit(content=f"🧠 Generating conversation about: {topic}...")
+            
+            # Generate conversation with no timeout (this will take a while)
+            try:
+                result = await loop.run_in_executor(None, generate_full_convo)
+                audio_file_path, convo_length = result
+                
+                if not audio_file_path or not os.path.exists(audio_file_path):
+                    await status_msg.edit(content="❌ Failed to generate conversation audio.")
+                    return
+                
+                # Update status for upload
+                await status_msg.edit(content=f"✅ Generated {convo_length} part conversation! Uploading audio file...")
+                
+                # Upload the audio file
+                with open(audio_file_path, 'rb') as f:
+                    file = discord.File(f, filename=f"conversation_{topic.replace(' ', '_')[:30]}.mp3")
+                    await ctx.send(
+                        f"🎭 Here's your conversation about **{topic}** ({convo_length} parts with Obama and Trump voices):", 
+                        file=file
+                    )
+                
+                # Clean up
+                await status_msg.edit(content="🎭 Conversation generated and uploaded successfully!")
+                
+            except Exception as e:
+                await status_msg.edit(content=f"❌ Error during conversation generation: {str(e)[:100]}")
+                logger.error(f"Error in convo generation: {e}")
+            
+            # Clean up temporary files
+            try:
+                if os.path.exists(convo_path):
+                    shutil.rmtree(convo_path)
+            except Exception as e:
+                logger.error(f"Error cleaning up convo files: {e}")
+                
+        except Exception as e:
+            await ctx.send(f"❌ Error with conversation command: {str(e)}")
+            logger.error(f"Error in convo_command: {e}")
+    
     @bot.command(name='help_bob')
     async def help_bob(ctx):
         """Show help for music commands."""
@@ -1131,6 +959,7 @@ def create_discord_bot():
 • `!bob_talk_trump <prompt>` - Send a prompt to the LLM and speak with Trump voice
 • `!bob_talk_peter <prompt>` - Send a prompt to the LLM and speak with Peter voice
 • `!image <description>` - Generate an AI image
+• `!convo <topic>` - Generate a conversation chain with Obama/Trump voices about a topic
 
 **System:**
 • `!status` - Show system status and LLM queue info
@@ -1150,6 +979,7 @@ def create_discord_bot():
 • `!bob_talk_trump Tell me about making America great again`
 • `!bob_talk_peter Tell me something interesting`
 • `!image a cute cat wearing sunglasses`
+• `!convo the benefits of exercise` - Generate Obama/Trump conversation
 • `!status` - Check what's currently processing
         """
         await ctx.send(help_text)
