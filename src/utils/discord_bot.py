@@ -22,7 +22,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 # Import other utilities
-from scripts.youtube_audio import search_and_download_music_video, download_youtube_audio
+from scripts.youtube_audio import search_and_download_music_video, download_youtube_audio, download_youtube_video
 from llm.priority_queue import LLMPriorityQueueManager
 from clients.generate_image import HuggingFaceImageGenerator
 from utils.voices import generate_voice_tts_file, get_voice_emoji, get_voice_display_name
@@ -864,66 +864,156 @@ def create_discord_bot():
     
     @bot.command(name='convo')
     async def convo_command(ctx, *, topic):
-        """Generate a conversation chain with audio about the given topic."""
+        """Generate a conversation chain with video about the given topic."""
         try:
             # Send initial status message
-            status_msg = await ctx.send(f"🎭 Starting conversation generation about: {topic}")
+            status_msg = await ctx.send(f"🎭 Starting conversation video generation about: {topic}")
             
             # Create a temporary directory for this conversation
             convo_path = os.path.join(music_bot.temp_dir, f"convo_{ctx.guild.id}_{ctx.message.id}")
             Path(convo_path).mkdir(exist_ok=True)
             
             final_audio_path = os.path.join(convo_path, "final_convo.mp3")
+            video_download_path = os.path.join(convo_path, "downloaded_video")
+            final_video_path = os.path.join(convo_path, "final_convo_video.mp4")
             
-            # Run the conversation generation in executor to avoid blocking
+            # Run the full process in executor to avoid blocking
             loop = asyncio.get_event_loop()
             
-            def generate_full_convo():
-                """Generate conversation, audio, and splice together in separate thread"""
+            def generate_full_convo_video():
+                """Download video, generate conversation, audio, replace video audio, and trim in separate thread"""
                 try:
-                    # Generate conversation
+                    # Step 1: Download the YouTube video
+                    await status_msg.edit(content=f"📥 Downloading YouTube video...")
+                    video_file = download_youtube_video("https://www.youtube.com/watch?v=EtVOvPyuOjk", video_download_path)
+                    
+                    if not video_file or not os.path.exists(video_file):
+                        raise Exception("Failed to download YouTube video")
+                    
+                    # Step 2: Generate conversation
                     convo = generate_convo(topic)
                     
-                    # Convert to audio
+                    # Step 3: Convert to audio
                     convo_to_audio(convo)
                     
-                    # Splice audio together
+                    # Step 4: Splice audio together
                     splice_audio_together(len(convo), final_audio_path)
                     
-                    return final_audio_path, len(convo)
+                    if not os.path.exists(final_audio_path):
+                        raise Exception("Failed to generate conversation audio")
+                    
+                    # Step 5: Get audio duration for trimming
+                    import subprocess
+                    result = subprocess.run(
+                        ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', 
+                         '-of', 'csv=p=0', final_audio_path],
+                        capture_output=True, text=True
+                    )
+                    audio_duration = float(result.stdout.strip())
+                    
+                    # Step 6: Replace video audio with conversation audio and trim
+                    trim_cmd = [
+                        'ffmpeg', '-i', video_file, '-i', final_audio_path,
+                        '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
+                        '-t', str(audio_duration), '-y', final_video_path
+                    ]
+                    
+                    subprocess.run(trim_cmd, check=True)
+                    
+                    if not os.path.exists(final_video_path):
+                        raise Exception("Failed to create final video")
+                    
+                    return final_video_path, len(convo), audio_duration
+                    
                 except Exception as e:
-                    logger.error(f"Error in generate_full_convo: {e}")
+                    logger.error(f"Error in generate_full_convo_video: {e}")
                     raise
             
-            # Update status for LLM generation
-            await status_msg.edit(content=f"🧠 Generating conversation about: {topic}...")
+            # Update status for video download
+            await status_msg.edit(content=f"📥 Downloading video and generating conversation about: {topic}...")
             
-            # Generate conversation with no timeout (this will take a while)
+            # Generate conversation video with no timeout (this will take a while)
             try:
-                result = await loop.run_in_executor(None, generate_full_convo)
-                audio_file_path, convo_length = result
+                def sync_generate_full_convo_video():
+                    """Synchronous wrapper for the async parts"""
+                    try:
+                        # Step 1: Download the YouTube video
+                        video_file = download_youtube_video("https://www.youtube.com/watch?v=EtVOvPyuOjk", video_download_path)
+                        
+                        if not video_file or not os.path.exists(video_file):
+                            raise Exception("Failed to download YouTube video")
+                        
+                        # Step 2: Generate conversation
+                        convo = generate_convo(topic)
+                        
+                        # Step 3: Convert to audio
+                        convo_to_audio(convo)
+                        
+                        # Step 4: Splice audio together
+                        splice_audio_together(len(convo), final_audio_path)
+                        
+                        if not os.path.exists(final_audio_path):
+                            raise Exception("Failed to generate conversation audio")
+                        
+                        # Step 5: Get audio duration for trimming
+                        import subprocess
+                        result = subprocess.run(
+                            ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', 
+                             '-of', 'csv=p=0', final_audio_path],
+                            capture_output=True, text=True
+                        )
+                        audio_duration = float(result.stdout.strip())
+                        
+                        # Step 6: Replace video audio with conversation audio and trim
+                        trim_cmd = [
+                            'ffmpeg', '-i', video_file, '-i', final_audio_path,
+                            '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
+                            '-t', str(audio_duration), '-y', final_video_path
+                        ]
+                        
+                        subprocess.run(trim_cmd, check=True)
+                        
+                        if not os.path.exists(final_video_path):
+                            raise Exception("Failed to create final video")
+                        
+                        return final_video_path, len(convo), audio_duration
+                        
+                    except Exception as e:
+                        logger.error(f"Error in sync_generate_full_convo_video: {e}")
+                        raise
                 
-                if not audio_file_path or not os.path.exists(audio_file_path):
-                    await status_msg.edit(content="❌ Failed to generate conversation audio.")
+                result = await loop.run_in_executor(None, sync_generate_full_convo_video)
+                video_file_path, convo_length, duration_minutes = result
+                
+                if not video_file_path or not os.path.exists(video_file_path):
+                    await status_msg.edit(content="❌ Failed to generate conversation video.")
                     return
                 
                 # Update status for upload
-                await status_msg.edit(content=f"✅ Generated {convo_length} part conversation! Uploading audio file...")
+                await status_msg.edit(content=f"✅ Generated {convo_length} part conversation video! Uploading...")
                 
-                # Upload the audio file
-                with open(audio_file_path, 'rb') as f:
-                    file = discord.File(f, filename=f"conversation_{topic.replace(' ', '_')[:30]}.mp3")
+                # Check file size (Discord has limits)
+                file_size = os.path.getsize(video_file_path)
+                file_size_mb = file_size / (1024 * 1024)
+                
+                if file_size_mb > 25:  # Discord's file size limit is usually 25MB for most servers
+                    await status_msg.edit(content=f"❌ Video file too large ({file_size_mb:.1f}MB). Discord limit is 25MB.")
+                    return
+                
+                # Upload the video file
+                with open(video_file_path, 'rb') as f:
+                    file = discord.File(f, filename=f"conversation_{topic.replace(' ', '_')[:30]}.mp4")
                     await ctx.send(
-                        f"🎭 Here's your conversation about **{topic}** ({convo_length} parts with Obama and Trump voices):", 
+                        f"🎭 Here's your conversation video about **{topic}** ({convo_length} parts with Obama and Trump voices, {duration_minutes:.1f} minutes):", 
                         file=file
                     )
                 
                 # Clean up
-                await status_msg.edit(content="🎭 Conversation generated and uploaded successfully!")
+                await status_msg.edit(content="🎭 Conversation video generated and uploaded successfully!")
                 
             except Exception as e:
-                await status_msg.edit(content=f"❌ Error during conversation generation: {str(e)[:100]}")
-                logger.error(f"Error in convo generation: {e}")
+                await status_msg.edit(content=f"❌ Error during conversation video generation: {str(e)[:100]}")
+                logger.error(f"Error in convo video generation: {e}")
             
             # Clean up temporary files
             try:
@@ -959,7 +1049,7 @@ def create_discord_bot():
 • `!bob_talk_trump <prompt>` - Send a prompt to the LLM and speak with Trump voice
 • `!bob_talk_peter <prompt>` - Send a prompt to the LLM and speak with Peter voice
 • `!image <description>` - Generate an AI image
-• `!convo <topic>` - Generate a conversation chain with Obama/Trump voices about a topic
+• `!convo <topic>` - Generate a conversation video with Obama/Trump voices about a topic
 
 **System:**
 • `!status` - Show system status and LLM queue info
@@ -979,7 +1069,7 @@ def create_discord_bot():
 • `!bob_talk_trump Tell me about making America great again`
 • `!bob_talk_peter Tell me something interesting`
 • `!image a cute cat wearing sunglasses`
-• `!convo the benefits of exercise` - Generate Obama/Trump conversation
+• `!convo the benefits of exercise` - Generate Obama/Trump conversation video
 • `!status` - Check what's currently processing
         """
         await ctx.send(help_text)

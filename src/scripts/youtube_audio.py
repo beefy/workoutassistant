@@ -156,6 +156,50 @@ def download_youtube_audio(video_url: str, download_path: str = "downloads", sta
         return None
 
 
+def download_youtube_video(video_url: str, download_path: str = "downloads") -> str:
+    """
+    Download a YouTube video.
+    
+    Args:
+        video_url (str): The URL of the YouTube video
+        download_path (str): Directory to save the downloaded video
+    Returns:
+        str: Path to the downloaded video file
+    """
+    try:
+        # Create download directory if it doesn't exist
+        Path(download_path).mkdir(exist_ok=True)
+        
+        # Configure yt-dlp options for downloading video
+        ydl_download_opts = {
+            'format': 'best',
+            'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
+            'quiet': False
+        }
+        
+        print(f"Downloading video from: {video_url}")
+        
+        # Download the video
+        with yt_dlp.YoutubeDL(ydl_download_opts) as ydl:
+            ydl.download([video_url])
+        
+        # Find the downloaded file
+        download_dir = Path(download_path)
+        video_files = list(download_dir.glob("*"))
+        video_files = [f for f in video_files if f.is_file() and not f.name.startswith('.')]
+        
+        if video_files:
+            output_file = max(video_files, key=os.path.getctime)
+            print(f"Downloaded successfully: {output_file}")
+            return str(output_file)
+        else:
+            raise Exception("Downloaded file not found")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+
 def main():
     """
     Main function to run the script with command line arguments.
@@ -176,5 +220,7 @@ def main():
         print("\nFailed to download audio.")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     main()
+    # download_youtube_video("https://www.youtube.com/watch?v=EtVOvPyuOjk")

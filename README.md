@@ -61,6 +61,9 @@ docker compose restart
 docker exec -it workoutassistant /bin/bash
 cat /app/logs/output.log
 
+# Fix permissions issue
+docker exec -it --user root workoutassistant chmod -R 777 /app/src/generated_images
+
 # Build locally
 nohup docker build -t workoutassistant-local . > docker-build.log 2>&1 &
 
