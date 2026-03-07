@@ -22,7 +22,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 # Import other utilities
-from scripts.youtube_audio import search_and_download_music_video
+from scripts.youtube_audio import search_and_download_music_video, download_youtube_audio
 from llm.priority_queue import LLMPriorityQueueManager
 from clients.generate_image import HuggingFaceImageGenerator
 from clients.minimax import create_speech_gen_task, check_speech_gen_task_status, retrieve_file_content
@@ -91,6 +91,54 @@ class MusicBot:
         except Exception as e:
             await channel.send(f"❌ Error: {str(e)}")
             logger.error(f"Error in download_and_play: {e}")
+
+    async def download_and_play_youtube_url(self, channel, video_url, voice_channel):
+        """Download audio from a YouTube URL and play it in the voice channel."""
+        try:
+            # Send status message
+            status_msg = await channel.send(f"🎬 Downloading from YouTube URL...")
+            
+            # Create a temporary directory for this download
+            download_path = os.path.join(self.temp_dir, f"youtube_{channel.guild.id}")
+            
+            # Download the audio
+            audio_file = download_youtube_audio(video_url, download_path)
+            
+            if not audio_file:
+                await status_msg.edit(content="❌ Could not download the YouTube audio.")
+                return
+            
+            await status_msg.edit(content=f"⬇️ Downloaded! Joining voice channel...")
+            
+            # Join voice channel
+            voice_client = await self.join_voice_channel(voice_channel)
+            
+            # Stop any currently playing audio
+            if voice_client.is_playing():
+                voice_client.stop()
+            
+            await status_msg.edit(content=f"🎵 Now playing: {os.path.basename(audio_file)}")
+            
+            # Play the audio
+            audio_source = discord.FFmpegPCMAudio(audio_file)
+            voice_client.play(audio_source)
+            
+            # Wait for playback to finish, then clean up
+            while voice_client.is_playing():
+                await asyncio.sleep(1)
+                
+            # Clean up the downloaded file
+            try:
+                os.remove(audio_file)
+                # Remove download directory if empty
+                if os.path.exists(download_path) and not os.listdir(download_path):
+                    os.rmdir(download_path)
+            except Exception as e:
+                logger.error(f"Error cleaning up file {audio_file}: {e}")
+                
+        except Exception as e:
+            await channel.send(f"❌ Error: {str(e)}")
+            logger.error(f"Error in download_and_play_youtube_url: {e}")
 
     async def generate_and_send_image(self, channel, prompt):
         """Generate an image using AI and send it to the channel."""
@@ -577,6 +625,24 @@ def create_discord_bot():
         # Download and play the audio
         await music_bot.download_and_play(ctx.channel, query, voice_channel)
     
+    @bot.command(name='youtube')
+    async def youtube_command(ctx, *, url):
+        """Download and play audio from a YouTube URL."""
+        # Check if user is in a voice channel
+        if ctx.author.voice is None:
+            await ctx.send("❌ You need to be in a voice channel to use this command!")
+            return
+            
+        voice_channel = ctx.author.voice.channel
+        
+        # Basic validation to check if it's a YouTube URL
+        if not any(domain in url.lower() for domain in ['youtube.com', 'youtu.be', 'www.youtube.com', 'm.youtube.com']):
+            await ctx.send("❌ Please provide a valid YouTube URL!")
+            return
+        
+        # Download and play the audio
+        await music_bot.download_and_play_youtube_url(ctx.channel, url, voice_channel)
+    
     @bot.command(name='bob')
     async def llm_command(ctx, *, prompt):
         """Send a prompt to the LLM via priority queue."""
@@ -1050,6 +1116,7 @@ def create_discord_bot():
 
 **Music & Audio:**
 • `!groovy <song name>` - Search and play audio from YouTube
+• `!youtube <url>` - Play audio from a specific YouTube URL
 • `!say <text>` - Speak text using standard text-to-speech
 • `!say_obama <text>` - Speak text using Obama voice (Minimax API)
 • `!say_trump <text>` - Speak text using Trump voice (Minimax API)
@@ -1072,6 +1139,7 @@ def create_discord_bot():
 
 **Examples:**
 • `!groovy Bohemian Rhapsody`
+• `!youtube https://www.youtube.com/watch?v=fJ9rUzIMcZQ`
 • `!say Hello everyone, how are you doing today?`
 • `!say_obama My fellow Americans, we choose to go to the moon!`
 • `!say_trump This is going to be tremendous, believe me!`
