@@ -21,16 +21,21 @@ def clean_text(text):
 def generate_convo(topic):
     convo = []
     response = submit_llm_request(
-        prompt=f"Start a conversation about the following topic: {topic}.",
+        prompt=f"Talk like Obama. Start a conversation about the following topic: {topic}.",
         priority=1,
         max_tokens=100,
         temperature=0.9,
         task="Conversation"
     )
     convo.append(clean_text(response.get('response', '')))
-    for _ in range(5):
+    for i in range(5):
+        if i % 2 == 0:
+            prefix = "Talk like Trump."
+        else:
+            prefix = "Talk like Obama."
+
         response = submit_llm_request(
-            prompt=f"Make a short response to this comment in a conversational way: {convo[-1]}",
+            prompt=f"{prefix} Make a short response to this comment in a conversational way: {convo[-1]}",
             priority=1,
             max_tokens=100,
             temperature=0.9,
