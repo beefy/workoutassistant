@@ -915,43 +915,12 @@ def create_discord_bot():
                         )
                         audio_duration = float(result.stdout.strip())
                         
-                        # Step 6: Replace video audio with conversation audio and trim
+                        # Step 6: Replace video audio with conversation audio and trim with compression
                         trim_cmd = [
                             'ffmpeg', '-i', video_file, '-i', final_audio_path,
-                            '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
-                            '-t', str(audio_duration), '-y', final_video_path
-                        ]
-                        
-                        subprocess.run(trim_cmd, check=True)
-                        
-                        if not os.path.exists(final_video_path):
-                            raise Exception("Failed to create final video")
-                        
-                        return final_video_path, len(convo), audio_duration
-                        
-                    except Exception as e:
-                        logger.error(f"Error in sync_generate_full_convo_video: {e}")
-                        raise
-                        
-                        # Step 4: Splice audio together
-                        splice_audio_together(len(convo), final_audio_path)
-                        
-                        if not os.path.exists(final_audio_path):
-                            raise Exception("Failed to generate conversation audio")
-                        
-                        # Step 5: Get audio duration for trimming
-                        import subprocess
-                        result = subprocess.run(
-                            ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', 
-                             '-of', 'csv=p=0', final_audio_path],
-                            capture_output=True, text=True
-                        )
-                        audio_duration = float(result.stdout.strip())
-                        
-                        # Step 6: Replace video audio with conversation audio and trim
-                        trim_cmd = [
-                            'ffmpeg', '-i', video_file, '-i', final_audio_path,
-                            '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
+                            '-c:v', 'libx264', '-crf', '28', '-preset', 'fast', 
+                            '-vf', 'scale=720:-1', '-c:a', 'aac', '-b:a', '96k',
+                            '-map', '0:v:0', '-map', '1:a:0',
                             '-t', str(audio_duration), '-y', final_video_path
                         ]
                         
