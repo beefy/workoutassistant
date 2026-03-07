@@ -421,6 +421,115 @@ class MusicBot:
             await channel.send(f"❌ Trump TTS Error: {str(e)}")
             logger.error(f"Error in generate_trump_tts_and_play: {e}")
 
+    async def generate_peter_tts_and_play(self, channel, text, voice_channel):
+        """Generate Peter TTS audio using Minimax API and play it in the voice channel."""
+        try:
+            peter_voice_id = "moss_audio_ddb8ca95-19ba-11f1-b623-469aaa213a1a"
+            
+            # Send status message
+            status_msg = await channel.send(f"🔷 Generating Peter TTS: {text[:50]}{'...' if len(text) > 50 else ''}")
+            
+            # Create a temporary directory for this TTS  
+            download_path = os.path.join(self.temp_dir, f"peter_tts_{channel.guild.id}")
+            Path(download_path).mkdir(exist_ok=True)
+            
+            # Generate TTS audio file path
+            tts_file = os.path.join(download_path, f"peter_tts_{channel.guild.id}.mp3")
+            
+            # Run Peter TTS generation in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            
+            def generate_peter_tts():
+                """Generate Peter TTS using Minimax API in separate thread"""
+                try:
+                    # Create speech generation task
+                    logger.info(f"Creating Peter speech generation task for text: {text[:100]}...")
+                    response = create_speech_gen_task(peter_voice_id, text)
+                    task_id = response["task_id"]
+                    logger.info(f"Created task with ID: {task_id}")
+                    
+                    # Poll for completion (check every 5 seconds, max 15 minutes)
+                    import time
+                    max_attempts = 180  # 15 minutes with 5 second intervals
+                    attempt = 0
+                    
+                    while attempt < max_attempts:
+                        time.sleep(5)  # Wait 5 seconds between checks
+                        status_response = check_speech_gen_task_status(task_id)
+                        status = status_response.get("status", "")
+                        
+                        logger.info(f"Task {task_id} status check {attempt + 1}/{max_attempts}: {status}")
+                        
+                        if status == "Success":
+                            file_id = status_response["file_id"]
+                            logger.info(f"Task completed, retrieving file content for file_id: {file_id}")
+                            
+                            # Retrieve and save the file content
+                            file_content = retrieve_file_content(file_id)
+                            with open(tts_file, "wb") as f:
+                                f.write(file_content)
+                            
+                            logger.info(f"Peter TTS file saved: {tts_file}")
+                            return tts_file if os.path.exists(tts_file) else None
+                            
+                        elif status == "Failed":
+                            logger.error(f"Peter TTS task failed: {status_response}")
+                            return None
+                            
+                        attempt += 1
+                    
+                    logger.error(f"Peter TTS task timed out after {max_attempts} attempts")
+                    return None
+                    
+                except Exception as e:
+                    logger.error(f"Error generating Peter TTS: {e}")
+                    return None
+            
+            # Generate Peter TTS with timeout
+            audio_file = await asyncio.wait_for(
+                loop.run_in_executor(None, generate_peter_tts),
+                timeout=900.0  # 15 minute timeout
+            )
+            
+            if not audio_file or not os.path.exists(audio_file):
+                await status_msg.edit(content="❌ Could not generate Peter TTS audio.")
+                return
+            
+            await status_msg.edit(content=f"🔷 Generated! Joining voice channel...")
+            
+            # Join voice channel
+            voice_client = await self.join_voice_channel(voice_channel)
+            
+            # Stop any currently playing audio
+            if voice_client.is_playing():
+                voice_client.stop()
+            
+            await status_msg.edit(content=f"🔷 Peter speaking: {text[:30]}{'...' if len(text) > 30 else ''}")
+            
+            # Play the Peter TTS audio
+            audio_source = discord.FFmpegPCMAudio(audio_file)
+            voice_client.play(audio_source)
+            
+            # Wait for playback to finish, then clean up
+            while voice_client.is_playing():
+                await asyncio.sleep(1)
+                
+            # Clean up the TTS file
+            try:
+                os.remove(audio_file)
+                # Remove download directory if empty
+                if os.path.exists(download_path) and not os.listdir(download_path):
+                    os.rmdir(download_path)
+            except Exception as e:
+                logger.error(f"Error cleaning up Peter TTS file {audio_file}: {e}")
+            await status_msg.edit(content="✅ Peter finished speaking.")
+                
+        except asyncio.TimeoutError:
+            await channel.send("⏱️ Peter TTS generation timed out.")
+        except Exception as e:
+            await channel.send(f"❌ Peter TTS Error: {str(e)}")
+            logger.error(f"Error in generate_peter_tts_and_play: {e}")
+
 def create_discord_bot():
     """Create and configure the Discord bot."""
     # Bot setup
@@ -712,6 +821,68 @@ def create_discord_bot():
             await ctx.send(f"❌ Error with LLM Trump talk request: {str(e)}")
             logger.error(f"Error in bob_talk_trump_command: {e}")
     
+    @bot.command(name='bob_talk_peter')
+    async def bob_talk_peter_command(ctx, *, prompt):
+        """Send a prompt to the LLM and speak the response using Peter voice in voice chat."""
+        try:
+            # Check if user is in a voice channel
+            if ctx.author.voice is None:
+                await ctx.send("❌ You need to be in a voice channel to use this command!")
+                return
+                
+            voice_channel = ctx.author.voice.channel
+            
+            await ctx.send(f"🧠🔷 Adding to LLM queue and will speak response with Peter voice: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
+            
+            # Run the blocking LLM request in a separate thread to avoid blocking the Discord event loop
+            loop = asyncio.get_event_loop()
+            
+            def submit_llm_request():
+                """Submit request in separate thread"""
+                try:
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                except Exception as e:
+                    logger.error(f"Error submitting LLM request: {e}")
+                    return None
+            
+            # Run in executor with timeout to avoid blocking the event loop
+            try:
+                future = await asyncio.wait_for(
+                    loop.run_in_executor(None, submit_llm_request),
+                    timeout=2340.0  # 39 minute timeout
+                )
+                
+                # Get the response
+                if future:
+                    response = future.result() if hasattr(future, 'result') else future
+                    if response:
+                        # Handle both string and dict responses
+                        if isinstance(response, dict) and 'response' in response:
+                            response_text = response['response']
+                        elif isinstance(response, str):
+                            response_text = response
+                        else:
+                            response_text = str(response)
+                        
+                        # Limit text length for TTS to prevent abuse
+                        if len(response_text) > 1000:
+                            response_text = response_text[:1000]
+                            await ctx.send("⚠️ Response truncated to 1000 characters for Peter TTS.")
+                        
+                        # Generate Peter TTS and play the response
+                        await music_bot.generate_peter_tts_and_play(ctx.channel, response_text, voice_channel)
+                        
+                    else:
+                        await ctx.send("🤔 LLM returned empty response")
+                else:
+                    await ctx.send("🤔 LLM request failed")
+            except asyncio.TimeoutError:
+                await ctx.send("⏱️ LLM request timed out after 2340 seconds.")
+                
+        except Exception as e:
+            await ctx.send(f"❌ Error with LLM Peter talk request: {str(e)}")
+            logger.error(f"Error in bob_talk_peter_command: {e}")
+    
     @bot.command(name='status')
     async def status_command(ctx):
         """Get the current status of the system and LLM queue."""
@@ -827,6 +998,24 @@ def create_discord_bot():
         # Generate Trump TTS and play
         await music_bot.generate_trump_tts_and_play(ctx.channel, text, voice_channel)
     
+    @bot.command(name='say_peter')
+    async def say_peter_command(ctx, *, text):
+        """Use Peter voice text-to-speech via Minimax API to speak in the voice channel."""
+        # Check if user is in a voice channel
+        if ctx.author.voice is None:
+            await ctx.send("❌ You need to be in a voice channel to use this command!")
+            return
+            
+        voice_channel = ctx.author.voice.channel
+        
+        # Limit text length to prevent abuse
+        if len(text) > 1000:
+            await ctx.send("❌ Text too long! Please limit to 1000 characters.")
+            return
+        
+        # Generate Peter TTS and play
+        await music_bot.generate_peter_tts_and_play(ctx.channel, text, voice_channel)
+    
     @bot.command(name='stop')
     async def stop_music(ctx):
         """Stop the currently playing music."""
@@ -864,6 +1053,7 @@ def create_discord_bot():
 • `!say <text>` - Speak text using standard text-to-speech
 • `!say_obama <text>` - Speak text using Obama voice (Minimax API)
 • `!say_trump <text>` - Speak text using Trump voice (Minimax API)
+• `!say_peter <text>` - Speak text using Peter voice (Minimax API)
 • `!stop` - Stop the currently playing music
 • `!leave` - Make the bot leave the voice channel
 
@@ -872,6 +1062,7 @@ def create_discord_bot():
 • `!bob_talk <prompt>` - Send a prompt to the LLM and speak the response
 • `!bob_talk_obama <prompt>` - Send a prompt to the LLM and speak with Obama voice
 • `!bob_talk_trump <prompt>` - Send a prompt to the LLM and speak with Trump voice
+• `!bob_talk_peter <prompt>` - Send a prompt to the LLM and speak with Peter voice
 • `!image <description>` - Generate an AI image
 
 **System:**
@@ -884,10 +1075,12 @@ def create_discord_bot():
 • `!say Hello everyone, how are you doing today?`
 • `!say_obama My fellow Americans, we choose to go to the moon!`
 • `!say_trump This is going to be tremendous, believe me!`
+• `!say_peter Hey there, how's it going everybody?`
 • `!bob What is the meaning of life?`
 • `!bob_talk Tell me a joke`
 • `!bob_talk_obama Tell me about the audacity of hope`
 • `!bob_talk_trump Tell me about making America great again`
+• `!bob_talk_peter Tell me something interesting`
 • `!image a cute cat wearing sunglasses`
 • `!status` - Check what's currently processing
         """
