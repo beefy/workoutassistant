@@ -71,6 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopus0 \
     libffi8 \
     avahi-daemon \
+    libnss-mdns \
     && rm -rf /var/lib/apt/lists/* \
     && systemctl enable avahi-daemon
 
