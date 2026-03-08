@@ -61,6 +61,17 @@ def test_local_fastapi():
             print(f"   Hostname: {data.get('hostname')}")
             print(f"   Agent Name: {data.get('agent_name', 'NOT SET')}")
             print(f"   Service: {data.get('service')}")
+            
+            # Also test via 0.0.0.0 to confirm binding
+            try:
+                test_response = requests.get("http://0.0.0.0:8000/health", timeout=3)
+                if test_response.status_code == 200:
+                    print("✅ Server accessible on 0.0.0.0:8000")
+                else:
+                    print(f"⚠️  Server responds differently on 0.0.0.0: {test_response.status_code}")
+            except Exception:
+                print("⚠️  Server not accessible via 0.0.0.0 (but localhost works)")
+            
             return True, data
         else:
             print(f"❌ Local FastAPI server returned status {response.status_code}")
@@ -69,6 +80,8 @@ def test_local_fastapi():
     except requests.ConnectionError:
         print("❌ Local FastAPI server is not running")
         print("   Try: python -m src.tasks.rest_server")
+        print("   Check what's using port 8000: sudo lsof -i :8000")
+        print("   Check if TRACKING_API_USERNAME is set: echo $TRACKING_API_USERNAME")
         return False, None
     except Exception as e:
         print(f"❌ Error testing local FastAPI: {e}")
@@ -128,8 +141,26 @@ def test_fastapi_hostname_discovery(reachable_hostnames):
     
     fastapi_servers = []
     
+    def check_port_connectivity(hostname):
+        """Check if port 8000 is open on hostname."""
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            result = sock.connect_ex((hostname, 8000))
+            sock.close()
+            return result == 0
+        except Exception:
+            return False
+    
     def check_fastapi_hostname(hostname):
         """Check if hostname has FastAPI server running."""
+        # First check if port 8000 is open
+        port_open = check_port_connectivity(hostname)
+        if not port_open:
+            print(f"   ❌ {hostname}: Port 8000 not open/accessible")
+            return None
+            
         try:
             response = requests.get(f"http://{hostname}:8000/health", timeout=5)
             if response.status_code == 200:
@@ -142,9 +173,15 @@ def test_fastapi_hostname_discovery(reachable_hostnames):
                     'service': data.get('service'),
                     'response_time': response.elapsed.total_seconds()
                 }
+            else:
+                print(f"   ❌ {hostname}: HTTP {response.status_code} - {response.text[:50]}")
+                return None
+        except requests.Timeout:
+            print(f"   ❌ {hostname}: Request timeout")
+        except requests.ConnectionError as e:
+            print(f"   ❌ {hostname}: Connection error - {str(e)[:80]}")
         except Exception as e:
             print(f"   ❌ {hostname}: {str(e)[:50]}")
-            return None
         return None
     
     print(f"Checking {len(reachable_hostnames)} hostnames for FastAPI servers...")
@@ -161,8 +198,13 @@ def test_fastapi_hostname_discovery(reachable_hostnames):
             print(f"   🚀 {server['hostname']} - {server['actual_hostname']} - {agent_name} - {server['response_time']:.3f}s")
     else:
         print("\n❌ No FastAPI servers found")
-        print("   Make sure servers are running: python -m src.tasks.rest_server")
-        print("   Make sure TRACKING_API_USERNAME is set on each Pi")
+        print("\n🔍 DEBUGGING STEPS:")
+        print("   1. Check if servers are running: python -m src.tasks.rest_server")
+        print("   2. Test local connection: curl http://localhost:8000/health")
+        print("   3. Check what's listening on port 8000: sudo lsof -i :8000")
+        print("   4. Check firewall: sudo ufw status")
+        print("   5. Test manual connection: curl http://bob.local:8000/health")
+        print("   6. Check server logs for errors")
     
     return fastapi_servers
 
