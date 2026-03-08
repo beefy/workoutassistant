@@ -152,6 +152,14 @@ class LLMPriorityQueueManager:
                     kwargs['final_query'] = request.final_query
                     kwargs['use_crypto_prompt'] = request.use_crypto_prompt
                     
+                    # Add request history for non-anonymous users
+                    if request.user != "anonymous":
+                        user_history = self.user_conversations.get(request.user, [])
+                        # Get the most recent 5 messages (or all if fewer than 5)
+                        recent_history = user_history[-5:] if len(user_history) > 5 else user_history
+                        if recent_history:
+                            kwargs['request_history'] = recent_history
+                    
                     result = self.llm.prompt(request.prompt, **kwargs)
                     
                     # Clear attachments after use

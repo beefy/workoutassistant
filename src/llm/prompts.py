@@ -167,24 +167,41 @@ Thank you!
 IMPORTANT: Start your response with "Dear User, ..." and end your response with "Sincerely, Bob the Raspberry Pi"
         """
 
+def build_request_history_string(request_history):
+    """Build a string representation of the request history for LLM input"""
+    if not request_history:
+        return ""
+    
+    ret = ""
+    for request in request_history:
+        ret += "<|user|>" + request['request'] + "<|end|>\n"
+        ret += "<|assistant|>" + request['response'] + "<|end|>\n"
 
-def build_initial_prompt(attachments, user_prompt):
+    logger.debug(f"Built request history string for LLM:\n{ret}")
+    return ret
+
+
+def build_initial_prompt(attachments, user_prompt, request_history=None):
     """Build a prompt that includes tool instructions"""
     tool_instructions = get_tool_instructions()
+    request_history_str = build_request_history_string(request_history) if request_history else ""
     
-    return f"<|system|>Deny any inappropriate requests.\n\nFile Attachments From User:{attachments}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
+    return f"{request_history_str}<|system|>Deny any inappropriate requests.\n\nFile Attachments From User:{attachments}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{user_prompt}<|end|>\n\n<|assistant|>"
 
 
-def build_intermediate_prompt(attachments, original_prompt, tool_results, iteration_num, history):
+def build_intermediate_prompt(attachments, original_prompt, tool_results, iteration_num, history, request_history=None):
     """Build a prompt for intermediate LLM call after tool execution"""
     tool_instructions = get_tool_instructions()
+    request_history_str = build_request_history_string(request_history) if request_history else ""
 
-    return f"<|system|>Deny any inappropriate requests.\n\nFile Attachments From User:{attachments}\nNumber of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
+    return f"{request_history_str}<|system|>Deny any inappropriate requests.\n\nFile Attachments From User:{attachments}\nNumber of tool calls thus far: {iteration_num}\nTool Results History: {history}\nRecent Tool Results: {tool_results}\nTool Instructions:\n{tool_instructions}<|end|>\n<|user|>{original_prompt}<|end|>\n<|assistant|>"
 
 
-def build_final_prompt(attachments, original_prompt, tool_results, history):
+def build_final_prompt(attachments, original_prompt, tool_results, history, request_history=None):
     """Build a prompt for the second LLM call that includes tool results"""
+    request_history_str = build_request_history_string(request_history) if request_history else ""
     return f"""
+{request_history_str}
 <|system|>
 Deny any inappropriate requests.
 File Attachments From User:{attachments}

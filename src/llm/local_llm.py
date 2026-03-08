@@ -251,7 +251,7 @@ class LocalLLM:
             logger.error(f"❌ Error during tool execution: {e}")
             return "Sorry, I encountered an error while executing a tool."
 
-    def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=3, final_query=True, use_crypto_prompt=False):
+    def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=3, final_query=True, use_crypto_prompt=False, request_history=None):
         """Generate a response using the loaded model with tool call support"""
         if self.model is None:
             logger.error("❌ Model not loaded. Call load_model() first.")
@@ -269,7 +269,7 @@ class LocalLLM:
         # LLM Call
         logger.info(f"🤔 Generating response for: \"{prompt[:50]}...\"")
         if not use_crypto_prompt:
-            response = self.execute_prompt(build_initial_prompt(self.attachments, prompt), max_tokens, temperature, stop)
+            response = self.execute_prompt(build_initial_prompt(self.attachments, prompt, request_history), max_tokens, temperature, stop)
         else:
             response = self.execute_prompt(build_crypto_prompt("None", "None", indicators), max_tokens, temperature, stop)
         
@@ -307,7 +307,7 @@ class LocalLLM:
 
             # Intermediate LLM call (in loop)
             if not use_crypto_prompt:
-                response = self.execute_prompt(build_intermediate_prompt(self.attachments, prompt, tool_results, iteration_count, history), max_tokens, temperature, stop)
+                response = self.execute_prompt(build_intermediate_prompt(self.attachments, prompt, tool_results, iteration_count, history, request_history), max_tokens, temperature, stop)
             else:
                 response = self.execute_prompt(build_crypto_prompt(tool_results, history, indicators), max_tokens, temperature, stop)
 
@@ -315,7 +315,7 @@ class LocalLLM:
 
         # Final LLM call
         if final_query:
-            response = self.execute_prompt(build_final_prompt(self.attachments, prompt, tool_results, history), max_tokens, temperature, stop)
+            response = self.execute_prompt(build_final_prompt(self.attachments, prompt, tool_results, history, request_history), max_tokens, temperature, stop)
             cleaned_response = self.clean_response(response)
             return {
                 'response': cleaned_response,
