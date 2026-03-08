@@ -7,13 +7,18 @@ services:
     container_name: workoutassistant
     restart: unless-stopped
     network_mode: "host"  # Use host network instead of bridge for cluster connectivity
+    
+    # DNS configuration for .local hostname resolution
+    dns:
+      - 127.0.0.1  # Use host's DNS first
+      - 8.8.8.8    # Fallback to public DNS
+    
+    # Add extra hosts as fallback if mDNS fails
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     env_file:
       - ${HOME}/.variables
-    
-    ports:
-      # Expose FastAPI REST server for cluster communication
-      - "8000:8000"
     
     volumes:
       # Mount data directory for persistence
@@ -30,6 +35,10 @@ services:
       
       # Mount secrets directory for .variables file
       - ${HOME}/.variables:/app/.secrets/.variables:ro
+      
+      # Mount DNS resolution files for .local hostname support
+      - /etc/resolv.conf:/etc/resolv.conf:ro
+      - /etc/hosts:/etc/hosts:ro
     
     environment:
       # Environment variables that are safe to include
@@ -37,6 +46,9 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - LOG_LEVEL=INFO
+      # Fix for .local hostname resolution in containers
+      - LOCALDOMAIN=local
+      - SEARCH=local
       # User is handled by Dockerfile, no need to override
       
     # Resource limits (adjust based on your Raspberry Pi specs)  
