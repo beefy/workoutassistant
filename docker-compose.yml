@@ -37,10 +37,6 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - LOG_LEVEL=INFO
-      # Fix for .local hostname resolution in containers
-      - LOCALDOMAIN=local
-      - SEARCH=local
-      # User is handled by Dockerfile, no need to override
       
     # Resource limits (adjust based on your Raspberry Pi specs)  
     deploy:

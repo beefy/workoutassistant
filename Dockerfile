@@ -70,7 +70,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsodium23 \
     libopus0 \
     libffi8 \
-    && rm -rf /var/lib/apt/lists/*
+    avahi-daemon \
+    && rm -rf /var/lib/apt/lists/* \
+    && systemctl enable avahi-daemon
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash workoutassistant
