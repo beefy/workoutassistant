@@ -9,6 +9,7 @@ import os
 import sys
 import re
 import math
+import subprocess
 import discord
 from discord.ext import commands
 from pathlib import Path
