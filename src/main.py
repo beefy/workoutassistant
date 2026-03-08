@@ -80,6 +80,10 @@ if __name__ == "__main__":
     token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
     status_update(token, "Starting threads")
 
+    # Start cluster discovery once (doesn't need auto-restart since it's a daemon thread)
+    logger.info("🔄 Starting cluster discovery listener...")
+    cluster_discovery.start_discovery_listener()
+
     thread_configs = []
     if agent_name == "bob":
         logger.info("👋 Hello Bob! Starting your personalized assistant threads.")
@@ -88,8 +92,7 @@ if __name__ == "__main__":
             (use_moltbook.main, "moltbook"),
             (respond_to_email.main, "email"),
             (trade_crypto.bob, "crypto"),
-            (rest_server.main, "rest_server"),
-            (cluster_discovery.start_discovery_listener, "cluster_discovery")
+            (rest_server.main, "rest_server")
         ]
     elif agent_name == "bobby":
         logger.info("👋 Hello Bobby! Starting your personalized assistant threads.")
@@ -100,16 +103,14 @@ if __name__ == "__main__":
             (trade_crypto.bobby, "crypto"),
             (newsletter.main, "newsletter"),
             (discord_bot.main, "discord_bot"),
-            (rest_server.main, "rest_server"),
-            (cluster_discovery.start_discovery_listener, "cluster_discovery")
+            (rest_server.main, "rest_server")
         ]
     elif agent_name == "robert":
         logger.info("👋 Hello Robert! Starting your personalized assistant threads.")
         thread_configs = [
             (heartbeat.main, "heartbeat"),
             (trade_crypto.robert, "crypto"),
-            (rest_server.main, "rest_server"),
-            (cluster_discovery.start_discovery_listener, "cluster_discovery")
+            (rest_server.main, "rest_server")
         ]
     
     for func, name in thread_configs:
