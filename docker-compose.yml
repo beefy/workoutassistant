@@ -6,6 +6,7 @@ services:
     platform: linux/arm64  # Force ARM64 architecture for Raspberry Pi
     container_name: workoutassistant
     restart: unless-stopped
+    network_mode: "host"  # Use host network instead of bridge for cluster connectivity
 
     env_file:
       - ${HOME}/.variables
