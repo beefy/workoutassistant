@@ -29,6 +29,7 @@ from llm.priority_queue import LLMPriorityQueueManager
 from clients.generate_image import HuggingFaceImageGenerator
 from utils.voices import generate_voice_tts_file, get_voice_emoji, get_voice_display_name
 from utils.convo import generate_convo, convo_to_audio, splice_audio_together
+from clients.raspi_cluster_api import health_check_all_hosts, get_all_agents, get_healthy_hosts
 
 class MusicBot:
     def __init__(self):
@@ -728,6 +729,31 @@ def create_discord_bot():
                 req = queue_status['current_request']
                 current_info = f"{req['task']} (priority {req['priority']})"
             
+            # Get cluster health status
+            try:
+                cluster_health = health_check_all_hosts()
+                agents = get_all_agents()
+                healthy_hosts = get_healthy_hosts()
+                cluster_status_lines = []
+                
+                if agents:
+                    cluster_status_lines.append(f"• Total Agents: {len(agents)} discovered")
+                    for agent_name, agent_info in agents.items():
+                        health_data = cluster_health.get(agent_name.upper()) or cluster_health.get(agent_info['hostname'])
+                        if health_data and health_data.get('status') == 'healthy':
+                            response_time = health_data.get('response_time', 0)
+                            cluster_status_lines.append(f"• {agent_name}: ✅ Healthy ({response_time:.3f}s) - {agent_info['ip']}")
+                        else:
+                            error = health_data.get('error', 'unreachable') if health_data else 'not found'
+                            cluster_status_lines.append(f"• {agent_name}: ❌ {error} - {agent_info['ip']}")
+                    cluster_status_lines.append(f"• Healthy Nodes: {len(healthy_hosts)}/{len(agents)}")
+                else:
+                    cluster_status_lines.append("• No cluster agents discovered")
+                
+                cluster_status_text = "\n".join(cluster_status_lines)
+            except Exception as e:
+                cluster_status_text = f"• Error checking cluster: {str(e)[:50]}"
+            
             # Build status message
             status_text = f"""
 🤖 **System Status:**
@@ -747,6 +773,9 @@ def create_discord_bot():
 **Discord Bot:**
 • Connected Servers: {len(ctx.bot.guilds)}
 • Voice Channels: {len(music_bot.voice_clients)} active
+
+**Raspberry Pi Cluster:**
+{cluster_status_text}
             """
             
             # Split into chunks if too long
