@@ -8,11 +8,6 @@ services:
     restart: unless-stopped
     network_mode: "host"  # Use host network instead of bridge for cluster connectivity
     
-    # DNS configuration for .local hostname resolution
-    dns:
-      - 127.0.0.1  # Use host's DNS first
-      - 8.8.8.8    # Fallback to public DNS
-    
     # Add extra hosts as fallback if mDNS fails
     extra_hosts:
       - "host.docker.internal:host-gateway"
