@@ -1,4 +1,4 @@
-from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto, discord_bot
+from tasks import heartbeat, use_moltbook, respond_to_email, newsletter, trade_crypto, discord_bot, rest_server
 import threading
 import time
 import signal
@@ -88,6 +88,7 @@ if __name__ == "__main__":
             (use_moltbook.main, "moltbook"),
             (respond_to_email.main, "email"),
             (trade_crypto.bob, "crypto"),
+            (rest_server.main, "rest_server"),
         ]
     elif agent_name == "bobby":
         logger.info("👋 Hello Bobby! Starting your personalized assistant threads.")
@@ -97,13 +98,15 @@ if __name__ == "__main__":
             (respond_to_email.main, "email"),
             (trade_crypto.bobby, "crypto"),
             (newsletter.main, "newsletter"),
-            (discord_bot.main, "discord_bot")
+            (discord_bot.main, "discord_bot"),
+            (rest_server.main, "rest_server"),
         ]
     elif agent_name == "robert":
         logger.info("👋 Hello Robert! Starting your personalized assistant threads.")
         thread_configs = [
             (heartbeat.main, "heartbeat"),
             (trade_crypto.robert, "crypto"),
+            (rest_server.main, "rest_server"),
         ]
     
     for func, name in thread_configs:
