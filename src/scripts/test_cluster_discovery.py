@@ -74,96 +74,95 @@ def test_local_fastapi():
         print(f"❌ Error testing local FastAPI: {e}")
         return False, None
 
-def test_network_connectivity(network_range):
-    """Test basic connectivity to other hosts in network."""
+def test_hostname_connectivity():
+    """Test connectivity to known cluster hostnames."""
     print("\n" + "=" * 60)
-    print("3. TESTING NETWORK CONNECTIVITY")
+    print("3. TESTING HOSTNAME CONNECTIVITY")
     print("=" * 60)
     
-    if not network_range:
-        print("❌ No network range available")
-        return []
+    cluster_hostnames = ["bob.local", "bobby.local", "robert.local"]
+    reachable_hostnames = []
     
-    network = ipaddress.IPv4Network(network_range)
-    reachable_hosts = []
-    
-    def ping_host(ip):
-        """Test if host responds to ping."""
+    def ping_hostname(hostname):
+        """Test if hostname responds to ping."""
         try:
-            # Use ping command (works on Unix/macOS/Linux)
             result = subprocess.run(
-                ['ping', '-c', '1', '-W', '1000', str(ip)], 
+                ['ping', '-c', '1', '-W', '1000', hostname], 
                 capture_output=True, 
-                timeout=2
+                timeout=3
             )
             if result.returncode == 0:
-                return str(ip)
+                return hostname
         except Exception:
             pass
         return None
     
-    print(f"Pinging hosts in {network_range}... (this may take a moment)")
+    print(f"Testing connectivity to cluster hostnames: {cluster_hostnames}")
     
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        results = list(executor.map(ping_host, list(network.hosts())[:50]))  # Limit to first 50 IPs
+    for hostname in cluster_hostnames:
+        result = ping_hostname(hostname)
+        if result:
+            print(f"✅ {hostname} - reachable")
+            reachable_hostnames.append(hostname)
+        else:
+            print(f"❌ {hostname} - unreachable")
     
-    reachable_hosts = [ip for ip in results if ip is not None]
-    
-    if reachable_hosts:
-        print(f"✅ Found {len(reachable_hosts)} reachable hosts:")
-        for ip in reachable_hosts:
-            print(f"   📡 {ip}")
+    if reachable_hostnames:
+        print(f"\n✅ {len(reachable_hostnames)} hostname(s) reachable")
     else:
-        print("❌ No reachable hosts found")
+        print("\n❌ No cluster hostnames reachable")
+        print("   Make sure .local addresses work: ping bob.local")
+        print("   Check mDNS/Bonjour is working")
     
-    return reachable_hosts
+    return reachable_hostnames
 
-def test_fastapi_discovery(reachable_hosts):
-    """Test FastAPI server discovery on reachable hosts."""
+def test_fastapi_hostname_discovery(reachable_hostnames):
+    """Test FastAPI server discovery on reachable hostnames."""
     print("\n" + "=" * 60)
-    print("4. TESTING FASTAPI SERVER DISCOVERY")
+    print("4. TESTING FASTAPI HOSTNAME DISCOVERY")
     print("=" * 60)
     
-    if not reachable_hosts:
-        print("❌ No reachable hosts to test")
+    if not reachable_hostnames:
+        print("❌ No reachable hostnames to test")
         return []
     
     fastapi_servers = []
     
-    def check_fastapi_server(ip):
-        """Check if host has FastAPI server running."""
+    def check_fastapi_hostname(hostname):
+        """Check if hostname has FastAPI server running."""
         try:
-            response = requests.get(f"http://{ip}:8000/health", timeout=3)
+            response = requests.get(f"http://{hostname}:8000/health", timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 return {
-                    'ip': ip,
-                    'hostname': data.get('hostname', 'unknown'),
+                    'hostname': hostname,
+                    'actual_hostname': data.get('hostname', 'unknown'),
                     'agent_name': data.get('agent_name'),
                     'status': data.get('status'),
                     'service': data.get('service'),
                     'response_time': response.elapsed.total_seconds()
                 }
         except Exception as e:
-            # Only show errors for debugging if needed
+            print(f"   ❌ {hostname}: {str(e)[:50]}")
             return None
         return None
     
-    print(f"Checking {len(reachable_hosts)} hosts for FastAPI servers...")
+    print(f"Checking {len(reachable_hostnames)} hostnames for FastAPI servers...")
     
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        results = list(executor.map(check_fastapi_server, reachable_hosts))
-    
-    fastapi_servers = [result for result in results if result is not None]
+    for hostname in reachable_hostnames:
+        result = check_fastapi_hostname(hostname)
+        if result:
+            fastapi_servers.append(result)
     
     if fastapi_servers:
-        print(f"✅ Found {len(fastapi_servers)} FastAPI server(s):")
+        print(f"\n✅ Found {len(fastapi_servers)} FastAPI server(s):")
         for server in fastapi_servers:
             agent_name = server['agent_name'] or 'NO AGENT NAME'
-            print(f"   🚀 {server['ip']} - {server['hostname']} - {agent_name} - {server['response_time']:.3f}s")
+            print(f"   🚀 {server['hostname']} - {server['actual_hostname']} - {agent_name} - {server['response_time']:.3f}s")
     else:
-        print("❌ No FastAPI servers found")
-        print("   Make sure other Pis are running: python -m src.tasks.rest_server")
+        print("\n❌ No FastAPI servers found")
+        print("   Make sure servers are running: python -m src.tasks.rest_server")
+        print("   Make sure TRACKING_API_USERNAME is set on each Pi")
     
     return fastapi_servers
 
@@ -243,7 +242,7 @@ def provide_troubleshooting_tips(results):
     print("=" * 60)
     
     local_fastapi_ok = results.get('local_fastapi_ok', False)
-    reachable_hosts = results.get('reachable_hosts', [])
+    reachable_hostnames = results.get('reachable_hostnames', [])
     fastapi_servers = results.get('fastapi_servers', [])
     cluster_api_results = results.get('cluster_api_results')
     
@@ -251,21 +250,22 @@ def provide_troubleshooting_tips(results):
         print("🔧 LOCAL FASTAPI SERVER ISSUES:")
         print("   1. Start the server: python -m src.tasks.rest_server")
         print("   2. Check if port 8000 is available: lsof -i :8000")
-        print("   3. Check firewall: sudo ufw status")
+        print("   3. Set agent name: export TRACKING_API_USERNAME='bob'")
         print()
     
-    if not reachable_hosts:
-        print("🔧 NETWORK CONNECTIVITY ISSUES:")
-        print("   1. Check if Pis are on same network")
-        print("   2. Check WiFi/Ethernet connection")
-        print("   3. Try manual ping: ping <other-pi-ip>")
+    if not reachable_hostnames:
+        print("🔧 HOSTNAME CONNECTIVITY ISSUES:")
+        print("   1. Check .local domain resolution: ping bob.local")
+        print("   2. Ensure mDNS/Bonjour is running: sudo systemctl status avahi-daemon")
+        print("   3. Check if hostnames are correct on each Pi: hostname")
+        print("   4. Test manual resolution: nslookup bob.local")
         print()
     
-    if reachable_hosts and not fastapi_servers:
+    if reachable_hostnames and not fastapi_servers:
         print("🔧 REMOTE FASTAPI SERVER ISSUES:")
         print("   1. Start servers on other Pis: python -m src.tasks.rest_server")
-        print("   2. Check firewall on other Pis: sudo ufw allow 8000")
-        print("   3. Test manually: curl http://<other-pi-ip>:8000/health")
+        print("   2. Set agent names: export TRACKING_API_USERNAME='bobby'")
+        print("   3. Test manually: curl http://bobby.local:8000/health")
         print()
     
     if fastapi_servers and not cluster_api_results:
@@ -285,15 +285,16 @@ def provide_troubleshooting_tips(results):
     
     if len(fastapi_servers) > 0:
         print("✅ SUCCESS TIPS:")
-        print("   - Cluster discovery working!")
+        print("   - Hostname-based cluster discovery working!")
         print("   - Make sure all Pis have unique agent names")
         print("   - Test Discord !status command now")
+        print("   - Much faster than IP scanning!")
 
 def main():
     """Run all cluster discovery tests."""
     print("RASPBERRY PI CLUSTER DISCOVERY TROUBLESHOOTING")
     print("=" * 60)
-    print("This script will help debug cluster connectivity issues")
+    print("This script will help debug hostname-based cluster connectivity")
     print()
     
     results = {}
@@ -308,12 +309,12 @@ def main():
     results['local_fastapi_ok'] = local_fastapi_ok
     results['local_data'] = local_data
     
-    # Test 3: Network connectivity
-    reachable_hosts = test_network_connectivity(network_range)
-    results['reachable_hosts'] = reachable_hosts
+    # Test 3: Hostname connectivity
+    reachable_hostnames = test_hostname_connectivity()
+    results['reachable_hostnames'] = reachable_hostnames
     
-    # Test 4: FastAPI discovery
-    fastapi_servers = test_fastapi_discovery(reachable_hosts)
+    # Test 4: FastAPI hostname discovery
+    fastapi_servers = test_fastapi_hostname_discovery(reachable_hostnames)
     results['fastapi_servers'] = fastapi_servers
     
     # Test 5: Cluster API functions
@@ -331,7 +332,8 @@ def main():
     print("=" * 60)
     
     if fastapi_servers:
-        print(f"🎉 Found {len(fastapi_servers)} working FastAPI servers!")
+        print(f"🎉 Found {len(fastapi_servers)} working FastAPI servers via hostnames!")
+        print("Hostname-based discovery is much faster than IP scanning!")
     else:
         print("❌ No working FastAPI servers found. Check troubleshooting tips above.")
 

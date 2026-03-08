@@ -6,10 +6,17 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Optional
 import time
 
-# Manually configured hosts (fill these in after running network discovery)
+# Manually configured hosts (deprecated - use hostname discovery instead)
 BOB_HOST = ""
 BOBBY_HOST = ""
 ROBERT_HOST = ""
+
+# Known hostnames for cluster discovery (much faster than IP scanning)
+CLUSTER_HOSTNAMES = [
+    "bob.local",
+    "bobby.local",
+    "robert.local"
+]
 
 # Auto-discovery cache (refreshed periodically)
 _discovered_hosts = {}  # hostname -> ip
@@ -39,7 +46,7 @@ def get_network_range() -> Optional[str]:
 
 
 def discover_cluster_hosts() -> Dict[str, str]:
-    """Discover other Raspberry Pi FastAPI servers on the network (works with dynamic IPs)."""
+    """Discover other Raspberry Pi FastAPI servers using known hostnames (much faster than IP scanning)."""
     global _discovered_hosts, _discovered_agents, _last_discovery_time
     
     # Use cache if recent
@@ -47,40 +54,36 @@ def discover_cluster_hosts() -> Dict[str, str]:
     if current_time - _last_discovery_time < DISCOVERY_CACHE_DURATION and _discovered_hosts:
         return _discovered_hosts
     
-    print("Auto-discovering cluster hosts (dynamic IP scan)...")
-    network_range = get_network_range()
-    if not network_range:
-        return {}
+    print("Auto-discovering cluster hosts via hostnames...")
     
-    network = ipaddress.IPv4Network(network_range)
     found_hosts = {}
     found_agents = {}
     
-    def check_host(ip):
-        """Check if a host has our FastAPI server running and get agent info."""
+    def check_hostname(hostname):
+        """Check if hostname has FastAPI server running and get agent info."""
         try:
-            response = requests.get(f"http://{ip}:8000/health", timeout=3)
+            response = requests.get(f"http://{hostname}:8000/health", timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                hostname = data.get("hostname", str(ip))
+                actual_hostname = data.get("hostname", hostname)
                 agent_name = data.get("agent_name")
-                return hostname, str(ip), agent_name
+                return actual_hostname, hostname, agent_name
         except Exception:
             pass
         return None, None, None
     
-    # Scan network in parallel (works with any DHCP-assigned IPs)
-    with ThreadPoolExecutor(max_workers=30) as executor:
-        results = list(executor.map(check_host, network.hosts()))
+    # Check known hostnames in parallel (much faster than IP scanning)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = list(executor.map(check_hostname, CLUSTER_HOSTNAMES))
     
-    for hostname, ip, agent_name in results:
-        if hostname and ip:
-            found_hosts[hostname] = ip
+    for actual_hostname, resolved_hostname, agent_name in results:
+        if actual_hostname and resolved_hostname:
+            found_hosts[actual_hostname] = resolved_hostname
             # Save agent name mapping (bob, bobby, robert)
             if agent_name:
                 found_agents[agent_name] = {
-                    "hostname": hostname,
-                    "ip": ip,
+                    "hostname": actual_hostname,
+                    "ip": resolved_hostname,  # hostname instead of IP for privacy
                     "last_seen": current_time
                 }
     
