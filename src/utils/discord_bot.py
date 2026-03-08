@@ -742,17 +742,17 @@ def create_discord_bot():
                         health_data = cluster_health.get(agent_name.upper()) or cluster_health.get(agent_info['hostname'])
                         if health_data and health_data.get('status') == 'healthy':
                             response_time = health_data.get('response_time', 0)
-                            cluster_status_lines.append(f"• {agent_name}: ✅ Healthy ({response_time:.3f}s) - {agent_info['ip']}")
+                            cluster_status_lines.append(f"• {agent_name}: ✅ Healthy ({response_time:.3f}s)")
                         else:
                             error = health_data.get('error', 'unreachable') if health_data else 'not found'
-                            cluster_status_lines.append(f"• {agent_name}: ❌ {error} - {agent_info['ip']}")
+                            cluster_status_lines.append(f"• {agent_name}: ❌ {error}")
                     cluster_status_lines.append(f"• Healthy Nodes: {len(healthy_hosts)}/{len(agents)}")
                 else:
                     cluster_status_lines.append("• No cluster agents discovered")
                 
                 cluster_status_text = "\n".join(cluster_status_lines)
             except Exception as e:
-                cluster_status_text = f"• Error checking cluster: {str(e)[:50]}"
+                cluster_status_text = f"• Error checking cluster: {str(e)[:100]}"
             
             # Build status message
             status_text = f"""

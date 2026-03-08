@@ -59,7 +59,7 @@ def discover_cluster_hosts() -> Dict[str, str]:
     def check_host(ip):
         """Check if a host has our FastAPI server running and get agent info."""
         try:
-            response = requests.get(f"http://{ip}:8000/health", timeout=1)
+            response = requests.get(f"http://{ip}:8000/health", timeout=3)
             if response.status_code == 200:
                 data = response.json()
                 hostname = data.get("hostname", str(ip))
@@ -149,7 +149,7 @@ def get_all_cluster_hosts() -> Dict[str, str]:
     return hosts
 
 
-def health_check(host: str, timeout: int = 5) -> Dict:
+def health_check(host: str, timeout: int = 10) -> Dict:
     """Check a host for health by sending a GET request to the /health endpoint."""
     try:
         response = requests.get(f"http://{host}:8000/health", timeout=timeout)
