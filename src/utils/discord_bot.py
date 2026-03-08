@@ -729,26 +729,25 @@ def create_discord_bot():
                 req = queue_status['current_request']
                 current_info = f"{req['task']} (priority {req['priority']})"
             
-            # Get cluster health status
+            # Get cluster health status using new discovery method
             try:
                 cluster_health = health_check_all_hosts()
-                agents = get_all_agents()
                 healthy_hosts = get_healthy_hosts()
                 cluster_status_lines = []
                 
-                if agents:
-                    cluster_status_lines.append(f"• Total Agents: {len(agents)} discovered")
-                    for agent_name, agent_info in agents.items():
-                        health_data = cluster_health.get(agent_name.upper()) or cluster_health.get(agent_info['hostname'])
-                        if health_data and health_data.get('status') == 'healthy':
+                if cluster_health:
+                    cluster_status_lines.append(f"• Total Hosts: {len(cluster_health)} discovered")
+                    for hostname, health_data in cluster_health.items():
+                        agent_name = health_data.get('agent_name', "unknown")
+                        if health_data.get('status') == 'healthy':
                             response_time = health_data.get('response_time', 0)
                             cluster_status_lines.append(f"• {agent_name}: ✅ Healthy ({response_time:.3f}s)")
                         else:
-                            error = health_data.get('error', 'unreachable') if health_data else 'not found'
+                            error = health_data.get('error', 'unreachable')
                             cluster_status_lines.append(f"• {agent_name}: ❌ {error}")
-                    cluster_status_lines.append(f"• Healthy Nodes: {len(healthy_hosts)}/{len(agents)}")
+                    cluster_status_lines.append(f"• Healthy Nodes: {len(healthy_hosts)}/{len(cluster_health)}")
                 else:
-                    cluster_status_lines.append("• No cluster agents discovered")
+                    cluster_status_lines.append("• No cluster hosts discovered")
                 
                 cluster_status_text = "\n".join(cluster_status_lines)
             except Exception as e:
