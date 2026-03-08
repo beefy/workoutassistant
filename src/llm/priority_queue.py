@@ -23,7 +23,7 @@ class LLMRequest:
     """Represents a single LLM request with priority"""
     
     def __init__(self, prompt: str, attachments: List[str] = None, priority: int = 1, 
-                 max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown"):
+                 max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous"):
         self.prompt = prompt
         self.attachments = attachments or []
         self.priority = priority  # 1 for email (higher priority), 2 for moltbook (lower priority)
@@ -32,6 +32,7 @@ class LLMRequest:
         self.final_query = final_query
         self.use_crypto_prompt = use_crypto_prompt
         self.task = task  # Which task requested this (discord, email, newsletter, crypto, moltbook)
+        self.user = user  # Which user made this request
         self.future = Future()  # Used for thread synchronization
         self.timestamp = time.time()  # Add timestamp for FIFO ordering
         
@@ -71,6 +72,7 @@ class LLMPriorityQueueManager:
         self.llm_ready = threading.Event()
         self.current_task = None  # Track what task is currently being processed
         self.current_request = None  # Track current request details
+        self.user_conversations = {}  # Persistent dictionary to track user conversations
         
         # Start the queue processor
         self._start_worker()
@@ -90,6 +92,27 @@ class LLMPriorityQueueManager:
                 logger.info("✅ LLM initialized successfully")
                 self.llm_ready.set()
     
+    def _store_conversation(self, user: str, request: str, response: str):
+        """Store conversation history for a user"""
+        if user not in self.user_conversations:
+            self.user_conversations[user] = []
+        
+        conversation_entry = {
+            "request": request,
+            "response": response
+        }
+        
+        self.user_conversations[user].append(conversation_entry)
+        logger.debug(f"💾 Stored conversation for user {user}")
+    
+    def get_user_conversations(self, user: str) -> List[Dict[str, str]]:
+        """Get conversation history for a specific user"""
+        return self.user_conversations.get(user, [])
+    
+    def get_all_conversations(self) -> Dict[str, List[Dict[str, str]]]:
+        """Get all conversation history"""
+        return self.user_conversations.copy()
+
     def _process_queue(self):
         """Background worker that processes LLM requests from the priority queue"""
         logger.info("🔄 LLM priority queue worker started")
@@ -137,8 +160,11 @@ class LLMPriorityQueueManager:
                     
                     # Set the result (now a dict with response and generated_images)
                     request.future.set_result(result)
+                    
+                    # Store the conversation in user history
+                    self._store_conversation(request.user, request.prompt, result.get('response', '') if isinstance(result, dict) else str(result))
                         
-                    logger.info(f"✅ LLM request completed from {request.task} (priority {request.priority})")
+                    logger.info(f"✅ LLM request completed from {request.task} (priority {request.priority}) for user {request.user}")
                     
                 except Exception as e:
                     logger.error(f"❌ Error processing LLM request from {request.task}: {e}")
@@ -158,7 +184,7 @@ class LLMPriorityQueueManager:
                 logger.warning(f"⚠️ Unexpected error in queue worker: {e}")
     
     def submit_request(self, prompt: str, attachments: List[str] = None, priority: int = 1,
-                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown") -> Dict[str, Any]:
+                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous") -> Dict[str, Any]:
         """
         Submit a prompt request to the LLM priority queue.
         
@@ -171,6 +197,7 @@ class LLMPriorityQueueManager:
             final_query: Whether this is the final query in a conversation
             use_crypto_prompt: Whether to use crypto-specific prompting
             task: Which task is making this request (discord, email, newsletter, crypto, moltbook)
+            user: Which user is making this request
             
         Returns:
             Dict with 'response' (str) and 'generated_images' (List[str]) keys
@@ -187,12 +214,13 @@ class LLMPriorityQueueManager:
             temperature=temperature,
             final_query=final_query,
             use_crypto_prompt=use_crypto_prompt,
-            task=task
+            task=task,
+            user=user
         )
         
         # Add to priority queue
         self.priority_queue.put(request)
-        logger.info(f"📝 LLM request queued (priority {priority})")
+        logger.info(f"📝 LLM request queued (priority {priority}) for user {user}")
         
         # Block until response is ready
         try:
@@ -235,7 +263,7 @@ llm_queue_manager = LLMPriorityQueueManager()
 
 
 def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int = 1,
-                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown") -> Dict[str, Any]:
+                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous") -> Dict[str, Any]:
     """
     Convenience function to submit LLM requests.
     
@@ -248,6 +276,7 @@ def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int
         final_query: Whether this is the final query in a conversation
         use_crypto_prompt: Whether to use crypto-specific prompting
         task: Which task is making this request (discord, email, newsletter, crypto, moltbook)
+        user: Which user is making this request
         
     Returns:
         Dict with 'response' (str) and 'generated_images' (List[str]) keys
@@ -260,5 +289,6 @@ def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int
         temperature=temperature,
         final_query=final_query,
         use_crypto_prompt=use_crypto_prompt,
-        task=task
+        task=task,
+        user=user
     )

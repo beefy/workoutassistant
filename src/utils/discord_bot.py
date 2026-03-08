@@ -411,8 +411,9 @@ def create_discord_bot():
             
             def submit_llm_request():
                 """Submit request in separate thread"""
+                user = str(ctx.author)
                 try:
-                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord", user=user)
                 except Exception as e:
                     logger.error(f"Error submitting LLM request: {e}")
                     return None
@@ -476,8 +477,9 @@ def create_discord_bot():
             
             def submit_llm_request():
                 """Submit request in separate thread"""
+                user = str(ctx.author)
                 try:
-                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord", user=user)
                 except Exception as e:
                     logger.error(f"Error submitting LLM request: {e}")
                     return None
@@ -538,8 +540,9 @@ def create_discord_bot():
             
             def submit_llm_request():
                 """Submit request in separate thread"""
+                user = str(ctx.author)
                 try:
-                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord", user=user)
                 except Exception as e:
                     logger.error(f"Error submitting LLM request: {e}")
                     return None
@@ -600,8 +603,9 @@ def create_discord_bot():
             
             def submit_llm_request():
                 """Submit request in separate thread"""
+                user = str(ctx.author)
                 try:
-                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord", user=user)
                 except Exception as e:
                     logger.error(f"Error submitting LLM request: {e}")
                     return None
@@ -662,8 +666,9 @@ def create_discord_bot():
             
             def submit_llm_request():
                 """Submit request in separate thread"""
+                user = str(ctx.author)
                 try:
-                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord")
+                    return music_bot.llm_queue.submit_request(prompt, priority=1, task="discord", user=user)
                 except Exception as e:
                     logger.error(f"Error submitting LLM request: {e}")
                     return None

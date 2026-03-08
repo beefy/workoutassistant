@@ -98,7 +98,8 @@ def process_email():
             prompt=prompt,
             attachments=attachments,
             priority=1,  # High priority for emails
-            task="Generate an email response"
+            task="Generate an email response",
+            user=senders_email
         )
         
         # Extract response and generated images
