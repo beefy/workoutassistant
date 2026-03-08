@@ -28,7 +28,7 @@ def generate_convo(topic):
         task="Conversation"
     )
     convo.append(clean_text(response.get('response', '')))
-    for i in range(5):
+    for i in range(4):
         if i % 2 == 0:
             prefix = "Talk like Trump."
         else:

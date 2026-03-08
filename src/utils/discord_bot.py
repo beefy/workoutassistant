@@ -8,6 +8,7 @@ import asyncio
 import os
 import sys
 import re
+import math
 import discord
 from discord.ext import commands
 from pathlib import Path
@@ -915,10 +916,11 @@ def create_discord_bot():
                         )
                         audio_duration = float(result.stdout.strip())
                         
-                        # Step 6: Replace video audio with conversation audio and trim with compression
+                        # Step 6: Replace video audio with conversation audio and trim with compression and cropping
                         trim_cmd = [
                             'ffmpeg', '-i', video_file, '-i', final_audio_path,
                             '-c:v', 'libx264', '-crf', '26', '-preset', 'medium', 
+                            '-vf', 'crop=ih*9/16:ih,scale=480:854',  # Crop to 9:16 aspect ratio and scale to phone size
                             '-c:a', 'aac', '-b:a', '128k',
                             '-map', '0:v:0', '-map', '1:a:0',
                             '-t', str(audio_duration), '-y', final_video_path
@@ -936,33 +938,84 @@ def create_discord_bot():
                         raise
                 
                 result = await loop.run_in_executor(None, sync_generate_full_convo_video)
-                video_file_path, convo_length, duration_minutes = result
+                video_file_path, convo_length, audio_duration = result
                 
                 if not video_file_path or not os.path.exists(video_file_path):
                     await status_msg.edit(content="❌ Failed to generate conversation video.")
                     return
                 
-                # Update status for upload
-                await status_msg.edit(content=f"✅ Generated {convo_length} part conversation video! Uploading...")
+                # Update status for chunking and upload
+                await status_msg.edit(content=f"✅ Generated {convo_length} part conversation video! Splitting into chunks...")
                 
-                # Check file size (Discord has limits)
-                file_size = os.path.getsize(video_file_path)
-                file_size_mb = file_size / (1024 * 1024)
+                # Split video into 1-minute chunks
+                def split_video_into_chunks():
+                    """Split the video into 1-minute chunks"""
+                    chunk_files = []
+                    chunk_duration = 60  # 1 minute in seconds
+                    total_chunks = math.ceil(audio_duration / chunk_duration)  # audio_duration is in seconds
+                    
+                    for i in range(total_chunks):
+                        start_time = i * chunk_duration
+                        chunk_file = os.path.join(os.path.dirname(video_file_path), f"conversation_chunk_{i+1}.mp4")
+                        
+                        chunk_cmd = [
+                            'ffmpeg', '-i', video_file_path,
+                            '-ss', str(start_time), '-t', str(min(chunk_duration, audio_duration - start_time)),
+                            '-c', 'copy', '-avoid_negative_ts', 'make_zero',
+                            '-y', chunk_file
+                        ]
+                        
+                        subprocess.run(chunk_cmd, check=True)
+                        
+                        if os.path.exists(chunk_file):
+                            chunk_files.append(chunk_file)
+                    
+                    return chunk_files
                 
-                if file_size_mb > 25:  # Discord's file size limit is usually 25MB for most servers
-                    await status_msg.edit(content=f"❌ Video file too large ({file_size_mb:.1f}MB). Discord limit is 25MB.")
+                # Split video into chunks
+                chunk_files = await loop.run_in_executor(None, split_video_into_chunks)
+                
+                if not chunk_files:
+                    await status_msg.edit(content="❌ Failed to split video into chunks.")
                     return
                 
-                # Upload the video file
-                with open(video_file_path, 'rb') as f:
-                    file = discord.File(f, filename=f"conversation_{topic.replace(' ', '_')[:30]}.mp4")
-                    await ctx.send(
-                        f"🎭 Here's your conversation video about **{topic}** ({convo_length} parts with Obama and Trump voices, {duration_minutes:.1f} minutes):", 
-                        file=file
-                    )
+                # Upload each chunk
+                await status_msg.edit(content=f"📤 Uploading {len(chunk_files)} video chunks...")
+                
+                for i, chunk_file in enumerate(chunk_files):
+                    try:
+                        # Check file size for each chunk
+                        file_size = os.path.getsize(chunk_file)
+                        file_size_mb = file_size / (1024 * 1024)
+                        
+                        chunk_number = i + 1
+                        total_chunks = len(chunk_files)
+                        
+                        with open(chunk_file, 'rb') as f:
+                            file = discord.File(f, filename=f"conversation_{topic.replace(' ', '_')[:20]}_part{chunk_number}.mp4")
+                            await ctx.send(
+                                f"🎭 **{topic}** - Part {chunk_number}/{total_chunks} ({file_size_mb:.1f}MB)\n"
+                                f"Obama & Trump conversation ({convo_length} total parts):",
+                                file=file
+                            )
+                        
+                        # Small delay between uploads to avoid rate limits
+                        if i < len(chunk_files) - 1:
+                            await asyncio.sleep(1)
+                            
+                    except Exception as e:
+                        await ctx.send(f"❌ Failed to upload part {i+1}: {str(e)[:50]}")
+                        logger.error(f"Error uploading chunk {i+1}: {e}")
+                
+                # Clean up chunk files
+                for chunk_file in chunk_files:
+                    try:
+                        os.remove(chunk_file)
+                    except Exception as e:
+                        logger.error(f"Error cleaning up chunk file {chunk_file}: {e}")
                 
                 # Clean up
-                await status_msg.edit(content="🎭 Conversation video generated and uploaded successfully!")
+                await status_msg.edit(content=f"🎭 Conversation video uploaded successfully in {len(chunk_files)} parts!")
                 
             except Exception as e:
                 await status_msg.edit(content=f"❌ Error during conversation video generation: {str(e)[:100]}")

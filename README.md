@@ -185,10 +185,6 @@ The container includes health checks that monitor if the main process is running
 - Verify Docker is running: `sudo systemctl status docker`
 - Check logs: `docker compose logs workoutassistant`
 
-**Auto-updates not working:**
-- Ensure Watchtower container is running: `docker compose ps`
-- Check Watchtower logs: `docker compose logs watchtower`
-
 ### Prerequisites
 
 Install system dependencies:
