@@ -22,7 +22,8 @@ async def health_check():
             "timestamp": current_time,
             "hostname": hostname,
             "service": "raspberry-pi-cluster-api",
-            "version": "1.0.0"
+            "version": "1.0.0",
+            "agent_name": os.getenv("TRACKING_API_USERNAME")
         }
     )
 

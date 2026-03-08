@@ -13,7 +13,9 @@ from clients.raspi_cluster_api import (
     get_all_cluster_hosts,
     get_healthy_hosts,
     discover_cluster_hosts,
-    broadcast_request
+    broadcast_request,
+    get_all_agents,
+    get_agent_by_name
 )
 import json
 
@@ -31,6 +33,10 @@ def test_cluster_discovery():
     print(f"All configured hosts: {all_hosts}")
     
     return len(all_hosts) > 0
+
+
+def test_agent_discovery():
+    \"\"\"Test agent name discovery (bob, bobby, robert).\"\"\"\n    print(\"\\n\" + \"=\" * 50)\n    print(\"TESTING AGENT NAME DISCOVERY\")\n    print(\"=\" * 50)\n    \n    agents = get_all_agents()\n    print(f\"All discovered agents: {agents}\")\n    \n    for agent_name in [\"bob\", \"bobby\", \"robert\"]:\n        agent_info = get_agent_by_name(agent_name)\n        if agent_info:\n            print(f\"✅ Agent '{agent_name}': {agent_info['hostname']} ({agent_info['ip']})\")\n        else:\n            print(f\"❌ Agent '{agent_name}' not found\")\n    \n    return len(agents) > 0
 
 
 def test_health_checks():

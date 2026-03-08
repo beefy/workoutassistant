@@ -12,7 +12,8 @@ BOBBY_HOST = ""
 ROBERT_HOST = ""
 
 # Auto-discovery cache (refreshed periodically)
-_discovered_hosts = {}
+_discovered_hosts = {}  # hostname -> ip
+_discovered_agents = {}  # agent_name -> {hostname, ip, last_seen}
 _last_discovery_time = 0
 DISCOVERY_CACHE_DURATION = 300  # 5 minutes
 
@@ -38,54 +39,86 @@ def get_network_range() -> Optional[str]:
 
 
 def discover_cluster_hosts() -> Dict[str, str]:
-    """Discover other Raspberry Pi FastAPI servers on the network."""
-    global _discovered_hosts, _last_discovery_time
+    """Discover other Raspberry Pi FastAPI servers on the network (works with dynamic IPs)."""
+    global _discovered_hosts, _discovered_agents, _last_discovery_time
     
     # Use cache if recent
     current_time = time.time()
     if current_time - _last_discovery_time < DISCOVERY_CACHE_DURATION and _discovered_hosts:
         return _discovered_hosts
     
-    print("Discovering cluster hosts...")
+    print("Auto-discovering cluster hosts (dynamic IP scan)...")
     network_range = get_network_range()
     if not network_range:
         return {}
     
     network = ipaddress.IPv4Network(network_range)
     found_hosts = {}
+    found_agents = {}
     
     def check_host(ip):
-        """Check if a host has our FastAPI server running."""
+        """Check if a host has our FastAPI server running and get agent info."""
         try:
             response = requests.get(f"http://{ip}:8000/health", timeout=1)
             if response.status_code == 200:
                 data = response.json()
                 hostname = data.get("hostname", str(ip))
-                return hostname, str(ip)
+                agent_name = data.get("agent_name")
+                return hostname, str(ip), agent_name
         except Exception:
             pass
-        return None, None
+        return None, None, None
     
-    # Scan network in parallel
+    # Scan network in parallel (works with any DHCP-assigned IPs)
     with ThreadPoolExecutor(max_workers=30) as executor:
         results = list(executor.map(check_host, network.hosts()))
     
-    for hostname, ip in results:
+    for hostname, ip, agent_name in results:
         if hostname and ip:
             found_hosts[hostname] = ip
+            # Save agent name mapping (bob, bobby, robert)
+            if agent_name:
+                found_agents[agent_name] = {
+                    "hostname": hostname,
+                    "ip": ip,
+                    "last_seen": current_time
+                }
     
     _discovered_hosts = found_hosts
+    _discovered_agents = found_agents
     _last_discovery_time = current_time
     
+    agent_names = list(found_agents.keys())
     print(f"Discovered {len(found_hosts)} cluster hosts: {list(found_hosts.keys())}")
+    if agent_names:
+        print(f"Agent names found: {agent_names}")
+    
     return found_hosts
 
 
+def get_agent_by_name(agent_name: str) -> Optional[Dict[str, str]]:
+    """Get agent info by name (bob, bobby, robert)."""
+    # Trigger auto-discovery if needed
+    discover_cluster_hosts()
+    global _discovered_agents
+    
+    return _discovered_agents.get(agent_name.lower())
+
+
+def get_all_agents() -> Dict[str, Dict[str, str]]:
+    """Get all discovered agents with their info."""
+    # Trigger auto-discovery if needed
+    discover_cluster_hosts()
+    global _discovered_agents
+    
+    return _discovered_agents.copy()
+
+
 def get_all_cluster_hosts() -> Dict[str, str]:
-    """Get all cluster hosts (manual + auto-discovered)."""
+    """Get all cluster hosts (manual + auto-discovered). Auto-discovery runs automatically."""
     hosts = {}
     
-    # Add manually configured hosts
+    # Add manually configured hosts (if any)
     manual_hosts = {
         "BOB": BOB_HOST,
         "BOBBY": BOBBY_HOST, 
@@ -96,14 +129,22 @@ def get_all_cluster_hosts() -> Dict[str, str]:
         if host.strip():
             hosts[name] = host.strip()
     
-    # Add auto-discovered hosts
+    # Auto-discovery runs automatically (works with dynamic IPs)
     discovered = discover_cluster_hosts()
     local_hostname = socket.gethostname()
     
+    # Add discovered hosts by hostname
     for hostname, ip in discovered.items():
         # Skip self
         if hostname != local_hostname:
             hosts[hostname] = ip
+    
+    # Also add by agent name if available
+    global _discovered_agents
+    for agent_name, info in _discovered_agents.items():
+        if info["hostname"] != local_hostname:
+            # Use agent name as key (bob, bobby, robert)
+            hosts[agent_name.upper()] = info["ip"]
     
     return hosts
 
