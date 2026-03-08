@@ -918,8 +918,8 @@ def create_discord_bot():
                         # Step 6: Replace video audio with conversation audio and trim with compression
                         trim_cmd = [
                             'ffmpeg', '-i', video_file, '-i', final_audio_path,
-                            '-c:v', 'libx264', '-crf', '28', '-preset', 'fast', 
-                            '-vf', 'scale=720:-1', '-c:a', 'aac', '-b:a', '96k',
+                            '-c:v', 'libx264', '-crf', '26', '-preset', 'medium', 
+                            '-c:a', 'aac', '-b:a', '128k',
                             '-map', '0:v:0', '-map', '1:a:0',
                             '-t', str(audio_duration), '-y', final_video_path
                         ]
