@@ -30,10 +30,6 @@ services:
       
       # Mount secrets directory for .variables file
       - ${HOME}/.variables:/app/.secrets/.variables:ro
-      
-      # Mount DNS resolution files for .local hostname support
-      - /etc/resolv.conf:/etc/resolv.conf:ro
-      - /etc/hosts:/etc/hosts:ro
     
     environment:
       # Environment variables that are safe to include
