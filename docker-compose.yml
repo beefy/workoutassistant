@@ -10,6 +10,10 @@ services:
     env_file:
       - ${HOME}/.variables
     
+    ports:
+      # Expose FastAPI REST server for cluster communication
+      - "8000:8000"
+    
     volumes:
       # Mount data directory for persistence
       - ./data:/app/data
