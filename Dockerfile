@@ -84,7 +84,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Set working directory and create directories
 WORKDIR /app
 RUN mkdir -p models data src/generated_images logs && \
-    chown -R workoutassistant:workoutassistant /app
+    chown -R workoutassistant:workoutassistant /app && \
+    chmod -R 775 /app/src/generated_images
 
 # Copy application files
 COPY --chown=workoutassistant:workoutassistant src/ ./src/
