@@ -11,7 +11,7 @@ import re
 from clients.crypto_trade import execute_crypto_trade
 import torch
 from llama_cpp import Llama
-from utils.web_search import web_search
+from utils.web_search import web_search, get_apnews_article_titles
 from clients.moltbook import MoltbookClient
 from clients.gmail import GmailClient, get_system_info
 from clients.generate_image import HuggingFaceImageGenerator
@@ -377,6 +377,20 @@ class LocalLLM:
                 return "\n\n".join(formatted_results)
             else:
                 return "Error: No search query provided"
+        
+        elif tool_name == "get_news":
+            try:
+                max_articles = parameters.get('max_articles', 5)
+                articles = get_apnews_article_titles(max_articles=max_articles)
+                if articles:
+                    formatted_articles = []
+                    for i, article in enumerate(articles, 1):
+                        formatted_articles.append(f"{i}. {article}")
+                    return f"AP News Headlines (Top {len(articles)} stories):\n\n" + "\n".join(formatted_articles)
+                else:
+                    return "No news articles found."
+            except Exception as e:
+                return f"❌ Failed to get news: {e}"
         
         elif tool_name == "get_system_info":
             try:

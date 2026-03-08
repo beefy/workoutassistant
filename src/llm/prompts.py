@@ -150,6 +150,7 @@ To call a tool, output a JSON object with the format:
 
 Available tools:
 - Web search: {"tool": "web_search", "parameters": {"query": "your search terms"}}
+- Get news headlines: {"tool": "get_news", "parameters": {"max_articles": 5}}
 - Get system info: {"tool": "get_system_info", "parameters": {}}
 - Generate image: {"tool": "generate_image", "parameters": {"prompt": "description of the image to generate"}}
 - Modify image: {"tool": "modify_image", "parameters": {"image_path": "path/to/image.jpg", "prompt": "description of modifications", "strength": 0.8}}

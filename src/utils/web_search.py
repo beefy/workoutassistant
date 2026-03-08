@@ -232,6 +232,71 @@ def fetch_page_content(url, max_length=3000):
         return "Content could not be retrieved from this page."
 
 
+def get_apnews_article_titles(max_articles=10):
+    """Fetch front page article titles from AP News using Selenium for dynamic content"""
+    logger.info("📰 Fetching AP News front page article titles with headless browser...")
+    
+    driver = None
+    try:
+        # Initialize the Chrome driver with ARM support
+        driver = get_chrome_driver()
+        
+        # Get the AP News homepage and wait for content to load
+        driver.get("https://apnews.com/")
+        
+        # Wait for the page to load and articles to appear
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "h2.PagePromo-title, .PageList-items-item, .CardHeadline"))
+        )
+        
+        # Give it a moment for dynamic content to fully load
+        time.sleep(3)
+        
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        titles = []
+        
+        # Try multiple selectors for article titles
+        title_selectors = [
+            'h2.PagePromo-title a.Link',
+            'h2.PagePromo-title a',
+            '.CardHeadline a',
+            '.PageList-items-item a',
+            'h3 a[href*="/article/"]',
+            'h2 a[href*="/article/"]',
+            'a[href*="/article/"]'
+        ]
+        
+        found_titles = []
+        for selector in title_selectors:
+            found_titles = soup.select(selector)[:max_articles]
+            if found_titles:
+                logger.info(f"✅ Found {len(found_titles)} titles using selector: {selector}")
+                break
+            else:
+                logger.info(f"❌ No titles with selector: {selector}")
+        
+        if not found_titles:
+            logger.info("❌ No article titles found with any selector. HTML preview:")
+            logger.info(str(soup)[:500] + "...")
+            return []
+        
+        for title_elem in found_titles:
+            title = title_elem.get_text(strip=True)
+            if title and len(title) > 10:  # Basic validation
+                titles.append(title)
+        
+        logger.info(f"✅ Successfully fetched {len(titles)} AP News article titles")
+        return titles
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to fetch AP News article titles: {e}")
+        return []
+    
+    finally:
+        if driver:
+            driver.quit()
+
+
 def get_apnews_articles(max_articles=10):
     """Scrape front page articles from AP News using Selenium for dynamic content"""
     logger.info("📰 Fetching AP News front page articles with headless browser...")
