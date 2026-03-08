@@ -1,3 +1,5 @@
+import time
+
 from utils.tracking_api import login, get_indicators, status_update
 import os
 from clients.crypto_trade import execute_crypto_trade
@@ -228,9 +230,12 @@ def alpha():
             if token != "USDC" and token != "SOL":
                 execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
 
+        time.sleep(10)  # wait for sells to process
         balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
 
-        execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
+        if balances["USDC"]["max_buy"] > 0.01:
+            execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
+        
         api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
         status_update(api_token, "Bought USDC")
         return
@@ -240,6 +245,7 @@ def alpha():
         if token not in tokens_to_buy and token != "SOL":
             execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
     
+    time.sleep(10)  # wait for sells to process
     balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
     # buy tokens in buy list
     for token in tokens_to_buy:
@@ -294,9 +300,12 @@ def beta():
             if token != "USDC" and token != "SOL":
                 execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
 
+        time.sleep(10)  # wait for sells to process
         balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
-
-        execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
+        
+        if balances["USDC"]["max_buy"] > 0.01:
+            execute_crypto_trade("USDC", "buy", balances["USDC"]["max_buy"], indicators['indicators'])
+ 
         api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
         status_update(api_token, "Bought USDC")
         return
@@ -306,6 +315,7 @@ def beta():
         if token not in tokens_to_buy and token != "SOL":
             execute_crypto_trade(token, "sell", balances[token]['max_sell'], indicators['indicators'])
     
+    time.sleep(10)  # wait for sells to process
     balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
     # buy tokens in buy list
     for token in tokens_to_buy:
