@@ -293,8 +293,8 @@ def voice_clone(file_id1, file_id2):
 
 if __name__ == "__main__":
     # hank voice_id = "cloned_voice_374706236166550"
-    response1 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/hank.mp3", "voice_clone")
-    response2 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/hank_5.mp3", "prompt_audio")
+    response1 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/boomhauer.mp3", "voice_clone")
+    response2 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/boomhauer_5.mp3", "prompt_audio")
     print(response1)
     print(response2)
     file_id1 = response1["file"]["file_id"]

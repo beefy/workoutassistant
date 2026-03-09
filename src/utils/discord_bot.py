@@ -335,6 +335,10 @@ class MusicBot:
         """Generate Peter TTS audio and play it in the voice channel."""
         await self.generate_voice_tts_and_play(channel, text, voice_channel, "peter")
 
+    async def generate_hank_tts_and_play(self, channel, text, voice_channel):
+        """Generate Hank TTS audio and play it in the voice channel."""
+        await self.generate_voice_tts_and_play(channel, text, voice_channel, "hank")
+
 def create_discord_bot():
     """Create and configure the Discord bot."""
     # Bot setup
@@ -711,6 +715,58 @@ def create_discord_bot():
             await ctx.send(f"❌ Error with LLM Peter talk request: {str(e)}")
             logger.error(f"Error in bob_talk_peter_command: {e}")
     
+    @bot.command(name='bob_talk_hank')
+    async def bob_talk_hank_command(ctx, *, prompt):
+        """Send a prompt to the LLM and speak the response using Hank voice in voice chat."""
+        try:
+            # Check if user is in a voice channel
+            if ctx.author.voice is None:
+                await ctx.send("❌ You need to be in a voice channel to use this command!")
+                return
+                
+            voice_channel = ctx.author.voice.channel
+            
+            await ctx.send(f"🧠🔷 Adding to LLM queue and will speak response with Hank voice: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
+            
+            # Run the blocking LLM request in a separate thread to avoid blocking the Discord event loop
+            loop = asyncio.get_event_loop()
+            
+            def submit_llm_request():
+                try:
+                    response = music_bot.llm_queue.submit_request(prompt, priority=1, timeout=120)
+                    return response
+                except Exception as e:
+                    logger.error(f"Error submitting LLM request: {e}")
+                    return None
+            
+            # Run in executor with timeout to avoid blocking the event loop
+            try:
+                response = await asyncio.wait_for(
+                    loop.run_in_executor(None, submit_llm_request),
+                    timeout=180.0  # 3 minute timeout
+                )
+                
+                if response:
+                    # Send text response first
+                    chunks = [response[i:i+2000] for i in range(0, len(response), 2000)]
+                    for i, chunk in enumerate(chunks):
+                        if i == 0:
+                            await ctx.send(f"🔷 **Hank's Response:**\n{chunk}")
+                        else:
+                            await ctx.send(chunk)
+                    
+                    # Then speak it using Hank voice
+                    await music_bot.generate_hank_tts_and_play(ctx.channel, response, voice_channel)
+                else:
+                    await ctx.send("❌ No response from LLM.")
+                    
+            except asyncio.TimeoutError:
+                await ctx.send("⏱️ LLM request timed out. Please try again.")
+                
+        except Exception as e:
+            await ctx.send(f"❌ Error with LLM Hank talk request: {str(e)}")
+            logger.error(f"Error in bob_talk_hank_command: {e}")
+    
     @bot.command(name='status')
     async def status_command(ctx):
         """Get the current status of the system and LLM queue."""
@@ -870,6 +926,24 @@ def create_discord_bot():
         
         # Generate Peter TTS and play
         await music_bot.generate_peter_tts_and_play(ctx.channel, text, voice_channel)
+    
+    @bot.command(name='say_hank')
+    async def say_hank_command(ctx, *, text):
+        """Use Hank voice text-to-speech via Minimax API to speak in the voice channel."""
+        # Check if user is in a voice channel
+        if ctx.author.voice is None:
+            await ctx.send("❌ You need to be in a voice channel to use this command!")
+            return
+            
+        voice_channel = ctx.author.voice.channel
+        
+        # Limit text length to prevent abuse
+        if len(text) > 1000:
+            await ctx.send("❌ Text too long! Please keep it under 1000 characters.")
+            return
+        
+        # Generate Hank TTS and play
+        await music_bot.generate_hank_tts_and_play(ctx.channel, text, voice_channel)
     
     @bot.command(name='stop')
     async def stop_music(ctx):
@@ -1079,6 +1153,7 @@ def create_discord_bot():
 • `!say_obama <text>` - Speak text using Obama voice (Minimax API)
 • `!say_trump <text>` - Speak text using Trump voice (Minimax API)
 • `!say_peter <text>` - Speak text using Peter voice (Minimax API)
+• `!say_hank <text>` - Speak text using Hank voice (Minimax API)
 • `!stop` - Stop the currently playing music
 • `!leave` - Make the bot leave the voice channel
 
@@ -1088,6 +1163,7 @@ def create_discord_bot():
 • `!bob_talk_obama <prompt>` - Send a prompt to the LLM and speak with Obama voice
 • `!bob_talk_trump <prompt>` - Send a prompt to the LLM and speak with Trump voice
 • `!bob_talk_peter <prompt>` - Send a prompt to the LLM and speak with Peter voice
+• `!bob_talk_hank <prompt>` - Send a prompt to the LLM and speak with Hank voice
 • `!image <description>` - Generate an AI image
 • `!convo <topic>` - Generate a conversation video with Obama/Trump voices about a topic
 
@@ -1103,11 +1179,13 @@ def create_discord_bot():
 • `!say_obama My fellow Americans, we choose to go to the moon!`
 • `!say_trump This is going to be tremendous, believe me!`
 • `!say_peter Hey there, how's it going everybody?`
+• `!say_hank I tell you what, that's a fine idea right there.`
 • `!bob What is the meaning of life?`
 • `!bob_talk Tell me a joke`
 • `!bob_talk_obama Tell me about the audacity of hope`
 • `!bob_talk_trump Tell me about making America great again`
 • `!bob_talk_peter Tell me something interesting`
+• `!bob_talk_hank Tell me about propane and propane accessories`
 • `!image a cute cat wearing sunglasses`
 • `!convo the benefits of exercise` - Generate Obama/Trump conversation video
 • `!status` - Check what's currently processing

@@ -17,7 +17,7 @@ OBAMA_VOICE_ID = "moss_audio_8dd65fdb-19a0-11f1-a9eb-d68e15ebe5cd"
 TRUMP_VOICE_ID = "moss_audio_9561203c-19b4-11f1-a01c-32006e4c0821"
 PETER_VOICE_ID = "moss_audio_ddb8ca95-19ba-11f1-b623-469aaa213a1a"
 HANK_VOICE_ID = "cloned_voice_374710916726976"  #"cloned_voice_374706236166550"
-BOOMHAUER_VOICE_ID = "cloned_voice_374705159098617"
+BOOMHAUER_VOICE_ID = "cloned_voice_374705159098617"  #"cloned_voice_374709232746941"
 
 # Voice configuration mapping
 VOICE_CONFIGS = {
@@ -136,4 +136,4 @@ def get_available_voices() -> list:
 
 
 if __name__ == "__main__":
-    generate_voice_tts_file("Hello, this is a test of the Hank voice.", "hank", "downloads/hank_test_2.mp3")
+    generate_voice_tts_file("Hello, this is a test of the Boomhauer voice.", "boom", "downloads/boomhauer_test_2.mp3")
