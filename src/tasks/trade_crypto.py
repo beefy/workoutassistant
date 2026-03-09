@@ -20,7 +20,7 @@ def bob():
         current_hour = now.hour
         
         # Refresh indicators at the top of every hour
-        if current_minute == 58:
+        if current_minute == 55:
             logger.info(f"Top of hour detected ({current_hour}:00), refreshing indicators...")
             # track time spent refreshing indicators in case it takes a while
             start_time = datetime.datetime.now()
@@ -39,7 +39,7 @@ def bob():
         # Submit LLM request at 1+ minutes past the hour, but only once per hour
         if last_llm_request_hour is None:
             last_llm_request_hour = current_hour  # Initialize on first run and don't run until the next hour
-        elif current_minute >= 1 and last_llm_request_hour != current_hour:
+        elif current_minute >= 58 and last_llm_request_hour != current_hour:
             logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
             llm_result = submit_llm_request("", priority=1, max_tokens=1000, temperature=0.7, final_query=False, use_crypto_prompt=True, task="Crypto trading decision")
             response = llm_result.get('response', '')
@@ -61,7 +61,7 @@ def bobby():
         # Submit LLM request at 1+ minutes past the hour, but only once per hour
         if last_llm_request_hour is None:
             last_llm_request_hour = current_hour
-        elif current_minute >= 1 and last_llm_request_hour != current_hour:
+        elif current_minute >= 58 and last_llm_request_hour != current_hour:
             logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
             beta()
             last_llm_request_hour = current_hour
@@ -80,7 +80,7 @@ def robert():
         # Submit LLM request at 1+ minutes past the hour, but only once per hour
         if last_llm_request_hour is None:
             last_llm_request_hour = current_hour
-        elif current_minute >= 1 and last_llm_request_hour != current_hour:
+        elif current_minute >= 58 and last_llm_request_hour != current_hour:
             logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
             alpha()
             last_llm_request_hour = current_hour
