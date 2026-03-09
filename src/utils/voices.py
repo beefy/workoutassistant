@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 OBAMA_VOICE_ID = "moss_audio_8dd65fdb-19a0-11f1-a9eb-d68e15ebe5cd"
 TRUMP_VOICE_ID = "moss_audio_9561203c-19b4-11f1-a01c-32006e4c0821"
 PETER_VOICE_ID = "moss_audio_ddb8ca95-19ba-11f1-b623-469aaa213a1a"
+HANK_VOICE_ID = "cloned_voice_374710916726976"  #"cloned_voice_374706236166550"
+BOOMHAUER_VOICE_ID = "cloned_voice_374705159098617"
 
 # Voice configuration mapping
 VOICE_CONFIGS = {
@@ -33,6 +35,16 @@ VOICE_CONFIGS = {
         "voice_id": PETER_VOICE_ID,
         "emoji": "🔷",
         "name": "Peter"
+    },
+    "hank": {
+        "voice_id": HANK_VOICE_ID,
+        "emoji": "🔷",
+        "name": "Hank"
+    },
+    "boom": {
+        "voice_id": BOOMHAUER_VOICE_ID,
+        "emoji": "🔷",
+        "name": "Boomhaeur"
     }
 }
 
@@ -121,3 +133,7 @@ def is_valid_voice(voice_name: str) -> bool:
 def get_available_voices() -> list:
     """Get list of available voice names."""
     return list(VOICE_CONFIGS.keys())
+
+
+if __name__ == "__main__":
+    generate_voice_tts_file("Hello, this is a test of the Hank voice.", "hank", "downloads/hank_test_2.mp3")

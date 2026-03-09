@@ -193,6 +193,83 @@ def get_voice():
     return response.json()
 
 
+def upload_prompt_audio(file_path, purpose):
+    # curl --request POST \
+    #   --url https://api.minimax.io/v1/files/upload \
+    #   --header 'Authorization: Bearer <token>' \
+    #   --header 'Content-Type: multipart/form-data' \
+    #   --form purpose=prompt_audio \
+    #   --form file='@example-file'
+    bearer = os.getenv("MINIMAX_BEARER_TOKEN")
+    if not bearer:
+        raise ValueError("MINIMAX_BEARER_TOKEN environment variable not set")
+    
+    url = "https://api.minimax.io/v1/files/upload"
+    headers = {
+        "Authorization": f"Bearer {bearer}",
+    }
+    data = {
+        "purpose": purpose,
+    }
+    files = {
+        "file": open(file_path, "rb")
+    }
+    response = requests.post(url, headers=headers, data=data, files=files)
+    if response.status_code != 200:
+        raise ValueError(f"Error uploading prompt audio: {response.status_code} {response.text}")
+    
+    return response.json()
+
+
+def voice_clone(file_id1, file_id2):
+    # curl --request POST \
+    #   --url https://api.minimax.io/v1/voice_clone \
+    #   --header 'Authorization: Bearer <token>' \
+    #   --header 'Content-Type: application/json' \
+    #   --data '
+    # {
+    #   "file_id": 123456789,
+    #   "voice_id": "<voice_id>",
+    #   "clone_prompt": {
+    #     "prompt_audio": 987654321,
+    #     "prompt_text": "This voice sounds natural and pleasant."
+    #   },
+    #   "text": "A gentle breeze sweeps across the soft grass(breath), carrying the fresh scent along with the songs of birds.",
+    #   "model": "speech-2.8-hd",
+    #   "need_noise_reduction": false,
+    #   "need_volume_normalization": false
+    # }
+    # '
+    bearer = os.getenv("MINIMAX_BEARER_TOKEN")
+    if not bearer:
+        raise ValueError("MINIMAX_BEARER_TOKEN environment variable not set")
+    
+    url = "https://api.minimax.io/v1/voice_clone"
+    headers = {
+        "Authorization": f"Bearer {bearer}",
+        "Content-Type": "application/json"
+    }
+    # generate a random voice id
+    # "text": "Man, it's just dang old complicated. You know, man? It's like a dang old rubix cube man, talking about blue red then you get to one side, you mess up the other side. Well, you know bobby, you know life's too short man. Don't want to hold no grudge, man. Bygones be bygones, man. Two weeks, probably three. Hey man, this 911? I need y'all at Megalomart. Boom, man, there's a fire, man. Everywhere. Chuck Mangione. Sir, you are going to have to speak more slowly, I cannot understand you. Dang. Old. Megalomart. I'll tell you what man, y2k man, mainframe going to come on crashing down, like a dang ol apocalypse now. The horror. The horror. I'll tell you what you do, keep that dang old arm straight. Put your left hand still, speed it the hell up. I've been calling y'all people for the better of a month now. 24 hours a day. Hows you supposed to come out here and do anything about that dog if you're dang old computer aint... I'm gunna have some of that fried chicken, french fries, side of fried okra. Dang old fork. Yeah man I'll tell you what that dang old onion soup powder just put a little bit of that you don't need no grilled onions, man. Boomhauer! Yeah! Beer? Yep",
+    voice_id = f"cloned_voice_{file_id1}"
+    data = {
+        "file_id": file_id1,
+        "voice_id": voice_id,
+        "clone_prompt": {
+            "prompt_audio": file_id2,
+            "prompt_text": "Dear User,"
+        },
+        "text": ".",
+        "model": "speech-2.8-hd",
+        "need_noise_reduction": False,
+        "need_volume_normalization": False
+    }
+    response = requests.post(url, headers=headers, json=data)
+    if response.status_code != 200:
+        raise ValueError(f"Error creating voice clone task: {response.status_code} {response.text}")
+
+    return response.json()
+
 # if __name__ == "__main__":
 #     obama_voice_id = "moss_audio_8dd65fdb-19a0-11f1-a9eb-d68e15ebe5cd"
 #     text = "The quick brown fox jumps over the lazy dog."
@@ -212,3 +289,17 @@ def get_voice():
 #     # write file content to a mp3 file
 #     with open("output.mp3", "wb") as f:
 #         f.write(file_content)
+
+
+if __name__ == "__main__":
+    # hank voice_id = "cloned_voice_374706236166550"
+    response1 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/hank.mp3", "voice_clone")
+    response2 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/hank_5.mp3", "prompt_audio")
+    print(response1)
+    print(response2)
+    file_id1 = response1["file"]["file_id"]
+    file_id2 = response2["file"]["file_id"]
+    voice_id = f"cloned_voice_{file_id1}"
+    print(voice_id)
+    response = voice_clone(file_id1, file_id2)
+    print(response)
