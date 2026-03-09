@@ -20,7 +20,7 @@ def bob():
         current_hour = now.hour
         
         # Refresh indicators at the top of every hour
-        if current_minute == 0:
+        if current_minute == 58:
             logger.info(f"Top of hour detected ({current_hour}:00), refreshing indicators...")
             # track time spent refreshing indicators in case it takes a while
             start_time = datetime.datetime.now()
