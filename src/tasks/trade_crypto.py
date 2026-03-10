@@ -36,7 +36,10 @@ def bob():
             while not indicators['indicators']:
                 time.sleep(30)  # wait 30 seconds before trying again
                 logger.warning("Indicators are empty after refresh, trying again...")
+                start_time = datetime.datetime.now()
                 refresh_indicators(token)
+                end_time = datetime.datetime.now()
+                elapsed_time = (end_time - start_time).total_seconds()
                 indicators = get_indicators(token)
                 status_update(token, f"Refreshed indicators again (took {elapsed_time:.2f} seconds)")
 
