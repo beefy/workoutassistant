@@ -20,7 +20,7 @@ def bob():
         current_hour = now.hour
         
         # Refresh indicators at the top of every hour
-        if current_minute == 55:
+        if current_minute == 50:
             logger.info(f"Top of hour detected ({current_hour}:00), refreshing indicators...")
             # track time spent refreshing indicators in case it takes a while
             start_time = datetime.datetime.now()
@@ -33,8 +33,15 @@ def bob():
 
             # check that indicators look good
             indicators = get_indicators(token)
+            retry_count = 0
             while not indicators['indicators']:
-                time.sleep(30)  # wait 30 seconds before trying again
+                retry_count += 1
+                if retry_count > 3:
+                    logger.error("Indicators are empty after multiple refresh attempts, giving up for this hour.")
+                    status_update(token, "Failed to refresh indicators after multiple attempts")
+                    break
+
+                time.sleep(60)  # wait 1 minute before trying again
                 logger.warning("Indicators are empty after refresh, trying again...")
                 start_time = datetime.datetime.now()
                 refresh_indicators(token)
