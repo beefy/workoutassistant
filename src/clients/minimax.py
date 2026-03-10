@@ -270,6 +270,26 @@ def voice_clone(file_id1, file_id2):
 
     return response.json()
 
+def list_files():
+    #     curl --request GET \
+    #   --url https://api.minimax.io/v1/files/list \
+    #   --header 'Authorization: Bearer <token>'
+    bearer = os.getenv("MINIMAX_BEARER_TOKEN")
+    if not bearer:
+        raise ValueError("MINIMAX_BEARER_TOKEN environment variable not set")
+    
+    url = "https://api.minimax.io/v1/files/list"
+    headers = {
+        "Authorization": f"Bearer {bearer}",
+        "Content-Type": "application/json"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise ValueError(f"Error listing files: {response.status_code} {response.text}")
+    
+    return response.json()
+
+
 # if __name__ == "__main__":
 #     obama_voice_id = "moss_audio_8dd65fdb-19a0-11f1-a9eb-d68e15ebe5cd"
 #     text = "The quick brown fox jumps over the lazy dog."
@@ -291,15 +311,25 @@ def voice_clone(file_id1, file_id2):
 #         f.write(file_content)
 
 
+# if __name__ == "__main__":
+#     # hank voice_id = "cloned_voice_374706236166550"
+#     response1 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/boomhauer.mp3", "voice_clone")
+#     response2 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/boomhauer_5.mp3", "prompt_audio")
+#     print(response1)
+#     print(response2)
+#     file_id1 = response1["file"]["file_id"]
+#     file_id2 = response2["file"]["file_id"]
+#     voice_id = f"cloned_voice_{file_id1}"
+#     print(voice_id)
+#     response = voice_clone(file_id1, file_id2)
+#     print(response)
+
 if __name__ == "__main__":
-    # hank voice_id = "cloned_voice_374706236166550"
-    response1 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/boomhauer.mp3", "voice_clone")
-    response2 = upload_prompt_audio("/Users/nate/Code/workoutassistant/downloads/boomhauer_5.mp3", "prompt_audio")
-    print(response1)
-    print(response2)
-    file_id1 = response1["file"]["file_id"]
-    file_id2 = response2["file"]["file_id"]
-    voice_id = f"cloned_voice_{file_id1}"
-    print(voice_id)
-    response = voice_clone(file_id1, file_id2)
-    print(response)
+    response = list_files()
+    files = [file for file in response['files'] if file['purpose'] == 't2a_async']
+    for file in files:
+        # TODO: check if file already exists locally before retrieving content
+        content = retrieve_file_content(file['file_id'])
+        # write file content to a mp3 file
+        with open(f"downloads/{file['file_id']}.mp3", "wb") as f:
+            f.write(content)

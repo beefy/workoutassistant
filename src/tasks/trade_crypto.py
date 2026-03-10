@@ -1,7 +1,7 @@
 import time
 import datetime
 from llm.priority_queue import submit_llm_request
-from utils.tracking_api import login, refresh_indicators, status_update
+from utils.tracking_api import login, refresh_indicators, status_update, get_indicators
 import os
 import logging
 from utils.logging_config import setup_logging
@@ -30,7 +30,16 @@ def bob():
             elapsed_time = (end_time - start_time).total_seconds()
             logger.info(f"Indicators refreshed in {elapsed_time:.2f} seconds.")
             status_update(token, f"Refreshed indicators (took {elapsed_time:.2f} seconds)")
-            
+
+            # check that indicators look good
+            indicators = get_indicators(token)
+            while not indicators['indicators']:
+                time.sleep(30)  # wait 30 seconds before trying again
+                logger.warning("Indicators are empty after refresh, trying again...")
+                refresh_indicators(token)
+                indicators = get_indicators(token)
+                status_update(token, f"Refreshed indicators again (took {elapsed_time:.2f} seconds)")
+
             # Check time again after refresh in case it took a while
             now = datetime.datetime.now()
             current_minute = now.minute
