@@ -46,9 +46,36 @@ def summarize_news():
 
 def email_news_summary():
     # TODO: store email list in database and use BCC
-    summary = summarize_news()
-    gmail = GmailClient()
-    admin_email = os.getenv("ADMIN_EMAIL")
-    today = datetime.datetime.now().strftime("%m/%d/%Y")
-    subject = f"Daily News Summary for {today}"
-    gmail.send_email(admin_email, subject, summary)
+    try:
+        summary = summarize_news()
+        
+        # Validate that we have content to send
+        if not summary or not summary.strip():
+            logger.error("❌ Newsletter email not sent: Summary is empty")
+            raise Exception("Newsletter summary is empty")
+            
+        gmail = GmailClient()
+        admin_email = os.getenv("ADMIN_EMAIL")
+        
+        if not admin_email:
+            logger.error("❌ Newsletter email not sent: ADMIN_EMAIL environment variable not set")
+            raise Exception("ADMIN_EMAIL environment variable not set")
+            
+        today = datetime.datetime.now().strftime("%m/%d/%Y")
+        subject = f"Daily News Summary for {today}"
+        
+        # Check return value and log result
+        email_sent = gmail.send_email(admin_email, subject, summary)
+        
+        if email_sent:
+            logger.info(f"✅ Newsletter email sent successfully to {admin_email}")
+            return True
+        else:
+            logger.error(f"❌ Newsletter email failed to send to {admin_email}")
+            raise Exception(f"Failed to send newsletter email to {admin_email}")
+            
+    except Exception as e:
+        logger.error(f"❌ Newsletter email failed with exception: {e}")
+        logger.exception("Full traceback:")
+        # Re-raise to trigger thread failure and error notification
+        raise
