@@ -48,6 +48,7 @@ def email_news_summary():
     # TODO: store email list in database and use BCC
     try:
         summary = summarize_news()
+        summary = summary.get('response') if isinstance(summary, dict) else summary
         
         # Validate that we have content to send
         if not summary or not summary.strip():
