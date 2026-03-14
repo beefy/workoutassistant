@@ -249,8 +249,9 @@ def alpha():
     balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
     # buy tokens in buy list
     for token in tokens_to_buy:
-        if token in balances and token != "SOL" and token not in current_holdings:
-            execute_crypto_trade(token, "buy", balances[token]['max_buy'] / len(tokens_to_buy), indicators['indicators'])
+        buy_amount = balances[token]['max_buy'] / len(tokens_to_buy)
+        if token in balances and token != "SOL" and token not in current_holdings and buy_amount > 0:
+            execute_crypto_trade(token, "buy", buy_amount, indicators['indicators'])
 
     api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
     status_update(api_token, f"Investing in {', '.join(tokens_to_buy.keys())}")
@@ -319,8 +320,9 @@ def beta():
     balances, max_value = get_crypto_balances_with_value(indicators['indicators'])
     # buy tokens in buy list
     for token in tokens_to_buy:
-        if token in balances and token != "SOL" and token not in current_holdings:
-            execute_crypto_trade(token, "buy", balances[token]['max_buy'] / len(tokens_to_buy), indicators['indicators'])
+        buy_amount = balances[token]['max_buy'] / len(tokens_to_buy)
+        if token in balances and token != "SOL" and token not in current_holdings and buy_amount > 0:
+            execute_crypto_trade(token, "buy", buy_amount, indicators['indicators'])
 
     api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
     status_update(api_token, f"Investing in {', '.join(tokens_to_buy.keys())}")
