@@ -14,7 +14,7 @@ pytz>=2023.3
 
 # FastAPI REST server dependencies
 fastapi>=0.104.0
-uvicorn>=0.24.0
+uvicorn>=0.46.0
 
 # Crypto wallet dependencies
 eth-account>=0.9.0
