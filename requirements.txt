@@ -29,4 +29,4 @@ yt-dlp>=2024.1.0
 # Discord voice dependencies (order matters)
 PyNaCl>=1.5.0
 discord.py[voice]>=2.3.0
-edge-tts>=6.1.0
+edge-tts>=7.2.8
