@@ -18,6 +18,7 @@ from clients.generate_image import HuggingFaceImageGenerator
 from clients.image_captioning import LocalImageCaptioner
 from utils.tracking_api import status_update, login, get_indicators
 from llm.prompts import build_initial_prompt, build_intermediate_prompt, build_final_prompt, build_crypto_prompt
+from llm.utils import ToolCallHandler
 import logging
 from utils.logging_config import setup_logging
 
@@ -32,10 +33,13 @@ class LocalLLM:
         self.n_ctx = n_ctx
         self.n_threads = n_threads
         self.model = None
-        self.tools_enabled = True
-        self.tool_call_memo = set()  # Store hash of executed tool calls to prevent duplicates
-        self.generated_images = []
         self.attachments = []
+        
+        # Use shared ToolCallHandler for tool call parsing, deduplication, and response cleaning
+        self.tool_handler = ToolCallHandler()
+        self.tools_enabled = self.tool_handler.tools_enabled
+        self.tool_call_memo = self.tool_handler.tool_call_memo
+        self.generated_images = self.tool_handler.generated_images
 
         # Initialize MoltbookClient
         try:
@@ -68,14 +72,14 @@ class LocalLLM:
     
     def set_tools_enabled(self, enabled):
         """Enable or disable tool functionality"""
-        self.tools_enabled = enabled
-        logger.info(f"🔧 Tools {'enabled' if enabled else 'disabled'}")
+        self.tool_handler.set_tools_enabled(enabled)
+        self.tools_enabled = self.tool_handler.tools_enabled
     
     def reset_session(self):
         """Reset generated images and tool call memo for a new session"""
-        self.generated_images = []
-        self.tool_call_memo = set()
-        logger.info("🔄 Session reset: cleared generated images and tool call memo")
+        self.tool_handler.reset_session()
+        self.generated_images = self.tool_handler.generated_images
+        self.tool_call_memo = self.tool_handler.tool_call_memo
     
     def _temporarily_unload_llm(self):
         """Temporarily unload LLM to free RAM for image processing"""
@@ -228,28 +232,12 @@ class LocalLLM:
             return "Sorry, I encountered an error while generating a response."
     
     def process_tool_calls(self, tool_calls, use_crypto_prompt=False):
-        try:
-            tool_results = []
-            for tool_call in tool_calls:
-                tool_result = self.execute_tool_call(
-                    tool_call['tool'], 
-                    tool_call['parameters'],
-                    use_crypto_prompt=use_crypto_prompt
-                )
-                tool_results.append(tool_result)
-
-                tracking_api_token = login(os.getenv("TRACKING_API_USERNAME"), os.getenv("TRACKING_API_PASSWORD"))
-                if tracking_api_token:
-                    status_update(tracking_api_token, f"Executed tool: {tool_call['tool']}")
-                
-                # Note: Tool hash is already added to memo in parse_tool_calls
-                # No need to add again here
-            
-            combined_results = "\n\n".join(tool_results)
-            return combined_results
-        except Exception as e:
-            logger.error(f"❌ Error during tool execution: {e}")
-            return "Sorry, I encountered an error while executing a tool."
+        """Process tool calls using the shared handler"""
+        return self.tool_handler.process_tool_calls(
+            tool_calls, 
+            self.execute_tool_call, 
+            use_crypto_prompt=use_crypto_prompt
+        )
 
     def prompt(self, prompt, max_tokens=2048, temperature=0.7, stop=None, max_tool_iterations=3, final_query=True, use_crypto_prompt=False, request_history=None):
         """Generate a response using the loaded model with tool call support"""
@@ -278,16 +266,16 @@ class LocalLLM:
         if not self.tools_enabled:
             logger.warning("⚠️ Tools are disabled, returning response without tool execution")
             return {
-                'response': self.clean_response(response),
+                'response': self.tool_handler.clean_response(response),
                 'generated_images': self.generated_images.copy()
             }
 
-        tool_calls = self.parse_tool_calls(response)
+        tool_calls = self.tool_handler.parse_tool_calls(response)
 
         if not tool_calls:
             logger.info("✅ No tool calls found, returning response")
             return {
-                'response': self.clean_response(response),
+                'response': self.tool_handler.clean_response(response),
                 'generated_images': self.generated_images.copy()
             }
         
@@ -311,19 +299,19 @@ class LocalLLM:
             else:
                 response = self.execute_prompt(build_crypto_prompt(tool_results, history, indicators), max_tokens, temperature, stop)
 
-            tool_calls = self.parse_tool_calls(response)
+            tool_calls = self.tool_handler.parse_tool_calls(response)
 
         # Final LLM call
         if final_query:
             response = self.execute_prompt(build_final_prompt(self.attachments, prompt, tool_results, history, request_history), max_tokens, temperature, stop)
-            cleaned_response = self.clean_response(response)
+            cleaned_response = self.tool_handler.clean_response(response)
             return {
                 'response': cleaned_response,
                 'generated_images': self.generated_images.copy()
             }
         else:
             return {
-                'response': self.clean_response(response),
+                'response': self.tool_handler.clean_response(response),
                 'generated_images': self.generated_images.copy()
             }
     
@@ -542,75 +530,9 @@ class LocalLLM:
             return f"Error: Unknown tool '{tool_name}'"
     
     def parse_tool_calls(self, text):
-        """Parse tool calls from LLM response - looking for JSON objects with 'tool' field"""
-        tool_calls = []
-        
-        # Find all JSON objects in the text
-        brace_stack = []
-        json_start = None
-        
-        for i, char in enumerate(text):
-            if char == '{':
-                if not brace_stack:  # Starting a new JSON object
-                    json_start = i
-                brace_stack.append('{')
-            elif char == '}':
-                if brace_stack:
-                    brace_stack.pop()
-                    if not brace_stack and json_start is not None:  # Complete JSON object found
-                        json_str = text[json_start:i+1]
-                        try:
-                            parsed_json = json.loads(json_str)
-                            # Check if this JSON object has a 'tool' field
-                            if isinstance(parsed_json, dict) and 'tool' in parsed_json:
-                                tool_name = parsed_json['tool']
-                                parameters = parsed_json.get('parameters', {})
-                                
-                                # Check if this tool call was already executed this session
-                                tool_hash = self._hash_tool_call(tool_name, parameters)
-                                if tool_hash not in self.tool_call_memo:
-                                    tool_calls.append({
-                                        'tool': tool_name,
-                                        'parameters': parameters,
-                                        'raw': json_str
-                                    })
-                                    # Add to memo immediately to prevent duplicates in same response
-                                    self.tool_call_memo.add(tool_hash)
-                                else:
-                                    logger.debug(f"🔄 Skipping duplicate tool call: {tool_name} with same parameters")
-                        except json.JSONDecodeError as e:
-                            # Invalid JSON, skip it
-                            pass
-                        json_start = None
-                        
-        return tool_calls[:5]  # Limit to 5 tool calls to avoid overload
-
-    def _hash_tool_call(self, tool_name, parameters):
-        """Create a hash of tool call for deduplication"""
-        import hashlib
-        # Create a deterministic string representation
-        param_str = json.dumps(parameters, sort_keys=True)
-        combined = f"{tool_name}:{param_str}"
-        return hashlib.md5(combined.encode()).hexdigest()
+        """Parse tool calls from LLM response - delegates to shared ToolCallHandler"""
+        return self.tool_handler.parse_tool_calls(text)
     
     def clean_response(self, response):
-        """Clean up the response by removing unwanted prefixes and formatting"""
-        if not response:
-            return response
-        
-        cleaned = response.replace("\n===\n", "").strip()
-
-        # if "Dear " in response, remove everything before it (case insensitive)
-        dear_match = re.search(r"dear\s+", cleaned, re.IGNORECASE)
-        if dear_match:
-            cleaned = cleaned[dear_match.start():]
-
-        # If Sincerely, Bob the Raspberry Pi is in the response, remove everything after it
-        # Allow for text and newlines between "Sincerely," and "Bob the Raspberry Pi"
-        sincerely_pattern = r"sincerely,.*?bob\s+the\s+raspberry\s+pi"
-        match = re.search(sincerely_pattern, cleaned, re.IGNORECASE | re.DOTALL)
-        if match:
-            cleaned = cleaned[:match.end()]
-
-        # Final strip to clean up any remaining leading/trailing whitespace
-        return cleaned.strip()
+        """Clean up the response - delegates to shared ToolCallHandler"""
+        return self.tool_handler.clean_response(response)

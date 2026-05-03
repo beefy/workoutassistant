@@ -32,5 +32,8 @@ HUGGING_FACE_TOKEN=your-hf-token
 # Optional: Database path (default: /app/data/database.db)
 # DATABASE_PATH=/app/data/database.db
 
+# DeepSeek API (for cloud LLM option)
+DEEPSEEK_API_KEY=your-deepseek-api-key
+
 # Optional: Log level (default: INFO)
 # LOG_LEVEL=DEBUG

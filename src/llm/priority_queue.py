@@ -11,6 +11,7 @@ import time
 from typing import Callable, List, Optional, Dict, Any
 from concurrent.futures import Future
 from llm.local_llm import LocalLLM
+from llm.deepseek import DeepSeekLLM
 import logging
 from utils.logging_config import setup_logging
 
@@ -23,7 +24,7 @@ class LLMRequest:
     """Represents a single LLM request with priority"""
     
     def __init__(self, prompt: str, attachments: List[str] = None, priority: int = 1, 
-                 max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous"):
+                 max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous", llm_type: str = "local"):
         self.prompt = prompt
         self.attachments = attachments or []
         self.priority = priority  # 1 for email (higher priority), 2 for moltbook (lower priority)
@@ -33,6 +34,7 @@ class LLMRequest:
         self.use_crypto_prompt = use_crypto_prompt
         self.task = task  # Which task requested this (discord, email, newsletter, crypto, moltbook)
         self.user = user  # Which user made this request
+        self.llm_type = llm_type  # "local" for LocalLLM, "deepseek" for DeepSeekLLM
         self.future = Future()  # Used for thread synchronization
         self.timestamp = time.time()  # Add timestamp for FIFO ordering
         
@@ -64,12 +66,14 @@ class LLMPriorityQueueManager:
             return
             
         self.initialized = True
-        self.llm = None
+        self.local_llm = None
+        self.deepseek_llm = None
         self.priority_queue = queue.PriorityQueue()
         self.worker_thread = None
         self.running = False
         self.init_lock = threading.Lock()
-        self.llm_ready = threading.Event()
+        self.local_llm_ready = threading.Event()
+        self.deepseek_llm_ready = threading.Event()
         self.current_task = None  # Track what task is currently being processed
         self.current_request = None  # Track current request details
         self.user_conversations = {}  # Persistent dictionary to track user conversations
@@ -83,14 +87,43 @@ class LLMPriorityQueueManager:
         self.worker_thread = threading.Thread(target=self._process_queue, daemon=True)
         self.worker_thread.start()
     
-    def _initialize_llm(self):
-        """Initialize the LLM instance (called once)"""
+    def _initialize_local_llm(self):
+        """Initialize the local LLM instance (called once)"""
         with self.init_lock:
-            if self.llm is None:
-                logger.info("🤖 Initializing global LLM instance...")
-                self.llm = LocalLLM()
-                logger.info("✅ LLM initialized successfully")
-                self.llm_ready.set()
+            if self.local_llm is None:
+                logger.info("🤖 Initializing global Local LLM instance...")
+                self.local_llm = LocalLLM()
+                logger.info("✅ Local LLM initialized successfully")
+                self.local_llm_ready.set()
+    
+    def _initialize_deepseek_llm(self):
+        """Initialize the DeepSeek LLM instance (called once)"""
+        with self.init_lock:
+            if self.deepseek_llm is None:
+                logger.info("🤖 Initializing global DeepSeek LLM instance...")
+                try:
+                    self.deepseek_llm = DeepSeekLLM()
+                    logger.info("✅ DeepSeek LLM initialized successfully")
+                    self.deepseek_llm_ready.set()
+                except ValueError as e:
+                    logger.error(f"❌ Failed to initialize DeepSeek LLM: {e}")
+                    logger.warning("⚠️ DeepSeek LLM not available. Falling back to local LLM for deepseek requests.")
+                    # Mark as ready with None so requests fall through to local
+                    self.deepseek_llm_ready.set()
+    
+    def _get_llm_for_request(self, request):
+        """Get the appropriate LLM instance for the request type"""
+        if request.llm_type == "deepseek":
+            # Wait for DeepSeek to be ready
+            self.deepseek_llm_ready.wait()
+            if self.deepseek_llm is not None:
+                return self.deepseek_llm
+            else:
+                logger.warning(f"⚠️ DeepSeek LLM not available, falling back to local LLM for request from {request.task}")
+        
+        # Default to local LLM
+        self.local_llm_ready.wait()
+        return self.local_llm
     
     def _store_conversation(self, user: str, request: str, response: str):
         """Store conversation history for a user"""
@@ -122,24 +155,20 @@ class LLMPriorityQueueManager:
                 # Get the next request from the priority queue (blocks until available)
                 request = self.priority_queue.get(timeout=1.0)
                 
-                # Initialize LLM if not already done
-                if self.llm is None:
-                    self._initialize_llm()
-                
-                # Wait for LLM to be ready
-                self.llm_ready.wait()
+                # Get the appropriate LLM for this request
+                llm = self._get_llm_for_request(request)
                 
                 # Set current task tracking
-                self.current_task = f"{request.task} (priority {request.priority})"
+                self.current_task = f"{request.task} (priority {request.priority}, llm: {request.llm_type})"
                 self.current_request = request
                 
                 # Process the request
-                logger.info(f"🎯 Processing LLM request from {request.task} (priority {request.priority})")
+                logger.info(f"🎯 Processing LLM request from {request.task} (priority {request.priority}, llm: {request.llm_type})")
                 
                 try:
                     # Set attachments if provided
                     if request.attachments:
-                        self.llm.attachments = request.attachments
+                        llm.attachments = request.attachments
                     
                     # Generate response
                     kwargs = {}
@@ -160,11 +189,11 @@ class LLMPriorityQueueManager:
                         if recent_history:
                             kwargs['request_history'] = recent_history
                     
-                    result = self.llm.prompt(request.prompt, **kwargs)
+                    result = llm.prompt(request.prompt, **kwargs)
                     
                     # Clear attachments after use
                     if request.attachments:
-                        self.llm.attachments = []
+                        llm.attachments = []
                     
                     # Set the result (now a dict with response and generated_images)
                     request.future.set_result(result)
@@ -172,7 +201,7 @@ class LLMPriorityQueueManager:
                     # Store the conversation in user history
                     self._store_conversation(request.user, request.prompt, result.get('response', '') if isinstance(result, dict) else str(result))
                         
-                    logger.info(f"✅ LLM request completed from {request.task} (priority {request.priority}) for user {request.user}")
+                    logger.info(f"✅ LLM request completed from {request.task} (priority {request.priority}, llm: {request.llm_type}) for user {request.user}")
                     
                 except Exception as e:
                     logger.error(f"❌ Error processing LLM request from {request.task}: {e}")
@@ -192,7 +221,7 @@ class LLMPriorityQueueManager:
                 logger.warning(f"⚠️ Unexpected error in queue worker: {e}")
     
     def submit_request(self, prompt: str, attachments: List[str] = None, priority: int = 1,
-                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous") -> Dict[str, Any]:
+                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous", llm_type: str = "local") -> Dict[str, Any]:
         """
         Submit a prompt request to the LLM priority queue.
         
@@ -206,6 +235,7 @@ class LLMPriorityQueueManager:
             use_crypto_prompt: Whether to use crypto-specific prompting
             task: Which task is making this request (discord, email, newsletter, crypto, moltbook)
             user: Which user is making this request
+            llm_type: Which LLM to use ("local" for LocalLLM, "deepseek" for DeepSeekLLM, default: "local")
             
         Returns:
             Dict with 'response' (str) and 'generated_images' (List[str]) keys
@@ -223,12 +253,13 @@ class LLMPriorityQueueManager:
             final_query=final_query,
             use_crypto_prompt=use_crypto_prompt,
             task=task,
-            user=user
+            user=user,
+            llm_type=llm_type
         )
         
         # Add to priority queue
         self.priority_queue.put(request)
-        logger.info(f"📝 LLM request queued (priority {priority}) for user {user}")
+        logger.info(f"📝 LLM request queued (priority {priority}, llm: {llm_type}) for user {user}")
         
         # Block until response is ready
         try:
@@ -250,11 +281,13 @@ class LLMPriorityQueueManager:
             'current_request': {
                 'task': self.current_request.task if self.current_request else None,
                 'priority': self.current_request.priority if self.current_request else None,
+                'llm_type': self.current_request.llm_type if self.current_request else None,
                 'timestamp': self.current_request.timestamp if self.current_request else None,
                 'prompt_preview': self.current_request.prompt[:100] + '...' if self.current_request and len(self.current_request.prompt) > 100 else self.current_request.prompt if self.current_request else None
             } if self.current_request else None,
             'running': self.running,
-            'llm_ready': self.llm_ready.is_set() if self.llm_ready else False
+            'local_llm_ready': self.local_llm_ready.is_set() if self.local_llm_ready else False,
+            'deepseek_llm_ready': self.deepseek_llm_ready.is_set() if self.deepseek_llm_ready else False
         }
     
     def shutdown(self):
@@ -271,7 +304,7 @@ llm_queue_manager = LLMPriorityQueueManager()
 
 
 def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int = 1,
-                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous") -> Dict[str, Any]:
+                      max_tokens: int = None, temperature: float = None, final_query=True, use_crypto_prompt=False, task: str = "unknown", user: str = "anonymous", llm_type: str = "local") -> Dict[str, Any]:
     """
     Convenience function to submit LLM requests.
     
@@ -285,6 +318,7 @@ def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int
         use_crypto_prompt: Whether to use crypto-specific prompting
         task: Which task is making this request (discord, email, newsletter, crypto, moltbook)
         user: Which user is making this request
+        llm_type: Which LLM to use ("local" for LocalLLM, "deepseek" for DeepSeekLLM, default: "local")
         
     Returns:
         Dict with 'response' (str) and 'generated_images' (List[str]) keys
@@ -298,5 +332,6 @@ def submit_llm_request(prompt: str, attachments: List[str] = None, priority: int
         final_query=final_query,
         use_crypto_prompt=use_crypto_prompt,
         task=task,
-        user=user
+        user=user,
+        llm_type=llm_type
     )
