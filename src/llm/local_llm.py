@@ -70,6 +70,16 @@ class LocalLLM:
 
         self.load_model()
     
+    def __del__(self):
+        """Clean up the model explicitly to avoid errors during interpreter shutdown"""
+        if self.model is not None:
+            try:
+                # Explicitly close the model to prevent __del__ issues during shutdown
+                self.model.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
+            self.model = None
+    
     def set_tools_enabled(self, enabled):
         """Enable or disable tool functionality"""
         self.tool_handler.set_tools_enabled(enabled)
