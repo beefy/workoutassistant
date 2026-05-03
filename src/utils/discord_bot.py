@@ -824,10 +824,11 @@ def create_discord_bot():
 • Memory: {memory.percent}% ({memory.used // 1024 // 1024}MB / {memory.total // 1024 // 1024}MB)
 • Disk: {disk.percent}% ({disk.used // 1024 // 1024 // 1024}GB / {disk.total // 1024 // 1024 // 1024}GB)
 
-**LLM Queue:**
+            **LLM Queue:**
 • Queue Size: {queue_status['queue_size']} requests waiting
 • Current Processing: {current_info}
-• LLM Ready: {'Yes' if queue_status['llm_ready'] else 'No'}
+• Local LLM Ready: {'Yes' if queue_status.get('local_llm_ready', False) else 'No'}
+• DeepSeek LLM Ready: {'Yes' if queue_status.get('deepseek_llm_ready', False) else 'No'}
 • Queue Running: {'Yes' if queue_status['running'] else 'No'}
 
 **Discord Bot:**
