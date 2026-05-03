@@ -84,6 +84,9 @@ class LLMPriorityQueueManager:
     def _start_worker(self):
         """Start the background worker thread"""
         self.running = True
+        # Start LLM initialization in background threads so they don't block the queue worker
+        threading.Thread(target=self._initialize_local_llm, daemon=True).start()
+        threading.Thread(target=self._initialize_deepseek_llm, daemon=True).start()
         self.worker_thread = threading.Thread(target=self._process_queue, daemon=True)
         self.worker_thread.start()
     
