@@ -81,8 +81,10 @@ def bobby():
         if last_llm_request_hour is None:
             last_llm_request_hour = current_hour
         elif current_minute >= 58 and last_llm_request_hour != current_hour:
-            logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request...")
-            beta()
+            logger.info(f"1+ minutes past hour detected ({current_hour}:{current_minute:02d}), submitting LLM request to DeepSeek...")
+            llm_result = submit_llm_request("", priority=1, max_tokens=1000, temperature=0.7, final_query=False, use_crypto_prompt=True, task="Crypto trading decision (DeepSeek)", llm_type="deepseek")
+            response = llm_result.get('response', '')
+            logger.info(f"DeepSeek LLM response for crypto trading: {response}")
             last_llm_request_hour = current_hour
 
         time.sleep(60)  # Sleep for 1 minute
