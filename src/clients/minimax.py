@@ -328,8 +328,13 @@ if __name__ == "__main__":
     response = list_files()
     files = [file for file in response['files'] if file['purpose'] == 't2a_async']
     for file in files:
-        # TODO: check if file already exists locally before retrieving content
+        # check if file already exists locally before retrieving content
+        if os.path.exists(f"downloads/{file['file_id']}.mp3"):
+            print(f"File {file['file_id']} already exists locally, skipping retrieval.")
+            continue
+        
         content = retrieve_file_content(file['file_id'])
         # write file content to a mp3 file
+        print(f"Retrieved content for file_id {file['file_id']}, saving to downloads/{file['file_id']}.mp3")
         with open(f"downloads/{file['file_id']}.mp3", "wb") as f:
             f.write(content)
