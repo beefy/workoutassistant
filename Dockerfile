@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 # Multi-stage build to minimize image size
-FROM --platform=$TARGETPLATFORM python:3.11-slim AS builder
+FROM --platform=$TARGETPLATFORM python:3.14-slim AS builder
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
@@ -56,7 +56,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
 # Production stage
-FROM --platform=$TARGETPLATFORM python:3.11-slim AS production
+FROM --platform=$TARGETPLATFORM python:3.14-slim AS production
 ARG TARGETPLATFORM
 
 # Install minimal runtime dependencies
